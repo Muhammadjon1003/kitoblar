@@ -1,9 +1,13 @@
 import express from 'express';
 import multer from 'multer';
 import { bot, uploadToTelegramChannel } from './telegram';
+import { registerBotHandlers } from './botHandlers';
 import { createSmartOrder } from './orderService';
 import * as dotenv from 'dotenv';
 dotenv.config();
+
+// Register all Telegram Bot commands, document uploads, and FSM handlers
+registerBotHandlers();
 
 const app = express();
 app.use(express.json());

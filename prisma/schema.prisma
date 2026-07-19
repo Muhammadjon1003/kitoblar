@@ -67,3 +67,30 @@ model Financials {
   remainingBalance Float    @default(0.0)
   student          Student  @relation(fields: [studentId], references: [id])
 }
+
+model Session {
+  userId String @id
+  state  String
+  data   String @default("{}")
+}
+
+model Category {
+  id    Int            @id @default(autoincrement())
+  name  String         @unique
+  books TelegramBook[]
+
+  @@map("categories")
+}
+
+model TelegramBook {
+  id          Int      @id @default(autoincrement())
+  tgFileId    String   @map("tg_file_id") @db.VarChar(255)
+  tgMessageId Int      @map("tg_message_id")
+  name        String   @db.VarChar(255)
+  categoryId  Int      @map("category_id")
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@map("books")
+}
+
+
