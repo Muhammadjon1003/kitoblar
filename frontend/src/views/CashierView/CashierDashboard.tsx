@@ -229,7 +229,7 @@ function PaymentsHistoryView() {
 }
 
 function BoshqaruvKorinishi() {
-  const { groups, students, getTeacherName } = useApp();
+  const { groups, students } = useApp();
   const [guruhKorsat,   setGuruhKorsat]   = useState(false);
   const [talabKorsat, setTalabaKorsat] = useState(false);
 
@@ -269,7 +269,7 @@ function BoshqaruvKorinishi() {
             {groups.map(g => (
               <tr key={g.id} className="hover:bg-slate-50 transition-colors">
                 <Td>{g.groupName}</Td>
-                <Td>{getTeacherName(g.teacherId)}</Td>
+                <Td>{g.teacherName}</Td>
                 <Td mono>{g.startDate}</Td>
                 <Td mono>{g.endDate}</Td>
                 <Td>

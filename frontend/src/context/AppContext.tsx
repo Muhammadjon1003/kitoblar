@@ -24,22 +24,8 @@ export const SEED_TEACHERS: Teacher[] = [
   { id: 't3', name: 'Bobur Toshmatov',  username: 'b.toshmatov' },
 ];
 
-const SEED_GROUPS: Group[] = [
-  { id: 'g1', groupName: 'Math-101',     teacherId: 't1', startDate: '2026-01-10', endDate: '2026-06-30', orderIntervalDays: 30 },
-  { id: 'g2', groupName: 'Python-Intro', teacherId: 't2', startDate: '2026-02-01', endDate: '2026-07-31', orderIntervalDays: 45 },
-  { id: 'g3', groupName: 'English-B2',   teacherId: 't3', startDate: '2026-03-01', endDate: '2026-08-31', orderIntervalDays: 60 },
-];
-
-const SEED_STUDENTS: Student[] = [
-  { id: 's1', name: 'Jasur Bek Toshmatov', groupId: 'g1', createdAt: '2026-01-12' },
-  { id: 's2', name: 'Malika Yusupova',      groupId: 'g1', createdAt: '2026-01-14' },
-  { id: 's3', name: 'Sardor Umarov',         groupId: 'g1', createdAt: '2026-01-20' },
-  { id: 's4', name: 'Nilufar Saidova',       groupId: 'g2', createdAt: '2026-02-03' },
-  { id: 's5', name: 'Bobur Rahimov',          groupId: 'g2', createdAt: '2026-02-07' },
-  { id: 's6', name: 'Zulfiya Hasanova',       groupId: 'g3', createdAt: '2026-03-04' },
-  { id: 's7', name: 'Kamol Qodirov',          groupId: 'g3', createdAt: '2026-03-10' },
-  { id: 's8', name: 'Dilnoza Rahimova',       groupId: 'g2', createdAt: '2026-02-15' },
-];
+const SEED_GROUPS: Group[] = [];
+const SEED_STUDENTS: Student[] = [];
 
 const SEED_INVENTORY: InventoryItem[] = [];
 
@@ -64,11 +50,9 @@ const SEED_ORDERS: Order[] = [
 
 // ─── ID generators ─────────────────────────────────────────────────────────────
 
-let _gId = 10, _sId = 20, _oId = 100, _nId = 50, _invId = 10;
-const nextGroupId   = () => `g${++_gId}`;
-const nextStudentId = () => `s${++_sId}`;
+let _oId = 100, _invId = 10;
+// nextGroupId / nextStudentId / nextNotifId removed — managed via live API or no longer needed
 const nextOrderId   = () => `o${++_oId}`;
-const nextNotifId   = () => `n${++_nId}`;
 const nextInvId     = () => `inv${++_invId}`;
 const nextToastId   = () => `t${Date.now()}`;
 const genTgFileId   = (title: string) =>
@@ -103,8 +87,6 @@ interface AppContextType {
   setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
 
   // ── Mutations (TR § 3 state machine transitions)
-  createGroup: (name: string, teacherId: string, start: string, end: string, days: number) => void;
-  onboardStudent: (name: string, groupId: string) => void;          // TR § 5 trigger
   createBulkOrders: (items: BulkOrderItem[]) => void;               // TEACHER action → CREATED
   collectCash: (orderId: string, amount: number) => void;           // CREATED → PAID
   cancelOrder: (orderId: string) => void;                           // CREATED → CANCELLED
@@ -117,6 +99,8 @@ interface AppContextType {
   dismissNotification: (id: string) => void;
   dismissToast: (id: string) => void;
   fireToast: (message: string, variant?: AppToast['variant']) => void;
+  refreshGroups: () => Promise<void>;    // Re-fetches groups from live API
+  refreshStudents: () => Promise<void>;  // Re-fetches students from live API
 
   // ── Computed helpers
   getTeacherName: (id: string) => string;
@@ -126,7 +110,7 @@ interface AppContextType {
   getStudentOrders: (studentId: string) => Order[];
   getLatestOrder: (studentId: string) => Order | undefined;
   getStudentsByGroup: (groupId: string) => Student[];
-  getGroupsByTeacher: (teacherId: string) => Group[];
+  getGroupsByTeacher: (teacherName: string) => Group[];
   retailPrice: (bookCost: number) => number; // bookCost × 1.5
   isDeliverable: (order: Order) => boolean;  // amount_paid >= retailPrice
 }
@@ -175,11 +159,45 @@ export function AppProvider({ children }: { children: ReactNode }) {
           setInventory(mappedBooks);
         }
       } catch (err) {
-        console.warn('Failed to load books from live DB API, falling back to mock list:', err);
+        console.warn('Failed to load books from live DB API:', err);
       }
     }
     loadBooks();
   }, []);
+
+  // ── Fetch Live Groups & Students from API on mount ────────────────────────
+  const refreshGroups = useCallback(async () => {
+    try {
+      const res = await fetch('https://kitoblar-seven.vercel.app/backend/groups');
+      if (!res.ok) throw new Error('groups API failed');
+      const data: Group[] = await res.json();
+      setGroups(data);
+    } catch (err) {
+      console.warn('Failed to load groups from live API:', err);
+    }
+  }, []);
+
+  const refreshStudents = useCallback(async () => {
+    try {
+      const res = await fetch('https://kitoblar-seven.vercel.app/backend/students');
+      if (!res.ok) throw new Error('students API failed');
+      const data = await res.json();
+      // Normalise: map fullName → name and joinedAt → createdAt for backward compat
+      const mapped: Student[] = data.map((s: any) => ({
+        ...s,
+        name: s.fullName,
+        createdAt: s.joinedAt,
+      }));
+      setStudents(mapped);
+    } catch (err) {
+      console.warn('Failed to load students from live API:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshGroups();
+    refreshStudents();
+  }, [refreshGroups, refreshStudents]);
 
   // ── Toast helpers ────────────────────────────────────────────────────────────
 
@@ -200,45 +218,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setActiveSubPage(DEFAULT_SUBPAGE[r]);
   }, []);
 
-  // ── TR § 5: Notification trigger on student onboarding ────────────────────────
-
-  const emitTeacherNotification = useCallback((teacherId: string, studentName: string) => {
-    const notif: SystemNotification = {
-      id: nextNotifId(),
-      userId: teacherId,
-      message: `New student onboarded: ${studentName}. Please allocate required textbook orders.`,
-      type: 'IMMEDIATE_ORDER_REQUIRED',
-      isRead: false,
-      createdAt: todayISO(),
-    };
-    setNotifications(prev => [notif, ...prev]);
-  }, []);
+  // emitTeacherNotification removed — student onboarding now done via API (StudentModals)
 
   // ── Mutations ─────────────────────────────────────────────────────────────────
-
-  const createGroup = useCallback((name: string, teacherId: string, start: string, end: string, days: number) => {
-    const g: Group = {
-      id: nextGroupId(),
-      groupName: name,
-      teacherId,
-      startDate: start,
-      endDate: end,
-      orderIntervalDays: days,
-    };
-    setGroups(prev => [...prev, g]);
-    fireToast(`Group "${name}" created and assigned.`);
-  }, [fireToast]);
-
-  const onboardStudent = useCallback((name: string, groupId: string) => {
-    const s: Student = { id: nextStudentId(), name, groupId, createdAt: todayISO() };
-    setStudents(prev => [...prev, s]);
-
-    // TR § 5: emit notification to the group's teacher
-    const group = groups.find(g => g.id === groupId);
-    if (group) emitTeacherNotification(group.teacherId, name);
-
-    fireToast(`Student "${name}" enrolled. Teacher notified.`);
-  }, [groups, emitTeacherNotification, fireToast]);
 
   const createBulkOrders = useCallback((items: BulkOrderItem[]) => {
     const now = todayISO();
@@ -380,7 +362,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const getLatestOrder    = (studentId: string) => getStudentOrders(studentId)[0];
 
   const getStudentsByGroup  = (groupId: string) => students.filter(s => s.groupId === groupId);
-  const getGroupsByTeacher  = (teacherId: string) => groups.filter(g => g.teacherId === teacherId);
+  const getGroupsByTeacher  = (teacherName: string) => groups.filter(g => g.teacherName === teacherName);
 
   const retailPrice     = (bookCost: number) => parseFloat((bookCost * 1.5).toFixed(2));
   const isDeliverable   = (order: Order)     => order.amountPaid >= retailPrice(order.bookCost);
@@ -391,10 +373,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider value={{
       activeRole, activeSubPage, setActiveRole, setActiveSubPage,
       teachers, groups, students, inventory, orders, notifications, toasts, setOrders, fireToast,
-      createGroup, onboardStudent, createBulkOrders, collectCash, cancelOrder,
+      createBulkOrders, collectCash, cancelOrder,
       dispatchToSupplier, markArrived, deliverBook, decoupleBook,
       allocateFromWarehouse, addInventoryItem,
       dismissNotification, dismissToast,
+      refreshGroups, refreshStudents,
       getTeacherName, getStudentName, getGroupName, getInventoryItem,
       getStudentOrders, getLatestOrder, getStudentsByGroup, getGroupsByTeacher,
       retailPrice, isDeliverable,

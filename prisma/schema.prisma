@@ -93,4 +93,29 @@ model TelegramBook {
   @@map("books")
 }
 
+// ─── ERP: Groups & Students (live management tables) ──────────────────────────
 
+model ErpGroup {
+  id                String       @id @default(cuid())
+  groupName         String
+  teacherName       String
+  subjectCategory   String       @default("")
+  startDate         String
+  endDate           String
+  orderIntervalDays Int          @default(30)
+  createdAt         DateTime     @default(now())
+  students          ErpStudent[]
+
+  @@map("erp_groups")
+}
+
+model ErpStudent {
+  id          String    @id @default(cuid())
+  fullName    String
+  phoneNumber String    @default("")
+  groupId     String
+  group       ErpGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  joinedAt    DateTime  @default(now())
+
+  @@map("erp_students")
+}

@@ -31,18 +31,25 @@ export interface Teacher {
 export interface Group {
   id: string;
   groupName: string;
-  teacherId: string;          // FK → users.id
+  teacherName: string;        // Free-text teacher display name
+  subjectCategory: string;    // Subject / category label
   startDate: string;          // ISO date string
   endDate: string;            // ISO date string
   orderIntervalDays: number;  // Used for TR § 5 window calculation
+  createdAt?: string;         // ISO creation date
+  studentCount?: number;      // Computed count from API
 }
 
-// ─── TR § 2: students table (strictly minimal — no debt, phone, lessons) ───────
+// ─── TR § 2: students table ──────────────────────────────────────────────────
 export interface Student {
   id: string;
-  name: string;
-  groupId: string;   // FK → groups.id
-  createdAt: string; // Onboarding ISO timestamp
+  fullName: string;    // Full name from DB
+  name: string;        // Alias for fullName (kept for backward compat with existing views)
+  phoneNumber: string; // Contact phone
+  groupId: string;     // FK → groups.id
+  groupName?: string;  // Denormalised from API join
+  joinedAt: string;    // ISO date of enrollment
+  createdAt: string;   // Alias for joinedAt (backward compat)
 }
 
 // ─── TR § 2: inventory table ──────────────────────────────────────────────────

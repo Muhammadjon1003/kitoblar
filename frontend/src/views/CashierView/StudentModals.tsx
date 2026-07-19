@@ -1,49 +1,98 @@
 /**
  * views/CashierView/StudentModals.tsx — O'zbek tili
+ * Live API-connected: no mock data. POST to backend → refresh context state.
  */
 
 import { useState } from 'react';
-import { FolderPlus, Users, ChevronDown } from 'lucide-react';
-import { useApp, SEED_TEACHERS } from '../../context/AppContext';
+import { FolderPlus, Users, ChevronDown, Loader2, AlertCircle } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
 import { ModalShell } from '../../components/ui';
 
-export function CreateGroupModal({ onClose }: { onClose: () => void }) {
-  const { createGroup } = useApp();
-  const [nom,      setNom]      = useState('');
-  const [oqituvchi, setOqituvchi] = useState(SEED_TEACHERS[0].id);
-  const [boshlanish, setBoshlanish] = useState('');
-  const [tugash,   setTugash]   = useState('');
-  const [kunlar,   setKunlar]   = useState(30);
-  const [xato,     setXato]     = useState('');
+const API = 'https://kitoblar-seven.vercel.app';
 
-  const handleSubmit = (e: React.FormEvent) => {
+// ─── Create Group Modal ────────────────────────────────────────────────────────
+
+export function CreateGroupModal({ onClose }: { onClose: () => void }) {
+  const { fireToast, refreshGroups } = useApp();
+
+  const [nom,            setNom]            = useState('');
+  const [oqituvchi,     setOqituvchi]       = useState('');
+  const [kategoriya,     setKategoriya]     = useState('');
+  const [boshlanish,    setBoshlanish]      = useState('');
+  const [tugash,        setTugash]          = useState('');
+  const [kunlar,        setKunlar]          = useState(30);
+  const [yuklanyapti,   setYuklanyapti]     = useState(false);
+  const [xato,          setXato]            = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nom.trim()) { setXato('Guruh nomi majburiy.'); return; }
-    if (!boshlanish || !tugash) { setXato('Sanalar majburiy.'); return; }
-    createGroup(nom.trim(), oqituvchi, boshlanish, tugash, kunlar);
-    onClose();
+    if (!nom.trim())       { setXato('Guruh nomi majburiy.'); return; }
+    if (!oqituvchi.trim()) { setXato("O'qituvchi ismi majburiy."); return; }
+
+    setYuklanyapti(true);
+    setXato('');
+    try {
+      const res = await fetch(`${API}/backend/groups`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          groupName: nom.trim(),
+          teacherName: oqituvchi.trim(),
+          subjectCategory: kategoriya.trim(),
+          startDate: boshlanish,
+          endDate: tugash,
+          orderIntervalDays: kunlar,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? 'Server xatosi yuz berdi.');
+      }
+
+      await refreshGroups();
+      fireToast(`Guruh "${nom.trim()}" muvaffaqiyatli yaratildi.`);
+      onClose();
+    } catch (err: any) {
+      setXato(err.message ?? 'Tarmoq xatosi. Qayta urinib ko\'ring.');
+    } finally {
+      setYuklanyapti(false);
+    }
   };
 
   return (
-    <ModalShell title="Yangi guruh yaratish" subtitle="O'qituvchi biriktiring va jadval belgilang" icon={FolderPlus} onClose={onClose}>
+    <ModalShell title="Yangi guruh yaratish" subtitle="Ma'lumotlarni kiriting va saqalng" icon={FolderPlus} onClose={onClose}>
       <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+
+        {/* Group Name */}
         <div>
           <label className="sb-label">Guruh nomi</label>
-          <input className="sb-input" placeholder="masalan: Fizika-Ilg'or" value={nom}
-            onChange={e => { setNom(e.target.value); setXato(''); }} />
-          {xato && <p className="text-[11px] text-red-500 mt-1">{xato}</p>}
+          <input
+            className="sb-input" placeholder="masalan: Fizika-Ilg'or"
+            value={nom} onChange={e => { setNom(e.target.value); setXato(''); }}
+            autoFocus
+          />
         </div>
 
+        {/* Teacher Name */}
         <div>
-          <label className="sb-label">Mas'ul o'qituvchi</label>
-          <div className="relative">
-            <select className="sb-input appearance-none pr-8" value={oqituvchi} onChange={e => setOqituvchi(e.target.value)}>
-              {SEED_TEACHERS.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-          </div>
+          <label className="sb-label">Mas'ul o'qituvchi ismi</label>
+          <input
+            className="sb-input" placeholder="masalan: Alisher Nazarov"
+            value={oqituvchi} onChange={e => { setOqituvchi(e.target.value); setXato(''); }}
+          />
         </div>
 
+        {/* Subject Category */}
+        <div>
+          <label className="sb-label">Fan / kategoriya</label>
+          <input
+            className="sb-input" placeholder="masalan: Matematika"
+            value={kategoriya} onChange={e => setKategoriya(e.target.value)}
+          />
+        </div>
+
+        {/* Date range */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="sb-label">Boshlanish sanasi</label>
@@ -55,16 +104,31 @@ export function CreateGroupModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
+        {/* Interval */}
         <div>
           <label className="sb-label">Buyurtma intervali (kunlar)</label>
-          <input type="number" min={1} className="sb-input" value={kunlar}
-            onChange={e => setKunlar(parseInt(e.target.value) || 30)} />
+          <input
+            type="number" min={1} className="sb-input" value={kunlar}
+            onChange={e => setKunlar(parseInt(e.target.value) || 30)}
+          />
         </div>
 
+        {/* Error banner */}
+        {xato && (
+          <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-300 rounded-xl text-[12px] font-semibold text-red-700">
+            <AlertCircle className="w-4 h-4 shrink-0" /> {xato}
+          </div>
+        )}
+
         <div className="flex gap-2 pt-2 border-t border-slate-100">
-          <button type="button" onClick={onClose} className="sb-btn-secondary flex-1 text-xs">Bekor qilish</button>
-          <button type="submit" className="sb-btn-primary flex-1 flex items-center justify-center gap-1.5 text-xs">
-            <FolderPlus className="w-3.5 h-3.5" /> Guruh yaratish
+          <button type="button" onClick={onClose} disabled={yuklanyapti} className="sb-btn-secondary flex-1 text-xs">
+            Bekor qilish
+          </button>
+          <button type="submit" disabled={yuklanyapti} className="sb-btn-primary flex-1 flex items-center justify-center gap-1.5 text-xs">
+            {yuklanyapti
+              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saqlanmoqda...</>
+              : <><FolderPlus className="w-3.5 h-3.5" /> Guruh yaratish</>
+            }
           </button>
         </div>
       </form>
@@ -72,59 +136,119 @@ export function CreateGroupModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-export function AddStudentModal({ onClose }: { onClose: () => void }) {
-  const { groups, onboardStudent } = useApp();
-  const [ism,     setIsm]     = useState('');
-  const [guruhId, setGuruhId] = useState(groups[0]?.id ?? '');
-  const [xato,    setXato]    = useState('');
+// ─── Add Student Modal ─────────────────────────────────────────────────────────
 
-  const handleSubmit = (e: React.FormEvent) => {
+export function AddStudentModal({ onClose }: { onClose: () => void }) {
+  const { groups, fireToast, refreshStudents } = useApp();
+
+  const [ism,           setIsm]           = useState('');
+  const [telefon,       setTelefon]       = useState('');
+  const [guruhId,       setGuruhId]       = useState(groups[0]?.id ?? '');
+  const [yuklanyapti,   setYuklanyapti]   = useState(false);
+  const [xato,          setXato]          = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ism.trim()) { setXato('To\'liq ism majburiy.'); return; }
-    if (!guruhId) { setXato('Guruh tanlang.'); return; }
-    onboardStudent(ism.trim(), guruhId);
-    onClose();
+    if (!ism.trim())   { setXato("To'liq ism majburiy."); return; }
+    if (!guruhId)      { setXato('Guruh tanlang.'); return; }
+
+    setYuklanyapti(true);
+    setXato('');
+    try {
+      const res = await fetch(`${API}/backend/students`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: ism.trim(),
+          phoneNumber: telefon.trim(),
+          groupId: guruhId,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? 'Server xatosi yuz berdi.');
+      }
+
+      await refreshStudents();
+      fireToast(`"${ism.trim()}" muvaffaqiyatli ro'yxatga olindi.`);
+      onClose();
+    } catch (err: any) {
+      setXato(err.message ?? "Tarmoq xatosi. Qayta urinib ko'ring.");
+    } finally {
+      setYuklanyapti(false);
+    }
   };
 
   return (
-    <ModalShell title="Yangi talaba qo'shish" subtitle="Ro'yxatga olish — o'qituvchi xabardor qilinadi" icon={Users} onClose={onClose}>
+    <ModalShell title="Yangi talaba qo'shish" subtitle="Ro'yxatga olish — ma'lumotlar bazasiga saqlanadi" icon={Users} onClose={onClose}>
       <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+
+        {/* Full name */}
         <div>
           <label className="sb-label">To'liq ismi</label>
-          <input className="sb-input" placeholder="masalan: Jasur Bek Toshmatov" value={ism}
-            onChange={e => { setIsm(e.target.value); setXato(''); }} autoFocus />
-          {xato && <p className="text-[11px] text-red-500 mt-1">{xato}</p>}
+          <input
+            className="sb-input" placeholder="masalan: Jasur Bek Toshmatov"
+            value={ism} onChange={e => { setIsm(e.target.value); setXato(''); }}
+            autoFocus
+          />
         </div>
 
+        {/* Phone number */}
+        <div>
+          <label className="sb-label">Telefon raqami (ixtiyoriy)</label>
+          <input
+            className="sb-input" placeholder="+998 90 123 45 67"
+            value={telefon} onChange={e => setTelefon(e.target.value)}
+            type="tel"
+          />
+        </div>
+
+        {/* Group assignment */}
         <div>
           <label className="sb-label">Guruhga biriktirish</label>
-          <div className="relative">
-            <select className="sb-input appearance-none pr-8" value={guruhId} onChange={e => setGuruhId(e.target.value)}>
-              {groups.map(g => <option key={g.id} value={g.id}>{g.groupName}</option>)}
-            </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-          </div>
+          {groups.length === 0 ? (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[12px] font-semibold text-amber-700">
+              Hech qanday guruh topilmadi. Avval guruh yarating.
+            </div>
+          ) : (
+            <div className="relative">
+              <select className="sb-input appearance-none pr-8" value={guruhId} onChange={e => setGuruhId(e.target.value)}>
+                {groups.map(g => <option key={g.id} value={g.id}>{g.groupName}</option>)}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            </div>
+          )}
         </div>
 
+        {/* Info box */}
         <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl text-[11px] space-y-1 text-slate-500">
           <p className="font-semibold text-blue-700 text-[10px] uppercase tracking-wider mb-1.5">Avtomatik belgilanadi</p>
           <div className="flex justify-between">
-            <span className="font-mono text-slate-600">created_at</span>
+            <span className="font-mono text-slate-600">joined_at</span>
             <span>{new Date().toISOString().slice(0, 10)}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="font-mono text-slate-600">holat</span>
-            <span>Toza / Faolsiz</span>
-          </div>
           <p className="text-[10px] text-blue-600 pt-2 border-t border-blue-100 mt-1 leading-relaxed">
-            Guruh o'qituvchisiga buyurtma berish haqida bildirishnoma yuboriladi.
+            Ma'lumotlar Neon PostgreSQL bazasiga darhol saqlanadi.
           </p>
         </div>
 
+        {/* Error banner */}
+        {xato && (
+          <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-300 rounded-xl text-[12px] font-semibold text-red-700">
+            <AlertCircle className="w-4 h-4 shrink-0" /> {xato}
+          </div>
+        )}
+
         <div className="flex gap-2 pt-2 border-t border-slate-100">
-          <button type="button" onClick={onClose} className="sb-btn-secondary flex-1 text-xs">Bekor qilish</button>
-          <button type="submit" className="sb-btn-primary flex-1 flex items-center justify-center gap-1.5 text-xs">
-            <Users className="w-3.5 h-3.5" /> Talabani ro'yxatga olish
+          <button type="button" onClick={onClose} disabled={yuklanyapti} className="sb-btn-secondary flex-1 text-xs">
+            Bekor qilish
+          </button>
+          <button type="submit" disabled={yuklanyapti || groups.length === 0} className="sb-btn-primary flex-1 flex items-center justify-center gap-1.5 text-xs">
+            {yuklanyapti
+              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saqlanmoqda...</>
+              : <><Users className="w-3.5 h-3.5" /> Talabani ro'yxatga olish</>
+            }
           </button>
         </div>
       </form>

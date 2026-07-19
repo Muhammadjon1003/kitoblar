@@ -67,6 +67,118 @@ app.get('/backend/categories', async (req, res) => {
   }
 });
 
+// ── ERP: Groups ──────────────────────────────────────────────────────────────
+
+// GET /backend/groups — fetch all groups, map to frontend Group shape
+app.get('/backend/groups', async (req, res) => {
+  try {
+    const groups = await prisma.erpGroup.findMany({
+      orderBy: { createdAt: 'asc' },
+      include: { _count: { select: { students: true } } }
+    });
+    res.json(groups.map(g => ({
+      id: g.id,
+      groupName: g.groupName,
+      teacherName: g.teacherName,
+      subjectCategory: g.subjectCategory,
+      startDate: g.startDate,
+      endDate: g.endDate,
+      orderIntervalDays: g.orderIntervalDays,
+      createdAt: g.createdAt.toISOString().slice(0, 10),
+      studentCount: g._count.students,
+    })));
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /backend/groups — create a new group
+app.post('/backend/groups', async (req, res) => {
+  try {
+    const { groupName, teacherName, subjectCategory, startDate, endDate, orderIntervalDays } = req.body;
+    if (!groupName || !teacherName) {
+      return res.status(400).json({ error: 'groupName and teacherName are required.' });
+    }
+    const group = await prisma.erpGroup.create({
+      data: {
+        groupName,
+        teacherName,
+        subjectCategory: subjectCategory ?? '',
+        startDate: startDate ?? '',
+        endDate: endDate ?? '',
+        orderIntervalDays: orderIntervalDays ?? 30,
+      }
+    });
+    res.status(201).json({
+      id: group.id,
+      groupName: group.groupName,
+      teacherName: group.teacherName,
+      subjectCategory: group.subjectCategory,
+      startDate: group.startDate,
+      endDate: group.endDate,
+      orderIntervalDays: group.orderIntervalDays,
+      createdAt: group.createdAt.toISOString().slice(0, 10),
+      studentCount: 0,
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── ERP: Students ─────────────────────────────────────────────────────────────
+
+// GET /backend/students — fetch all students (optionally filter by groupId)
+app.get('/backend/students', async (req, res) => {
+  try {
+    const { groupId } = req.query;
+    const where: any = {};
+    if (groupId) where.groupId = groupId as string;
+    const students = await prisma.erpStudent.findMany({
+      where,
+      orderBy: { joinedAt: 'asc' },
+      include: { group: { select: { groupName: true } } }
+    });
+    res.json(students.map(s => ({
+      id: s.id,
+      fullName: s.fullName,
+      phoneNumber: s.phoneNumber,
+      groupId: s.groupId,
+      groupName: s.group.groupName,
+      joinedAt: s.joinedAt.toISOString().slice(0, 10),
+    })));
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /backend/students — enroll a new student into a group
+app.post('/backend/students', async (req, res) => {
+  try {
+    const { fullName, phoneNumber, groupId } = req.body;
+    if (!fullName || !groupId) {
+      return res.status(400).json({ error: 'fullName and groupId are required.' });
+    }
+    // Verify group exists
+    const group = await prisma.erpGroup.findUnique({ where: { id: groupId } });
+    if (!group) return res.status(404).json({ error: 'Group not found.' });
+
+    const student = await prisma.erpStudent.create({
+      data: { fullName, phoneNumber: phoneNumber ?? '', groupId }
+    });
+    res.status(201).json({
+      id: student.id,
+      fullName: student.fullName,
+      phoneNumber: student.phoneNumber,
+      groupId: student.groupId,
+      groupName: group.groupName,
+      joinedAt: student.joinedAt.toISOString().slice(0, 10),
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+
 // Live request logger for debugging webhooks
 const lastRequests: any[] = [];
 
