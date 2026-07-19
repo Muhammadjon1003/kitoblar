@@ -98,6 +98,7 @@ export type SubPage =
   | 'orders'       // TEACHER
   | 'pipeline'     // CASHIER
   | 'management'   // CASHIER
+  | 'payments'     // CASHIER
   | 'warehouse'    // LOGISTICS
   | 'supplier'     // LOGISTICS
   | 'inbound'      // LOGISTICS

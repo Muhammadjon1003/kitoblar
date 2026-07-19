@@ -100,6 +100,7 @@ interface AppContextType {
   orders: Order[];
   notifications: SystemNotification[];
   toasts: AppToast[];
+  setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
 
   // ── Mutations (TR § 3 state machine transitions)
   createGroup: (name: string, teacherId: string, start: string, end: string, days: number) => void;
@@ -115,6 +116,7 @@ interface AppContextType {
   addInventoryItem: (title: string, bookCost: number) => void;      // Inbound ingestion
   dismissNotification: (id: string) => void;
   dismissToast: (id: string) => void;
+  fireToast: (message: string, variant?: AppToast['variant']) => void;
 
   // ── Computed helpers
   getTeacherName: (id: string) => string;
@@ -388,7 +390,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       activeRole, activeSubPage, setActiveRole, setActiveSubPage,
-      teachers, groups, students, inventory, orders, notifications, toasts,
+      teachers, groups, students, inventory, orders, notifications, toasts, setOrders, fireToast,
       createGroup, onboardStudent, createBulkOrders, collectCash, cancelOrder,
       dispatchToSupplier, markArrived, deliverBook, decoupleBook,
       allocateFromWarehouse, addInventoryItem,

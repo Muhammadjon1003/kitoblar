@@ -244,73 +244,95 @@ function TafsilotPaneli({ order, onClose }: { order: Order; onClose: () => void 
 // ─── Minimal karta ────────────────────────────────────────────────────────────
 
 function BuyurtmaKarta({ order, onClick }: { order: Order; onClick: () => void }) {
-  const { getStudentName, getGroupName, getInventoryItem, retailPrice, isDeliverable } = useApp();
+  const { getStudentName, getGroupName, getInventoryItem, retailPrice, isDeliverable, markArrived, deliverBook } = useApp();
   const inv      = getInventoryItem(order.bookId);
   const ochiq    = isDeliverable(order);
   const chakana  = retailPrice(order.bookCost);
   const qoldiq   = Math.max(0, chakana - order.amountPaid);
 
   return (
-    <button
+    <div
       onClick={onClick}
-      className="w-full text-left bg-white border border-slate-200 rounded-xl px-4 py-3.5 hover:border-blue-300 hover:shadow-md hover:shadow-blue-50 transition-all duration-150 group"
+      className="w-full text-left bg-white border border-slate-200 rounded-xl px-4 py-3.5 hover:border-blue-300 hover:shadow-md transition-all duration-150 cursor-pointer group"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-[13px] font-semibold text-slate-800 truncate">{getStudentName(order.studentId)}</p>
-          <p className="text-[10px] text-slate-400 mt-0.5">{getGroupName(order.groupId)}</p>
+          <p className="text-[13px] font-bold text-slate-800 truncate">{getStudentName(order.studentId)}</p>
+          <p className="text-[10px] text-slate-700 font-bold mt-0.5">{getGroupName(order.groupId)}</p>
         </div>
         <StatusBadge status={order.status} />
       </div>
 
-      <p className="text-[11px] text-slate-500 mt-2 leading-snug truncate">{inv?.title ?? '—'}</p>
+      <p className="text-[11px] font-semibold text-slate-700 mt-2 leading-snug truncate">{inv?.title ?? '—'}</p>
 
-      <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100">
-        {order.status === 'ARRIVED' ? (
-          <span className={`text-[11px] font-semibold flex items-center gap-1 ${ochiq ? 'text-emerald-600' : 'text-amber-600'}`}>
-            {ochiq
-              ? <><Unlock className="w-3 h-3" /> Topshirishga tayyor</>
-              : <><Lock className="w-3 h-3" /> Qarz: ${qoldiq.toFixed(2)}</>
-            }
-          </span>
-        ) : order.status === 'CREATED' ? (
-          <span className="text-[11px] text-slate-400">Kutilmoqda: ${chakana}</span>
-        ) : (
-          <span className="text-[11px] text-slate-400">To'langan: ${order.amountPaid}</span>
+      <div className="mt-3 pt-2.5 border-t border-slate-100 flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          {order.status === 'ARRIVED' ? (
+            <span className={`text-[11px] font-bold flex items-center gap-1 ${ochiq ? 'text-emerald-600' : 'text-amber-600'}`}>
+              {ochiq
+                ? <><Unlock className="w-3 h-3" /> Topshirishga tayyor</>
+                : <><Lock className="w-3 h-3" /> Qarz: ${qoldiq.toFixed(2)}</>
+              }
+            </span>
+          ) : order.status === 'ORDERED' ? (
+            <span className="text-[11px] font-bold text-indigo-600">Yo'lda (Yuborilgan)</span>
+          ) : order.status === 'CREATED' ? (
+            <span className="text-[11px] font-bold text-slate-800">Kutilmoqda: ${chakana}</span>
+          ) : (
+            <span className="text-[11px] font-bold text-slate-800">To'langan: ${order.amountPaid}</span>
+          )}
+          <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-400 transition-colors" />
+        </div>
+
+        {/* Action buttons directly on the cards */}
+        {order.status === 'ORDERED' && (
+          <button
+            onClick={(e) => { e.stopPropagation(); markArrived(order.id); }}
+            className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-sm transition-all duration-150 flex items-center justify-center gap-1"
+          >
+            Kitobni qabul qilish
+          </button>
         )}
-        <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-400 transition-colors" />
+        {order.status === 'ARRIVED' && ochiq && (
+          <button
+            onClick={(e) => { e.stopPropagation(); deliverBook(order.id); }}
+            className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-sm transition-all duration-150 flex items-center justify-center gap-1"
+          >
+            Topshirish
+          </button>
+        )}
       </div>
-    </button>
+    </div>
   );
 }
 
 // ─── Yo'nalish ustuni ─────────────────────────────────────────────────────────
 
 interface PipelineColumnProps {
-  status: OrderStatus;
+  statuses: OrderStatus[];
   title: string;
   subtitle: string;
   accentLeft: string;
   countColor: string;
 }
 
-export default function PipelineColumn({ status, title, subtitle, accentLeft, countColor }: PipelineColumnProps) {
+export default function PipelineColumn({ statuses, title, subtitle, accentLeft, countColor }: PipelineColumnProps) {
   const { orders } = useApp();
   const [tanlangan, setTanlangan] = useState<Order | null>(null);
 
-  const bosqichBuyurtmalari = orders.filter(o => o.status === status);
+  const bosqichBuyurtmalari = orders.filter(o => statuses.includes(o.status));
 
   return (
     <>
       <div className={`flex flex-col min-w-[280px] max-w-[320px] w-full rounded-2xl border border-slate-200 bg-slate-50/60 border-l-4 ${accentLeft}`}>
         <div className="px-4 py-3.5">
           <div className="flex items-center justify-between">
-            <p className="text-[12px] font-bold text-slate-700 uppercase tracking-wider">{title}</p>
-            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${countColor}`}>
+            <p className="text-[12px] font-bold text-slate-800 uppercase tracking-wider">{title}</p>
+            <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${countColor}`}>
               {bosqichBuyurtmalari.length}
             </span>
           </div>
-          <p className="text-[10px] text-slate-400 mt-0.5">{subtitle}</p>
+          <p className="text-[10px] text-slate-700 mt-0.5 font-semibold">{subtitle}</p>
         </div>
 
         <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-2">

@@ -3,32 +3,33 @@
  */
 
 import { useState } from 'react';
-import { FolderPlus, Users, CalendarDays, Clock } from 'lucide-react';
+import { FolderPlus, Users, CalendarDays, Clock, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import PipelineColumn from './PipelineColumn';
 import { CreateGroupModal, AddStudentModal } from './StudentModals';
-import { TableShell, Th, Td } from '../../components/ui';
+import { TableShell, Th, Td, StatusBadge, EmptyState } from '../../components/ui';
+import type { Order, OrderStatus } from '../../types';
 
 function PipelineView() {
   const USTUNLAR = [
     {
-      status: 'CREATED' as const,
-      title: 'To\'lov kutilmoqda',
-      subtitle: 'Naqd pul qabul qiling — To\'langan holatiga o\'tadi',
+      statuses: ['CREATED'] as OrderStatus[],
+      title: 'O\'qituvchi buyurtma bergan',
+      subtitle: 'To\'lov qabul qilinishi kutilayotgan buyurtmalar',
       accentLeft: 'border-l-blue-600',
       countColor: 'bg-blue-600 text-white font-bold',
     },
     {
-      status: 'PAID' as const,
-      title: 'To\'langan — Buyurtma kutilmoqda',
-      subtitle: 'Logistika ta\'minotchiga yo\'naltiradi',
+      statuses: ['ORDERED', 'ARRIVED'] as OrderStatus[],
+      title: 'Kelgan va Topshirishga tayyor',
+      subtitle: 'Yo\'ldagi kitoblarni qabul qiling va topshiring',
       accentLeft: 'border-l-indigo-600',
       countColor: 'bg-indigo-600 text-white font-bold',
     },
     {
-      status: 'ARRIVED' as const,
-      title: 'Topshirishga tayyor',
-      subtitle: 'Topshiring yoki omborga qaytaring',
+      statuses: ['GIVEN'] as OrderStatus[],
+      title: 'Topshirildi',
+      subtitle: 'Talabalarga topshirilgan kitoblar (Yakuniy holat)',
       accentLeft: 'border-l-emerald-600',
       countColor: 'bg-emerald-600 text-white font-bold',
     },
@@ -39,10 +40,190 @@ function PipelineView() {
       <div className="flex-1 overflow-x-auto overflow-y-hidden">
         <div className="flex gap-5 p-6 h-full min-w-max">
           {USTUNLAR.map(col => (
-            <PipelineColumn key={col.status} {...col} />
+            <PipelineColumn key={col.title} {...col} />
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+interface FixPaymentModalProps {
+  order: Order;
+  onClose: () => void;
+}
+
+function FixPaymentModal({ order, onClose }: FixPaymentModalProps) {
+  const { setOrders, getStudentName, getInventoryItem, retailPrice, fireToast } = useApp();
+  const [amount, setAmount] = useState(String(order.amountPaid));
+  const [status, setStatus] = useState<OrderStatus>(order.status);
+  const [comment, setComment] = useState(order.comment);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount < 0) {
+      fireToast('Iltimos, to\'g\'ri miqdor kiriting.', 'error');
+      return;
+    }
+
+    setOrders(prev => prev.map(o => 
+      o.id === order.id 
+        ? { ...o, amountPaid: parsedAmount, status, comment, updatedAt: new Date().toISOString().slice(0, 10) }
+        : o
+    ));
+
+    fireToast('To\'lov ma\'lumotlari muvaffaqiyatli tuzatildi.');
+    onClose();
+  };
+
+  const inv = getInventoryItem(order.bookId);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-white border border-slate-300 rounded-2xl shadow-2xl z-10 overflow-hidden">
+        <div className="px-6 py-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold">To'lovni tahrirlash (Tuzatish)</h3>
+            <p className="text-[11px] text-blue-100 mt-0.5">{getStudentName(order.studentId)}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-white">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1">
+            <div className="flex justify-between">
+              <span className="text-slate-600 font-medium">Darslik:</span>
+              <span className="font-bold text-slate-800">{inv?.title}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-600 font-medium">Chakana narx:</span>
+              <span className="font-bold text-slate-800">${retailPrice(order.bookCost)}</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="sb-label">To'langan miqdor ($)</label>
+            <input
+              type="number" min="0" step="0.01" className="sb-input"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="sb-label">Buyurtma holati</label>
+            <select
+              className="sb-input"
+              value={status}
+              onChange={e => setStatus(e.target.value as OrderStatus)}
+              required
+            >
+              <option value="CREATED">Yaratildi (To'lov kutilmoqda)</option>
+              <option value="PAID">To'langan (Buyurtma kutilmoqda)</option>
+              <option value="ORDERED">Buyurtma berildi (Yo'lda)</option>
+              <option value="ARRIVED">Keldi (Topshirishga tayyor)</option>
+              <option value="GIVEN">Topshirildi (Yakunlangan)</option>
+              <option value="CANCELLED">Bekor qilindi</option>
+              <option value="RETURNED">Qaytarildi (Omborga)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="sb-label">Izoh (Tuzatish sababi)</label>
+            <textarea
+              className="sb-input min-h-[60px]"
+              placeholder="Nega o'zgartirilganligi haqida qisqa eslatma..."
+              value={comment}
+              onChange={e => setComment(e.target.value)}
+            />
+          </div>
+
+          <div className="flex gap-2 pt-2 border-t border-slate-100">
+            <button type="button" onClick={onClose} className="sb-btn-secondary flex-1 text-xs">Bekor qilish</button>
+            <button type="submit" className="sb-btn-primary flex-1 text-xs">Saqlash</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function PaymentsHistoryView() {
+  const { orders, getStudentName, getGroupName, getInventoryItem, retailPrice } = useApp();
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+
+  // Show all orders that have been paid or created to edit them
+  const paymentOrders = orders.filter(o => o.amountPaid > 0 || o.status === 'PAID');
+
+  return (
+    <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6 bg-slate-50">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-slate-800">To'lovlar Tarixi</h2>
+          <p className="text-xs text-slate-700 font-semibold mt-0.5">Tizimdagi barcha to'lov operatsiyalari va ularni tahrirlash</p>
+        </div>
+        <span className="text-[11px] font-bold text-slate-700 bg-slate-200 border border-slate-350 px-2.5 py-1 rounded-lg">
+          Jami: {paymentOrders.length} ta tranzaksiya
+        </span>
+      </div>
+
+      <div className="sb-card overflow-hidden">
+        {paymentOrders.length === 0 ? (
+          <EmptyState label="Hozircha hech qanday to'lov amalga oshirilmagan." />
+        ) : (
+          <TableShell>
+            <thead>
+              <tr>
+                <Th>Talaba</Th>
+                <Th>Guruh</Th>
+                <Th>Kitob</Th>
+                <Th>To'langan miqdor</Th>
+                <Th>Chakana narx</Th>
+                <Th>Holati</Th>
+                <Th>Izoh</Th>
+                <Th right>Amallar</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {paymentOrders.map(o => {
+                const inv = getInventoryItem(o.bookId);
+                return (
+                  <tr key={o.id} className="hover:bg-slate-50 transition-colors">
+                    <Td>{getStudentName(o.studentId)}</Td>
+                    <Td>{getGroupName(o.groupId)}</Td>
+                    <Td>{inv?.title ?? '—'}</Td>
+                    <Td mono>
+                      <span className="text-emerald-600 font-bold">${o.amountPaid}</span>
+                    </Td>
+                    <Td mono>${retailPrice(o.bookCost)}</Td>
+                    <Td>
+                      <StatusBadge status={o.status} />
+                    </Td>
+                    <Td muted>{o.comment || '—'}</Td>
+                    <Td right>
+                      <button
+                        onClick={() => setEditingOrder(o)}
+                        className="py-1 px-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-sm transition-all duration-150"
+                      >
+                        Tuzatish
+                      </button>
+                    </Td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </TableShell>
+        )}
+      </div>
+
+      {editingOrder && (
+        <FixPaymentModal order={editingOrder} onClose={() => setEditingOrder(null)} />
+      )}
     </div>
   );
 }
@@ -150,5 +331,7 @@ function BoshqaruvKorinishi() {
 
 export default function CashierDashboard() {
   const { activeSubPage } = useApp();
-  return activeSubPage === 'pipeline' ? <PipelineView /> : <BoshqaruvKorinishi />;
+  if (activeSubPage === 'pipeline') return <PipelineView />;
+  if (activeSubPage === 'payments') return <PaymentsHistoryView />;
+  return <BoshqaruvKorinishi />;
 }
