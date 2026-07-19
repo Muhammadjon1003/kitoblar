@@ -8,7 +8,7 @@ import {
   Lock, Unlock, AlertTriangle, X, ChevronRight,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { StatusBadge, EmptyState } from '../../components/ui';
+import { StatusBadge, EmptyState, uzs } from '../../components/ui';
 import type { Order, OrderStatus } from '../../types';
 
 // ─── To'lov qabul qilish modali ──────────────────────────────────────────────
@@ -54,15 +54,15 @@ function TolovModali({ order, onClose }: { order: Order; onClose: () => void }) 
             </div>
             <div className="flex justify-between text-slate-500">
               <span>Chakana narx (×1.5)</span>
-              <span className="font-mono font-semibold text-slate-800">${chakana}</span>
+              <span className="font-mono font-semibold text-slate-800">{uzs(chakana)}</span>
             </div>
             <div className="flex justify-between text-slate-500 pt-1.5 border-t border-slate-200">
               <span>To'langan</span>
-              <span className="font-mono text-emerald-600 font-semibold">${order.amountPaid}</span>
+              <span className="font-mono text-emerald-600 font-semibold">{uzs(order.amountPaid)}</span>
             </div>
             <div className="flex justify-between font-semibold">
               <span className="text-slate-700">Qoldiq qarz</span>
-              <span className="font-mono text-amber-600">${qoldiq.toFixed(2)}</span>
+              <span className="font-mono text-amber-600">{uzs(qoldiq)}</span>
             </div>
           </div>
 
@@ -70,7 +70,7 @@ function TolovModali({ order, onClose }: { order: Order; onClose: () => void }) 
             <label className="sb-label">Qabul qilingan miqdor</label>
             <input
               type="number" min="0.01" step="0.01" className="sb-input"
-              placeholder={`Qarz: $${qoldiq.toFixed(2)}`}
+              placeholder={`Qarz: ${uzs(qoldiq)}`}
               value={miqdor}
               onChange={e => { setMiqdor(e.target.value); setXato(''); }}
               autoFocus
@@ -132,7 +132,6 @@ function TafsilotPaneli({ order, onClose }: { order: Order; onClose: () => void 
           <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Darslik</p>
             <p className="text-sm font-semibold text-slate-800 leading-snug">{inv?.title ?? '—'}</p>
-            <p className="text-[10px] text-slate-400 font-mono mt-1 truncate">{inv?.tgFileId}</p>
           </div>
 
           {/* Moliyaviy ma'lumot */}
@@ -141,17 +140,17 @@ function TafsilotPaneli({ order, onClose }: { order: Order; onClose: () => void 
             <div className="space-y-2">
               <div className="flex justify-between text-xs">
                 <span className="text-slate-500">Chakana narx (narx × 1.5)</span>
-                <span className="font-mono font-semibold text-slate-800">${chakana}</span>
+                <span className="font-mono font-semibold text-slate-800">{uzs(chakana)}</span>
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-slate-500">To'langan miqdor</span>
-                <span className="font-mono font-semibold text-emerald-600">${order.amountPaid}</span>
+                <span className="font-mono font-semibold text-emerald-600">{uzs(order.amountPaid)}</span>
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-slate-500">Qoldiq qarz</span>
-                <span className={`font-mono font-semibold ${qoldiq > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
-                  ${qoldiq.toFixed(2)}
-                </span>
+                  <span className={`font-mono font-semibold ${qoldiq > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
+                    {uzs(qoldiq)}
+                  </span>
               </div>
               {/* To'lov jarayoni */}
               <div className="pt-1">
@@ -179,8 +178,8 @@ function TafsilotPaneli({ order, onClose }: { order: Order; onClose: () => void 
 
           {/* Ulgurji narx */}
           <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] flex justify-between items-center">
-            <span className="text-slate-500">Ulgurji narx (book_cost)</span>
-            <span className="font-mono font-semibold text-slate-600">${order.bookCost}</span>
+            <span className="text-slate-500">Tan narxi</span>
+            <span className="font-mono font-semibold text-slate-600">{uzs(order.bookCost)}</span>
           </div>
         </div>
 
@@ -208,7 +207,7 @@ function TafsilotPaneli({ order, onClose }: { order: Order; onClose: () => void 
               {!ochiq && (
                 <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-700">
                   <AlertTriangle className="w-4 h-4 shrink-0" />
-                  Qoldiq qarz: ${qoldiq.toFixed(2)} — to'liq to'languncha topshirish bloklangan.
+                  Qoldiq qarz: {uzs(qoldiq)} — to'liq to'languncha topshirish bloklangan.
                 </div>
               )}
               <button
@@ -286,11 +285,11 @@ function QarzTolovModali({ order, onClose }: { order: Order; onClose: () => void
           <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
           <div>
             <p className="text-[11px] font-bold text-red-800 uppercase tracking-wider">Qoldiq qarz</p>
-            <p className="text-xl font-black text-red-700 font-mono">${qoldiq.toFixed(2)}</p>
+            <p className="text-xl font-black text-red-700 font-mono">{uzs(qoldiq)}</p>
           </div>
           <div className="ml-auto text-right">
             <p className="text-[10px] font-semibold text-red-700">To'langan</p>
-            <p className="text-sm font-bold text-emerald-700 font-mono">${order.amountPaid}</p>
+            <p className="text-sm font-bold text-emerald-700 font-mono">{uzs(order.amountPaid)}</p>
           </div>
         </div>
 
@@ -299,13 +298,13 @@ function QarzTolovModali({ order, onClose }: { order: Order; onClose: () => void
           <div className="flex items-center gap-2 p-2.5 bg-slate-100 border border-slate-200 rounded-lg text-[11px]">
             <span className="text-slate-600 font-medium shrink-0">Darslik:</span>
             <span className="font-bold text-slate-800 truncate">{inv?.title ?? '—'}</span>
-            <span className="ml-auto font-mono font-bold text-slate-700 shrink-0">${chakana}</span>
+            <span className="ml-auto font-mono font-bold text-slate-700 shrink-0">{uzs(chakana)}</span>
           </div>
 
           {/* Payment input */}
           <div>
             <label className="block text-[11px] font-bold text-slate-800 mb-1.5 uppercase tracking-wide">
-              Qabul qilingan miqdor ($)
+              Qabul qilingan miqdor (so'm)
             </label>
             <input
               type="number" min="0.01" step="0.01"
@@ -388,15 +387,15 @@ function BuyurtmaKarta({ order, onClick }: { order: Order; onClick: () => void }
               <span className={`text-[11px] font-bold flex items-center gap-1 ${ochiq ? 'text-emerald-600' : 'text-red-600'}`}>
                 {ochiq
                   ? <><Unlock className="w-3 h-3" /> Topshirishga tayyor</>
-                  : <><AlertTriangle className="w-3 h-3" /> Qarz: ${qoldiq.toFixed(2)} — bosing</>
+                  : <><AlertTriangle className="w-3 h-3" /> Qarz: {uzs(qoldiq)} — bosing</>
                 }
               </span>
             ) : order.status === 'ORDERED' ? (
               <span className="text-[11px] font-bold text-indigo-600">Yo'lda (Yuborilgan)</span>
             ) : order.status === 'CREATED' ? (
-              <span className="text-[11px] font-bold text-slate-800">Kutilmoqda: ${chakana}</span>
+              <span className="text-[11px] font-bold text-slate-800">Kutilmoqda: {uzs(chakana)}</span>
             ) : (
-              <span className="text-[11px] font-bold text-slate-800">To'langan: ${order.amountPaid}</span>
+              <span className="text-[11px] font-bold text-slate-800">To'langan: {uzs(order.amountPaid)}</span>
             )}
             <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-400 transition-colors" />
           </div>
@@ -427,7 +426,7 @@ function BuyurtmaKarta({ order, onClick }: { order: Order; onClick: () => void }
               onClick={(e) => { e.stopPropagation(); setTolovKorsat(true); }}
               className="w-full py-1.5 bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-sm transition-all duration-150 flex items-center justify-center gap-1"
             >
-              <DollarSign className="w-3 h-3" /> Qarzni To'lash — ${qoldiq.toFixed(2)}
+              <DollarSign className="w-3 h-3" /> Qarzni To'lash — {uzs(qoldiq)}
             </button>
           )}
         </div>
@@ -468,6 +467,9 @@ export default function PipelineColumn({ statuses, title, subtitle, accentLeft, 
         const orderId     = o.id.toLowerCase();
         return studentName.includes(q) || bookTitle.includes(q) || orderId.includes(q);
       });
+
+  // If column has no orders at all AND no active search, hide it entirely
+  if (statusBuyurtmalari.length === 0 && qidiruv.trim() === '') return null;
 
   return (
     <>

@@ -4,7 +4,7 @@
  */
 
 import { useApp } from '../../context/AppContext';
-import { StatusBadge, TableShell, Th, Td } from '../../components/ui';
+import { StatusBadge, TableShell, Th, Td, uzs } from '../../components/ui';
 
 export default function LedgerTable() {
   const { orders, getStudentName, getGroupName, getInventoryItem, retailPrice } = useApp();
@@ -26,11 +26,11 @@ export default function LedgerTable() {
         </div>
         <div className="flex items-center gap-3 text-[11px]">
           <span className="px-2.5 py-1 bg-zinc-900 border border-zinc-800 rounded text-zinc-400">
-            Jami tushum: <span className="text-emerald-400 font-mono font-semibold">${jami_tolov}</span>
+            Jami tushum: <span className="text-emerald-400 font-mono font-semibold">{uzs(jami_tolov)}</span>
           </span>
           <span className="px-2.5 py-1 bg-zinc-900 border border-zinc-800 rounded text-zinc-400">
             Sof foyda: <span className={`font-mono font-semibold ${jami_foyda >= 0 ? 'text-blue-400' : 'text-amber-400'}`}>
-              {jami_foyda >= 0 ? '+' : ''}{jami_foyda}$
+              {jami_foyda >= 0 ? '+' : ''}{uzs(Math.abs(jami_foyda))}
             </span>
           </span>
         </div>
@@ -65,16 +65,16 @@ export default function LedgerTable() {
                 <Td><span className="font-medium text-zinc-200">{getStudentName(o.studentId)}</span></Td>
                 <Td muted>{getGroupName(o.groupId)}</Td>
                 <Td muted>{inv?.title ?? '—'}</Td>
-                <Td right mono muted>${chakana.toFixed(2)}</Td>
+                <Td right mono muted>{uzs(chakana)}</Td>
                 <Td right mono>
-                  <span className="text-emerald-400">${o.amountPaid}</span>
+                  <span className="text-emerald-400">{uzs(o.amountPaid)}</span>
                 </Td>
                 <Td right mono>
-                  <span className="text-red-400">${o.bookCost}</span>
+                  <span className="text-red-400">{uzs(o.bookCost)}</span>
                 </Td>
                 <Td right mono>
                   <span className={foyda >= 0 ? 'text-blue-400 font-semibold' : 'text-amber-400 font-semibold'}>
-                    {foyda >= 0 ? '+' : ''}{foyda}$
+                    {foyda >= 0 ? '+' : ''}{uzs(Math.abs(foyda))}
                   </span>
                 </Td>
                 <Td>
@@ -92,10 +92,10 @@ export default function LedgerTable() {
         <tfoot>
           <tr className="border-t-2 border-zinc-700 bg-zinc-900/60 text-xs font-bold">
             <td className="px-5 py-3 text-zinc-400" colSpan={4}>Jami ({orders.length} ta buyurtma)</td>
-            <td className="px-5 py-3 text-right font-mono text-emerald-400">${jami_tolov}</td>
-            <td className="px-5 py-3 text-right font-mono text-red-400">${jami_narx}</td>
+            <td className="px-5 py-3 text-right font-mono text-emerald-400">{uzs(jami_tolov)}</td>
+            <td className="px-5 py-3 text-right font-mono text-red-400">{uzs(jami_narx)}</td>
             <td className={`px-5 py-3 text-right font-mono font-bold ${jami_foyda >= 0 ? 'text-blue-400' : 'text-amber-400'}`}>
-              {jami_foyda >= 0 ? '+' : ''}{jami_foyda}$
+              {jami_foyda >= 0 ? '+' : ''}{uzs(Math.abs(jami_foyda))}
             </td>
             <td colSpan={2} />
           </tr>

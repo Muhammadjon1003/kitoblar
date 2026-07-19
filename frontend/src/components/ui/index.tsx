@@ -5,6 +5,11 @@
 import { X, CheckCircle, Clock, Package, XCircle, RotateCcw, Inbox } from 'lucide-react';
 import type { OrderStatus, AppToast } from '../../types';
 
+/** Format a number as Uzbek so'm: 125000 → "125 000 so'm" */
+export const uzs = (n: number) =>
+  `${Math.round(n).toLocaleString('ru-RU')} so'm`;
+
+
 const STATUS_META: Record<OrderStatus, { label: string; cls: string; Icon: React.FC<{ className?: string }> }> = {
   CREATED:   { label: 'Yaratildi',         cls: 'bg-blue-600 text-white border-transparent',          Icon: Clock       },
   PAID:      { label: 'To\'langan',        cls: 'bg-indigo-600 text-white border-transparent',    Icon: CheckCircle },

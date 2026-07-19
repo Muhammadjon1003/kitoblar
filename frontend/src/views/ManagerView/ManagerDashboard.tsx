@@ -5,7 +5,7 @@
 
 import { TrendingUp, TrendingDown, Activity, Archive, HardDrive, BarChart2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { KpiCard } from '../../components/ui';
+import { KpiCard, uzs } from '../../components/ui';
 import LedgerTable from './LedgerTable';
 import CoverageMatrix from './CoverageMatrix';
 
@@ -39,28 +39,28 @@ function MoliyaviyTahlil() {
   const kpilar = [
     {
       label: 'Jami tushum',
-      value: `$${jamiBiriktirildi}`,
+      value: uzs(jamiBiriktirildi),
       icon: TrendingUp,
       accent: 'text-emerald-400',
       sub: "Barcha buyurtmalar bo'yicha to'lovlar",
     },
     {
       label: 'Jami xarajat',
-      value: `$${jamiSarflandi}`,
+      value: uzs(jamiSarflandi),
       icon: TrendingDown,
       accent: 'text-red-400',
       sub: 'Kitoblarni sotib olish xarajati',
     },
     {
       label: 'Sof foyda',
-      value: `${sofFoyda >= 0 ? '+' : ''}${sofFoyda}$`,
+      value: `${sofFoyda >= 0 ? '+' : '-'}${uzs(Math.abs(sofFoyda))}`,
       icon: Activity,
       accent: sofFoyda >= 0 ? 'text-blue-400' : 'text-amber-400',
       sub: 'Tushum − Xarajat',
     },
     {
       label: 'Muomaladagi kitoblar',
-      value: `$${muomaladan}`,
+      value: uzs(muomaladan),
       icon: Archive,
       accent: 'text-purple-400',
       sub: 'Qaytarilgan va biriktirilmagan',
@@ -150,10 +150,10 @@ function MoliyaviyTahlil() {
                           {getStudentName(o.studentId)}
                         </td>
                         <td className="px-5 py-3 text-zinc-400 max-w-[140px] truncate">{inv?.title ?? '—'}</td>
-                        <td className="px-5 py-3 font-mono text-emerald-400">${o.amountPaid}</td>
-                        <td className="px-5 py-3 font-mono text-red-400">${o.bookCost}</td>
+                        <td className="px-5 py-3 font-mono text-emerald-400">{uzs(o.amountPaid)}</td>
+                        <td className="px-5 py-3 font-mono text-red-400">{uzs(o.bookCost)}</td>
                         <td className={`px-5 py-3 font-mono font-semibold ${net >= 0 ? 'text-blue-400' : 'text-amber-400'}`}>
-                          {net >= 0 ? '+' : ''}{net}$
+                          {net >= 0 ? '+' : '-'}{uzs(Math.abs(net))}
                         </td>
                         <td className="px-5 py-3">
                           <span className="text-[10px] font-semibold text-zinc-400">{STATUS_UZBE[o.status] ?? o.status}</span>

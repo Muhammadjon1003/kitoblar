@@ -7,7 +7,7 @@ import { FolderPlus, Users, CalendarDays, Clock, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import PipelineColumn from './PipelineColumn';
 import { CreateGroupModal, AddStudentModal } from './StudentModals';
-import { TableShell, Th, Td, StatusBadge, EmptyState } from '../../components/ui';
+import { TableShell, Th, Td, StatusBadge, EmptyState, uzs } from '../../components/ui';
 import type { Order, OrderStatus } from '../../types';
 
 function PipelineView() {
@@ -101,12 +101,12 @@ function FixPaymentModal({ order, onClose }: FixPaymentModalProps) {
             </div>
             <div className="flex justify-between">
               <span className="text-slate-600 font-medium">Chakana narx:</span>
-              <span className="font-bold text-slate-800">${retailPrice(order.bookCost)}</span>
+              <span className="font-bold text-slate-800">{uzs(retailPrice(order.bookCost))}</span>
             </div>
           </div>
 
           <div>
-            <label className="sb-label">To'langan miqdor ($)</label>
+            <label className="sb-label">To'langan miqdor (so'm)</label>
             <input
               type="number" min="0" step="0.01" className="sb-input"
               value={amount}
@@ -198,9 +198,9 @@ function PaymentsHistoryView() {
                     <Td>{getGroupName(o.groupId)}</Td>
                     <Td>{inv?.title ?? '—'}</Td>
                     <Td mono>
-                      <span className="text-emerald-600 font-bold">${o.amountPaid}</span>
+                      <span className="text-emerald-600 font-bold">{uzs(o.amountPaid)}</span>
                     </Td>
-                    <Td mono>${retailPrice(o.bookCost)}</Td>
+                    <Td mono>{uzs(retailPrice(o.bookCost))}</Td>
                     <Td>
                       <StatusBadge status={o.status} />
                     </Td>

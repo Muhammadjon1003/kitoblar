@@ -1,12 +1,7 @@
-/**
- * views/LogisticsView/SupplierRouting.tsx — O'zbek tili
- * Texnik maydonlar (tg_file_id, CDN, TR §) foydalanuvchidan yashirilgan.
- */
-
 import { useState } from 'react';
 import { CheckSquare, Square, Send, Package, Check, Clock, Truck } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { StatusBadge, EmptyState } from '../../components/ui';
+import { StatusBadge, EmptyState, uzs } from '../../components/ui';
 
 export default function SupplierRouting() {
   const { orders, dispatchToSupplier, markArrived, getStudentName, getGroupName, getInventoryItem } = useApp();
@@ -50,41 +45,49 @@ export default function SupplierRouting() {
     setTimeout(() => setYuborildi(false), 2500);
   };
 
+  const hasTolov = tolovBuyurtmalar.length > 0;
+  const hasYolda = yoldaBuyurtmalar.length > 0;
+
+  if (!hasTolov && !hasYolda) {
+    return (
+      <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6">
+        <EmptyState label="Ta'minot yo'nalishida hech qanday buyurtma mavjud emas." />
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6">
 
       {/* ── To'langan buyurtmalar: tanlash va yetkazib berish ── */}
-      <div className="sb-card overflow-hidden border-blue-900/30">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
-          <div>
-            <p className="text-sm font-semibold text-zinc-100">To'langan buyurtmalar — Ta'minotchiga yo'naltirish</p>
-            <p className="text-[11px] text-zinc-400 mt-0.5">
-              Buyurtmalarni tanlang va ta'minotchiga yuboring. Holat: To'langan → Yo'lda.
-            </p>
+      {hasTolov && (
+        <div className="sb-card overflow-hidden border-blue-900/30">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+            <div>
+              <p className="text-sm font-semibold text-zinc-100">To'langan buyurtmalar — Ta'minotchiga yo'naltirish</p>
+              <p className="text-[11px] text-zinc-400 mt-0.5">
+                Buyurtmalarni tanlang va ta'minotchiga yuboring. Holat: To'langan → Yo'lda.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 ml-4 shrink-0">
+              <button
+                onClick={handleCopyBatch}
+                className="flex items-center gap-1.5 text-xs sb-btn-secondary py-1.5 px-3"
+              >
+                {yuborildi ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Package className="w-3.5 h-3.5" />}
+                {yuborildi ? 'Nusxalandi!' : 'Ro\'yxatni nusxalash'}
+              </button>
+              <button
+                onClick={handleDispatch}
+                disabled={selectedIds.size === 0}
+                className="flex items-center gap-1.5 text-xs sb-btn-primary py-1.5 px-3 disabled:opacity-40"
+              >
+                <Send className="w-3.5 h-3.5" />
+                {selectedIds.size > 0 ? `${selectedIds.size} tasini yuborish` : 'Tanlanganlari yuborish'}
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2 ml-4 shrink-0">
-            <button
-              onClick={handleCopyBatch}
-              disabled={tolovBuyurtmalar.length === 0}
-              className="flex items-center gap-1.5 text-xs sb-btn-secondary py-1.5 px-3 disabled:opacity-40"
-            >
-              {yuborildi ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Package className="w-3.5 h-3.5" />}
-              {yuborildi ? 'Nusxalandi!' : 'Ro\'yxatni nusxalash'}
-            </button>
-            <button
-              onClick={handleDispatch}
-              disabled={selectedIds.size === 0}
-              className="flex items-center gap-1.5 text-xs sb-btn-primary py-1.5 px-3 disabled:opacity-40"
-            >
-              <Send className="w-3.5 h-3.5" />
-              {selectedIds.size > 0 ? `${selectedIds.size} tasini yuborish` : 'Tanlanganlari yuborish'}
-            </button>
-          </div>
-        </div>
 
-        {tolovBuyurtmalar.length === 0 ? (
-          <EmptyState label="Ta'minotchiga yuborishni kutayotgan buyurtmalar yo'q." />
-        ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead>
@@ -125,7 +128,7 @@ export default function SupplierRouting() {
                         <p className="text-[10px] text-zinc-500">{getGroupName(o.groupId)}</p>
                       </td>
                       <td className="px-4 py-3 text-zinc-400">{inv?.title ?? '—'}</td>
-                      <td className="px-4 py-3 font-mono font-semibold text-zinc-300">${o.bookCost}</td>
+                      <td className="px-4 py-3 font-mono font-semibold text-zinc-300">{uzs(o.bookCost)}</td>
                       <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
                     </tr>
                   );
@@ -133,23 +136,21 @@ export default function SupplierRouting() {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* ── Yo'lda buyurtmalar — Keldi deb belgilash ── */}
-      <div className="sb-card overflow-hidden border-amber-900/30">
-        <div className="px-5 py-4 border-b border-zinc-800">
-          <p className="text-sm font-semibold text-zinc-100 flex items-center gap-2">
-            <Truck className="w-4 h-4 text-amber-400" />
-            Yo'lda — Ta'minotchidan kutilmoqda
-          </p>
-          <p className="text-[11px] text-zinc-400 mt-0.5">
-            O'quv markaziga jismoniy kitoblar kelganda "Qabul qilindi" tugmasini bosing.
-          </p>
-        </div>
-        {yoldaBuyurtmalar.length === 0 ? (
-          <EmptyState label="Hozircha yo'lda buyurtmalar yo'q." />
-        ) : (
+      {hasYolda && (
+        <div className="sb-card overflow-hidden border-amber-900/30">
+          <div className="px-5 py-4 border-b border-zinc-800">
+            <p className="text-sm font-semibold text-zinc-100 flex items-center gap-2">
+              <Truck className="w-4 h-4 text-amber-400" />
+              Yo'lda — Ta'minotchidan kutilmoqda
+            </p>
+            <p className="text-[11px] text-zinc-400 mt-0.5">
+              O'quv markaziga jismoniy kitoblar kelganda "Qabul qilindi" tugmasini bosing.
+            </p>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead>
@@ -188,8 +189,8 @@ export default function SupplierRouting() {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
