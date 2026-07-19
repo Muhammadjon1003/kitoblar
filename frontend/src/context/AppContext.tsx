@@ -155,7 +155,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function loadBooks() {
       try {
-        const res = await fetch('https://kitoblar-seven.vercel.app/api/books');
+        const res = await fetch('https://kitoblar-seven.vercel.app/backend/books');
         if (!res.ok) throw new Error('API response failed');
         const dbBooks = await res.json();
         

@@ -40,7 +40,7 @@ function BulkOrderModal({ selectedIds, activeGroupId, onClose }: {
   const fetchBooksForStudent = async (studentId: string, catId: string) => {
     setLoadingStates(prev => ({ ...prev, [studentId]: true }));
     try {
-      const res = await fetch(`https://kitoblar-seven.vercel.app/api/books?categoryId=${catId}`);
+      const res = await fetch(`https://kitoblar-seven.vercel.app/backend/books?categoryId=${catId}`);
       if (!res.ok) throw new Error('Kitoblarni yuklab bo\'lmadi');
       const data = await res.json();
 
@@ -77,7 +77,7 @@ function BulkOrderModal({ selectedIds, activeGroupId, onClose }: {
       try {
         setGlobalLoading(true);
         setError(null);
-        const res = await fetch('https://kitoblar-seven.vercel.app/api/categories');
+        const res = await fetch('https://kitoblar-seven.vercel.app/backend/categories');
         if (!res.ok) throw new Error('Kategoriyalarni yuklab bo\'lmadi');
         const data = await res.json();
         

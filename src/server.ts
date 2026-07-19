@@ -34,7 +34,7 @@ app.get('/', (req, res) => {
 });
 
 // Fetch all uploaded books from Neon PostgreSQL (with optional categoryId filter)
-app.get('/api/books', async (req, res) => {
+app.get('/backend/books', async (req, res) => {
   try {
     const { categoryId } = req.query;
     const where: any = {};
@@ -53,7 +53,7 @@ app.get('/api/books', async (req, res) => {
 });
 
 // Fetch all categories from Neon PostgreSQL
-app.get('/api/categories', async (req, res) => {
+app.get('/backend/categories', async (req, res) => {
   try {
     const categories = await prisma.category.findMany({
       orderBy: { name: 'asc' }
