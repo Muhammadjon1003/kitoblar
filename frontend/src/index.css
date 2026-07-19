@@ -1,0 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    @apply bg-slate-50 text-slate-800 antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400;
+  }
+}
+
+@layer components {
+  .sb-input {
+    @apply w-full bg-white border border-slate-200 text-slate-800 placeholder-slate-400
+           px-3 py-2 rounded-lg text-sm outline-none shadow-sm
+           focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20
+           transition-all duration-150;
+  }
+  .sb-label {
+    @apply block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider;
+  }
+  .sb-btn-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold
+           px-4 py-2 rounded-lg shadow-sm transition-all duration-150
+           disabled:opacity-40 disabled:cursor-not-allowed
+           focus:outline-none focus:ring-2 focus:ring-blue-500/40;
+  }
+  .sb-btn-secondary {
+    @apply bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold
+           px-4 py-2 rounded-lg border border-slate-200 shadow-sm transition-all duration-150
+           focus:outline-none focus:ring-2 focus:ring-slate-300/50;
+  }
+  .sb-btn-ghost {
+    @apply text-slate-500 hover:text-slate-800 hover:bg-slate-100 text-sm font-medium
+           px-3 py-1.5 rounded-lg transition-colors duration-150;
+  }
+  .sb-card {
+    @apply bg-white border border-slate-200 rounded-xl shadow-sm;
+  }
+  .sb-badge-active {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold
+           bg-emerald-50 text-emerald-700 border border-emerald-200;
+  }
+  .sb-badge-frozen {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold
+           bg-slate-100 text-slate-500 border border-slate-200;
+  }
+  .sb-badge-pending {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold
+           bg-amber-50 text-amber-700 border border-amber-200;
+  }
+  .sb-badge-danger {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold
+           bg-red-50 text-red-600 border border-red-200;
+  }
+}

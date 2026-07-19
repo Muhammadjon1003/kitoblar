@@ -1,0 +1,69 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum StudentStatus {
+  ACTIVE
+  FROZEN
+}
+
+model Student {
+  id                   Int           @id @default(autoincrement())
+  name                 String
+  totalLessonsAttended Int           @default(0)
+  currentDebt          Float         @default(0.0)
+  debtLimit            Float         @default(0.0)
+  status               StudentStatus @default(ACTIVE)
+  books                Book[]
+  orders               Order[]
+  financials           Financials?
+}
+
+enum BookStatus {
+  IN_STOCK
+  ORDERED
+  ARRIVED
+  DELIVERED
+}
+
+model Book {
+  id          Int        @id @default(autoincrement())
+  title       String
+  teacherId   Int
+  tgFileId    String     @unique
+  status      BookStatus @default(IN_STOCK)
+  studentId   Int?
+  student     Student?   @relation(fields: [studentId], references: [id])
+  orders      Order[]
+  @@index([tgFileId])
+}
+
+enum LogisticsStatus {
+  PENDING
+  PROCESSING
+  ARRIVED
+}
+
+model Order {
+  id              Int             @id @default(autoincrement())
+  studentId       Int
+  bookId          Int
+  logisticsStatus LogisticsStatus @default(PENDING)
+  dateCreated     DateTime        @default(now())
+  student         Student         @relation(fields: [studentId], references: [id])
+  book            Book            @relation(fields: [bookId], references: [id])
+}
+
+model Financials {
+  id               Int      @id @default(autoincrement())
+  studentId        Int      @unique
+  totalPrice       Float    @default(0.0)
+  paidAmount       Float    @default(0.0)
+  remainingBalance Float    @default(0.0)
+  student          Student  @relation(fields: [studentId], references: [id])
+}
