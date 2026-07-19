@@ -41,14 +41,7 @@ const SEED_STUDENTS: Student[] = [
   { id: 's8', name: 'Dilnoza Rahimova',       groupId: 'g2', createdAt: '2026-02-15' },
 ];
 
-const SEED_INVENTORY: InventoryItem[] = [
-  { id: 'inv1', title: 'Advanced Mathematics Vol.2',   tgFileId: 'BQACAgIAAx_advmath2_7f3k', isReturned: false, bookCost: 45, categoryName: 'matematika' },
-  { id: 'inv2', title: 'Intro to Calculus',             tgFileId: 'BQACAgIAAx_calc1_9d2m',   isReturned: false, bookCost: 40, categoryName: 'matematika' },
-  { id: 'inv3', title: 'Python Programming Essentials', tgFileId: 'BQACAgIAAx_pyb1_2x8p',    isReturned: true,  bookCost: 38, categoryName: 'fizika' },
-  { id: 'inv4', title: 'Web Dev with Flask',            tgFileId: 'BQACAgIAAx_flask1_5n1q',  isReturned: false, bookCost: 42, categoryName: 'fizika' },
-  { id: 'inv5', title: 'Cambridge English B2 Workbook', tgFileId: 'BQACAgIAAx_camb2_1r6t',   isReturned: true,  bookCost: 55, categoryName: 'english' },
-  { id: 'inv6', title: 'Data Structures & Algorithms',  tgFileId: 'BQACAgIAAx_dsa1_4h9j',    isReturned: false, bookCost: 50, categoryName: 'fizika' },
-];
+const SEED_INVENTORY: InventoryItem[] = [];
 
 // Seed orders — mixed statuses to populate all pipeline columns for demo
 const SEED_ORDERS: Order[] = [
