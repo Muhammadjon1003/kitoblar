@@ -18,8 +18,22 @@ app.get('/', (req, res) => {
     status: 'active',
     service: 'SmartBook ERP Backend API',
     webhook: '/telegram-webhook',
-    endpoints: ['POST /api/orders/smart-create']
+    endpoints: ['POST /api/orders/smart-create', 'GET /webhook-info']
   });
+});
+
+// Live Telegram Webhook Diagnostic Route
+app.get('/webhook-info', async (req, res) => {
+  try {
+    const info = await bot.telegram.getWebhookInfo();
+    res.json({
+      webhook_domain_env: process.env.WEBHOOK_DOMAIN || 'NOT_SET',
+      bot_token_env: process.env.BOT_TOKEN ? `SET (starts with ${process.env.BOT_TOKEN.slice(0, 5)}...)` : 'NOT_SET',
+      telegram_webhook_info: info
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Set up Multer using Memory Storage to ensure 0GB disk usage
