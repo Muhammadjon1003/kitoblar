@@ -8,6 +8,16 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
+// Default status route
+app.get('/', (req, res) => {
+  res.json({
+    status: 'active',
+    service: 'SmartBook ERP Backend API',
+    webhook: '/telegram-webhook',
+    endpoints: ['POST /api/orders/smart-create']
+  });
+});
+
 // Set up Multer using Memory Storage to ensure 0GB disk usage
 const upload = multer({ storage: multer.memoryStorage() });
 
