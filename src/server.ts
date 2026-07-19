@@ -18,8 +18,28 @@ app.get('/', (req, res) => {
     status: 'active',
     service: 'SmartBook ERP Backend API',
     webhook: '/telegram-webhook',
-    endpoints: ['POST /api/orders/smart-create', 'GET /webhook-info']
+    endpoints: ['POST /api/orders/smart-create', 'GET /webhook-info', 'GET /webhook-debug']
   });
+});
+
+// Live request logger for debugging webhooks
+const lastRequests: any[] = [];
+
+app.all('/telegram-webhook', (req, res, next) => {
+  lastRequests.push({
+    timestamp: new Date().toISOString(),
+    path: req.path,
+    url: req.url,
+    method: req.method,
+    headers: req.headers,
+    body: req.body
+  });
+  if (lastRequests.length > 20) lastRequests.shift();
+  next();
+});
+
+app.get('/webhook-debug', (req, res) => {
+  res.json(lastRequests);
 });
 
 // Live Telegram Webhook Diagnostic Route
