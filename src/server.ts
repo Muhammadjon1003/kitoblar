@@ -33,14 +33,32 @@ app.get('/', (req, res) => {
   });
 });
 
-// Fetch all uploaded books from Neon PostgreSQL
+// Fetch all uploaded books from Neon PostgreSQL (with optional categoryId filter)
 app.get('/api/books', async (req, res) => {
   try {
+    const { categoryId } = req.query;
+    const where: any = {};
+    if (categoryId) {
+      where.categoryId = parseInt(categoryId as string);
+    }
     const books = await prisma.telegramBook.findMany({
+      where,
       include: { category: true },
       orderBy: { id: 'asc' }
     });
     res.json(books);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Fetch all categories from Neon PostgreSQL
+app.get('/api/categories', async (req, res) => {
+  try {
+    const categories = await prisma.category.findMany({
+      orderBy: { name: 'asc' }
+    });
+    res.json(categories);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
