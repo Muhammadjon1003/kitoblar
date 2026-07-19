@@ -54,26 +54,22 @@ interface FixPaymentModalProps {
 }
 
 function FixPaymentModal({ order, onClose }: FixPaymentModalProps) {
-  const { setOrders, getStudentName, getInventoryItem, retailPrice, fireToast } = useApp();
-  const [amount, setAmount] = useState(String(order.amountPaid));
-  const [status, setStatus] = useState<OrderStatus>(order.status);
+  const { updateOrderAdmin, getStudentName, getInventoryItem, retailPrice, fireToast } = useApp();
+  const [amount,  setAmount]  = useState(String(order.amountPaid));
+  const [status,  setStatus]  = useState<OrderStatus>(order.status);
   const [comment, setComment] = useState(order.comment);
+  const [saving,  setSaving]  = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount < 0) {
       fireToast('Iltimos, to\'g\'ri miqdor kiriting.', 'error');
       return;
     }
-
-    setOrders(prev => prev.map(o => 
-      o.id === order.id 
-        ? { ...o, amountPaid: parsedAmount, status, comment, updatedAt: new Date().toISOString().slice(0, 10) }
-        : o
-    ));
-
-    fireToast('To\'lov ma\'lumotlari muvaffaqiyatli tuzatildi.');
+    setSaving(true);
+    await updateOrderAdmin(order.id, { status, amountPaid: parsedAmount, comment });
+    setSaving(false);
     onClose();
   };
 
@@ -145,7 +141,9 @@ function FixPaymentModal({ order, onClose }: FixPaymentModalProps) {
 
           <div className="flex gap-2 pt-2 border-t border-slate-100">
             <button type="button" onClick={onClose} className="sb-btn-secondary flex-1 text-xs">Bekor qilish</button>
-            <button type="submit" className="sb-btn-primary flex-1 text-xs">Saqlash</button>
+            <button type="submit" disabled={saving} className="sb-btn-primary flex-1 text-xs flex items-center justify-center gap-1.5">
+              {saving ? <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saqlanmoqda...</> : 'Saqlash'}
+            </button>
           </div>
         </form>
       </div>
@@ -157,8 +155,8 @@ function PaymentsHistoryView() {
   const { orders, getStudentName, getGroupName, getInventoryItem, retailPrice } = useApp();
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
 
-  // Show all orders that have been paid or created to edit them
-  const paymentOrders = orders.filter(o => o.amountPaid > 0 || o.status === 'PAID');
+  // Show all orders sorted newest first
+  const allOrders = [...orders].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
   return (
     <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6 bg-slate-50">
@@ -168,13 +166,13 @@ function PaymentsHistoryView() {
           <p className="text-xs text-slate-700 font-semibold mt-0.5">Tizimdagi barcha to'lov operatsiyalari va ularni tahrirlash</p>
         </div>
         <span className="text-[11px] font-bold text-slate-700 bg-slate-200 border border-slate-350 px-2.5 py-1 rounded-lg">
-          Jami: {paymentOrders.length} ta tranzaksiya
+          Jami: {allOrders.length} ta buyurtma
         </span>
       </div>
 
       <div className="sb-card overflow-hidden">
-        {paymentOrders.length === 0 ? (
-          <EmptyState label="Hozircha hech qanday to'lov amalga oshirilmagan." />
+        {allOrders.length === 0 ? (
+          <EmptyState label="Hozircha hech qanday buyurtma mavjud emas." />
         ) : (
           <TableShell>
             <thead>
@@ -190,7 +188,7 @@ function PaymentsHistoryView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {paymentOrders.map(o => {
+              {allOrders.map(o => {
                 const inv = getInventoryItem(o.bookId);
                 return (
                   <tr key={o.id} className="hover:bg-slate-50 transition-colors">

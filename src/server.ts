@@ -179,6 +179,117 @@ app.post('/backend/students', async (req, res) => {
 });
 
 
+// ── ERP: Orders ───────────────────────────────────────────────────────────────
+
+// GET /backend/orders — fetch all orders, newest first
+app.get('/backend/orders', async (req, res) => {
+  try {
+    const orders = await prisma.erpOrder.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(orders.map(o => ({
+      id: o.id,
+      studentId: o.studentId,
+      groupId: o.groupId,
+      bookId: o.bookId,
+      status: o.status,
+      amountPaid: o.amountPaid,
+      bookCost: o.bookCost,
+      comment: o.comment,
+      updatedAt: o.updatedAt,
+    })));
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /backend/orders — create one or many orders (accepts array or single object)
+app.post('/backend/orders', async (req, res) => {
+  try {
+    const body = Array.isArray(req.body) ? req.body : [req.body];
+    const today = new Date().toISOString().slice(0, 10);
+
+    const created = await Promise.all(body.map((item: any) => {
+      const { studentId, groupId, bookId, bookCost, comment } = item;
+      if (!studentId || !groupId || !bookId) {
+        throw new Error('studentId, groupId, and bookId are required per item.');
+      }
+      return prisma.erpOrder.create({
+        data: {
+          studentId,
+          groupId,
+          bookId,
+          status: 'CREATED',
+          amountPaid: 0,
+          bookCost: bookCost ?? 0,
+          comment: comment ?? '',
+          updatedAt: today,
+        },
+      });
+    }));
+
+    res.status(201).json(created.map(o => ({
+      id: o.id,
+      studentId: o.studentId,
+      groupId: o.groupId,
+      bookId: o.bookId,
+      status: o.status,
+      amountPaid: o.amountPaid,
+      bookCost: o.bookCost,
+      comment: o.comment,
+      updatedAt: o.updatedAt,
+    })));
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// PATCH /backend/orders/:id — update status, amountPaid, comment (partial update)
+app.patch('/backend/orders/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, amountPaid, comment } = req.body;
+    const today = new Date().toISOString().slice(0, 10);
+
+    const updated = await prisma.erpOrder.update({
+      where: { id },
+      data: {
+        ...(status     !== undefined && { status }),
+        ...(amountPaid !== undefined && { amountPaid }),
+        ...(comment    !== undefined && { comment }),
+        updatedAt: today,
+      },
+    });
+
+    res.json({
+      id: updated.id,
+      studentId: updated.studentId,
+      groupId: updated.groupId,
+      bookId: updated.bookId,
+      status: updated.status,
+      amountPaid: updated.amountPaid,
+      bookCost: updated.bookCost,
+      comment: updated.comment,
+      updatedAt: updated.updatedAt,
+    });
+  } catch (e: any) {
+    res.status(404).json({ error: e.message });
+  }
+});
+
+// DELETE /backend/orders/:id — hard-delete (cancel) an order
+app.delete('/backend/orders/:id', async (req, res) => {
+  try {
+    await prisma.erpOrder.delete({ where: { id: req.params.id } });
+    res.json({ deleted: true });
+  } catch (e: any) {
+    res.status(404).json({ error: e.message });
+  }
+});
+
+
+
+
 // Live request logger for debugging webhooks
 const lastRequests: any[] = [];
 
