@@ -32,7 +32,7 @@ app.get('/', (req, res) => {
     status: 'active',
     service: 'SmartBook ERP Backend API',
     webhook: '/telegram-webhook',
-    endpoints: ['POST /api/orders/smart-create', 'GET /webhook-info', 'GET /webhook-debug', 'GET /api/books']
+    endpoints: ['POST /api/orders/smart-create', 'GET /webhook-info', 'GET /webhook-debug', 'GET /backend/books', 'GET /backend/categories']
   });
 });
 
