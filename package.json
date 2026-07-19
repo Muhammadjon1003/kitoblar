@@ -4,6 +4,7 @@
   "description": "SmartBooks Backend API and Bot",
   "main": "dist/src/server.js",
   "scripts": {
+    "postinstall": "prisma generate",
     "start": "node dist/src/server.js",
     "dev": "ts-node src/server.ts",
     "build": "prisma generate && tsc"
