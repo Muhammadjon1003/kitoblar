@@ -1,5 +1,5 @@
 /**
- * views/TeacherView.tsx — Light theme
+ * views/TeacherView.tsx — O'zbek tili
  */
 
 import { useState, useEffect } from 'react';
@@ -33,15 +33,13 @@ function BulkOrderModal({ selectedIds, activeGroupId, onClose }: {
   const [globalLoading, setGlobalLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Form entries
   const [entries, setEntries] = useState<Record<string, { categoryId: string; bookId: string; comment: string }>>({});
 
-  // Fetch books helper
   const fetchBooksForStudent = async (studentId: string, catId: string) => {
     setLoadingStates(prev => ({ ...prev, [studentId]: true }));
     try {
       const res = await fetch(`https://kitoblar-seven.vercel.app/backend/books?categoryId=${catId}`);
-      if (!res.ok) throw new Error('Kitoblarni yuklab bo\'lmadi');
+      if (!res.ok) throw new Error("Kitoblarni yuklab bo'lmadi");
       const data = await res.json();
 
       const mapped: InventoryItem[] = data.map((b: any) => ({
@@ -53,8 +51,6 @@ function BulkOrderModal({ selectedIds, activeGroupId, onClose }: {
       }));
 
       setCategoryBooks(prev => ({ ...prev, [studentId]: mapped }));
-      
-      // Auto-select first book in the list
       setEntries(prev => ({
         ...prev,
         [studentId]: {
@@ -63,7 +59,6 @@ function BulkOrderModal({ selectedIds, activeGroupId, onClose }: {
           bookId: mapped[0]?.id || ''
         }
       }));
-
     } catch (err) {
       console.error(err);
     } finally {
@@ -71,36 +66,27 @@ function BulkOrderModal({ selectedIds, activeGroupId, onClose }: {
     }
   };
 
-  // 1. Fetch categories on mount
   useEffect(() => {
     async function initCategories() {
       try {
         setGlobalLoading(true);
         setError(null);
         const res = await fetch('https://kitoblar-seven.vercel.app/backend/categories');
-        if (!res.ok) throw new Error('Kategoriyalarni yuklab bo\'lmadi');
+        if (!res.ok) throw new Error("Kategoriyalarni yuklab bo'lmadi");
         const data = await res.json();
-        
+
         if (data.length === 0) {
-          throw new Error('Tizimda hech qanday kategoriya mavjud emas. Avval Telegram bot orqali kategoriya qo\'shing.');
+          throw new Error("Tizimda hech qanday fan mavjud emas. Avval Telegram bot orqali fan qo'shing.");
         }
 
         setCategories(data);
-        
-        // Initialize default category for all students
         const firstCatId = String(data[0].id);
         const initialEntries = Object.fromEntries(
           selectedIds.map(id => [id, { categoryId: firstCatId, bookId: '', comment: '' }])
         );
         setEntries(initialEntries);
 
-        // Fetch books for the first category for each student
-        await Promise.all(
-          selectedIds.map(async (sid) => {
-            await fetchBooksForStudent(sid, firstCatId);
-          })
-        );
-
+        await Promise.all(selectedIds.map(sid => fetchBooksForStudent(sid, firstCatId)));
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -111,10 +97,7 @@ function BulkOrderModal({ selectedIds, activeGroupId, onClose }: {
   }, [selectedIds]);
 
   const handleCategoryChange = async (studentId: string, catId: string) => {
-    setEntries(prev => ({
-      ...prev,
-      [studentId]: { ...prev[studentId], categoryId: catId, bookId: '' }
-    }));
+    setEntries(prev => ({ ...prev, [studentId]: { ...prev[studentId], categoryId: catId, bookId: '' } }));
     await fetchBooksForStudent(studentId, catId);
   };
 
@@ -137,7 +120,7 @@ function BulkOrderModal({ selectedIds, activeGroupId, onClose }: {
   return (
     <ModalShell title="Yangi buyurtma yaratish" subtitle={`${selectedIds.length} ta talaba — kitob biriktirish`}
       icon={BookOpen} onClose={onClose} width="max-w-2xl">
-      
+
       {globalLoading ? (
         <div className="flex flex-col items-center justify-center p-12 space-y-3">
           <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
@@ -153,14 +136,15 @@ function BulkOrderModal({ selectedIds, activeGroupId, onClose }: {
       ) : (
         <form onSubmit={handleSubmit} className="px-6 py-4 space-y-3">
           {selectedIds.map(sid => {
-            const studentCat = entries[sid]?.categoryId || '';
-            const booksList = categoryBooks[sid] || [];
+            const studentCat  = entries[sid]?.categoryId || '';
+            const booksList   = categoryBooks[sid] || [];
             const isLoadingBooks = loadingStates[sid];
 
             return (
               <div key={sid} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
                 <p className="text-xs font-semibold text-slate-800">{getStudentName(sid)}</p>
                 <div className="grid grid-cols-3 gap-3">
+                  {/* Category */}
                   <div>
                     <label className="sb-label">Fan (Kategoriya)</label>
                     <div className="relative">
@@ -174,6 +158,7 @@ function BulkOrderModal({ selectedIds, activeGroupId, onClose }: {
                       <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
                     </div>
                   </div>
+                  {/* Book */}
                   <div>
                     <label className="sb-label">Kitob</label>
                     <div className="relative">
@@ -200,6 +185,7 @@ function BulkOrderModal({ selectedIds, activeGroupId, onClose }: {
                       )}
                     </div>
                   </div>
+                  {/* Comment */}
                   <div>
                     <label className="sb-label">Izoh</label>
                     <input className="sb-input text-xs font-medium" placeholder="Ixtiyoriy eslatma..."
@@ -212,7 +198,7 @@ function BulkOrderModal({ selectedIds, activeGroupId, onClose }: {
           })}
           <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 mt-2">
             <button type="button" onClick={onClose} className="sb-btn-secondary text-xs">Bekor qilish</button>
-            <button type="submit" className="sb-btn-primary flex items-center gap-1.5 text-xs" 
+            <button type="submit" className="sb-btn-primary flex items-center gap-1.5 text-xs"
               disabled={selectedIds.some(sid => !entries[sid]?.bookId)}>
               <Send className="w-3.5 h-3.5" /> Buyurtma yuborish
             </button>
@@ -230,8 +216,8 @@ export default function TeacherView() {
     getGroupsByTeacher,
   } = useApp();
 
-  const ACTIVE_TEACHER_ID = 't1';
-  const teacherGroups = getGroupsByTeacher(ACTIVE_TEACHER_ID);
+  // Teacher view shows ALL groups (teacher name lookup removed — groups now carry teacherName)
+  const teacherGroups = getGroupsByTeacher('Alisher Nazarov');
 
   const [activeGroupId, setActiveGroupId] = useState<string>(teacherGroups[0]?.id ?? '');
   const [selectedIds,   setSelectedIds]   = useState<Set<string>>(new Set());
@@ -255,7 +241,7 @@ export default function TeacherView() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50">
-      {/* Toolbar */}
+      {/* Asboblar paneli */}
       <div className="flex items-center gap-4 px-7 py-4 border-b border-slate-200 bg-white shrink-0">
         <div className="relative">
           <select className="sb-input appearance-none pr-8 text-sm font-medium"
@@ -266,27 +252,27 @@ export default function TeacherView() {
           <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
         </div>
 
-        <span className="text-[11px] text-slate-400 border border-slate-200 rounded-lg px-2.5 py-1.5 bg-slate-50">
-          {groupStudents.length} students
+        <span className="text-[11px] text-slate-600 font-semibold border border-slate-200 rounded-lg px-2.5 py-1.5 bg-slate-50">
+          {groupStudents.length} ta talaba
         </span>
 
         <div className="ml-auto flex items-center gap-2">
           {selectedIds.size > 0 && (
             <span className="text-[11px] text-blue-600 bg-blue-50 border border-blue-100 rounded-lg px-2 py-1 font-semibold">
-              {selectedIds.size} selected
+              {selectedIds.size} ta tanlandi
             </span>
           )}
           <button onClick={() => selectedIds.size > 0 && setShowModal(true)}
             disabled={selectedIds.size === 0}
             className="sb-btn-primary flex items-center gap-1.5 text-xs py-1.5 px-3 disabled:opacity-40">
-            <BookOpen className="w-3.5 h-3.5" /> Create Bulk Order
+            <BookOpen className="w-3.5 h-3.5" /> Buyurtma yaratish
           </button>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-7 py-5">
         {groupStudents.length === 0 ? (
-          <EmptyState label="No students in this group." />
+          <EmptyState label="Bu guruhda hali talabalar yo'q." />
         ) : (
           <TableShell>
             <thead>
@@ -298,17 +284,17 @@ export default function TeacherView() {
                       : <Square className="w-3.5 h-3.5" />}
                   </button>
                 </Th>
-                <Th>Student Name</Th>
-                <Th>Last Allocated Book</Th>
-                <Th>Last Order Date</Th>
-                <Th>Status</Th>
+                <Th>Talaba ismi</Th>
+                <Th>Oxirgi kitob</Th>
+                <Th>Buyurtma sanasi</Th>
+                <Th>Holati</Th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {groupStudents.map(student => {
                 const latestOrder = getStudentOrders(student.id)[0];
-                const bookItem = latestOrder ? getInventoryItem(latestOrder.bookId) : undefined;
-                const selected = selectedIds.has(student.id);
+                const bookItem    = latestOrder ? getInventoryItem(latestOrder.bookId) : undefined;
+                const selected    = selectedIds.has(student.id);
 
                 return (
                   <tr key={student.id}
@@ -330,12 +316,12 @@ export default function TeacherView() {
                         <span className="font-semibold text-slate-800">{student.name}</span>
                       </div>
                     </Td>
-                    <Td muted={!bookItem}>{bookItem ? bookItem.title : 'No orders yet'}</Td>
+                    <Td muted={!bookItem}>{bookItem ? bookItem.title : 'Buyurtma yo\'q'}</Td>
                     <Td mono muted={!latestOrder}>{latestOrder ? latestOrder.updatedAt : '—'}</Td>
                     <Td>
                       {latestOrder
                         ? <StatusBadge status={latestOrder.status} />
-                        : <span className="text-[11px] text-slate-400">No active order</span>}
+                        : <span className="text-[11px] text-slate-500 font-semibold">Faol buyurtma yo'q</span>}
                     </Td>
                   </tr>
                 );
@@ -343,7 +329,6 @@ export default function TeacherView() {
             </tbody>
           </TableShell>
         )}
-
       </div>
 
       {showModal && (

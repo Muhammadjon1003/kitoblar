@@ -1,9 +1,6 @@
 /**
- * views/LogisticsView/WarehouseInventory.tsx
- * ─────────────────────────────────────────────────────────────────────────────
- * Displays physical books with is_returned=true (reusable warehouse stock).
- * Provides an allocation flow to assign returned books to students at 0 cost,
- * instantly creating an ARRIVED order — skipping external vendor procurement.
+ * views/LogisticsView/WarehouseInventory.tsx — O'zbek tili
+ * tg_file_id va texnik identifikatorlar foydalanuvchidan yashirilgan.
  */
 
 import { useState } from 'react';
@@ -16,7 +13,6 @@ export default function WarehouseInventory() {
 
   const returnedBooks = inventory.filter(i => i.isReturned);
 
-  // Per-book allocation state: selected studentId
   const [allocations, setAllocations] = useState<Record<string, string>>({});
 
   const setAllocation = (invId: string, studentId: string) => {
@@ -29,7 +25,6 @@ export default function WarehouseInventory() {
     const student = students.find(s => s.id === studentId);
     if (!student) return;
     allocateFromWarehouse(invId, studentId, student.groupId);
-    // Clear local allocation selection
     setAllocations(prev => { const next = { ...prev }; delete next[invId]; return next; });
   };
 
@@ -39,41 +34,47 @@ export default function WarehouseInventory() {
         <div>
           <h2 className="text-sm font-semibold text-zinc-100 flex items-center gap-2">
             <Archive className="w-4 h-4 text-zinc-500" />
-            Warehouse Reusable Stock
+            Qayta foydalanish ombori
           </h2>
-          <p className="text-[11px] text-zinc-500 mt-1">
-            Books with <span className="font-mono text-zinc-400">is_returned: true</span>. Allocating creates an ARRIVED order at $0 book_cost.
+          <p className="text-[11px] text-zinc-400 mt-1">
+            Qaytarilgan kitoblar — talabaga biriktirish orqali darhol yetkazib berish holatiga o'tadi.
           </p>
         </div>
         <span className="text-[11px] font-semibold px-3 py-1 bg-zinc-800 border border-zinc-700 rounded-md text-zinc-300">
-          {returnedBooks.length} units available
+          {returnedBooks.length} ta mavjud
         </span>
       </div>
 
       {returnedBooks.length === 0 ? (
-        <EmptyState label="No returned books in warehouse stock." />
+        <EmptyState label="Omborxonada qaytarilgan kitob yo'q." />
       ) : (
         <div className="space-y-3">
-          {returnedBooks.map(inv => {
+          {returnedBooks.map((inv, idx) => {
             const selectedStudentId = allocations[inv.id] ?? '';
-            const selectedStudent = students.find(s => s.id === selectedStudentId);
+            const selectedStudent   = students.find(s => s.id === selectedStudentId);
 
             return (
               <div key={inv.id} className="sb-card p-5 flex flex-col sm:flex-row sm:items-center gap-4">
-                {/* Book info */}
+                {/* Kitob ma'lumotlari */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-zinc-100">{inv.title}</p>
-                  <p className="text-[10px] text-zinc-600 font-mono mt-0.5 truncate">tg_file_id: {inv.tgFileId}</p>
-                  <div className="flex items-center gap-3 mt-2 text-[10px]">
-                    <span className="px-2 py-0.5 bg-purple-950 border border-purple-800 text-purple-400 rounded font-medium">
-                      RETURNED
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-400">
+                      #{idx + 1}
                     </span>
-                    <span className="text-zinc-500">Wholesale cost: <span className="text-zinc-300 font-mono">${inv.bookCost}</span></span>
-                    <span className="text-emerald-500 font-semibold">→ Allocate at $0.00</span>
+                    <p className="text-sm font-semibold text-zinc-100">{inv.title}</p>
+                  </div>
+                  <div className="flex items-center gap-3 mt-2 text-[10px]">
+                    <span className="px-2 py-0.5 bg-purple-950 border border-purple-800 text-purple-300 rounded font-semibold">
+                      Qaytarilgan
+                    </span>
+                    {inv.categoryName && (
+                      <span className="text-zinc-400">{inv.categoryName}</span>
+                    )}
+                    <span className="text-emerald-400 font-semibold">→ Bepul biriktirish</span>
                   </div>
                 </div>
 
-                {/* Student selector + allocate button */}
+                {/* Talaba tanlash + biriktirish */}
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="relative">
                     <select
@@ -81,7 +82,7 @@ export default function WarehouseInventory() {
                       value={selectedStudentId}
                       onChange={e => setAllocation(inv.id, e.target.value)}
                     >
-                      <option value="">— Select student to allocate —</option>
+                      <option value="">— Talabani tanlang —</option>
                       {groups.map(g => (
                         <optgroup key={g.id} label={g.groupName}>
                           {students
@@ -102,7 +103,7 @@ export default function WarehouseInventory() {
                     className="flex items-center gap-1.5 px-4 py-2 rounded-md text-xs font-semibold sb-btn-primary disabled:opacity-40 whitespace-nowrap"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    Allocate
+                    Biriktirish
                     {selectedStudent && ` → ${selectedStudent.name.split(' ')[0]}`}
                   </button>
                 </div>
@@ -112,30 +113,30 @@ export default function WarehouseInventory() {
         </div>
       )}
 
-      {/* All inventory reference table */}
+      {/* Umumiy inventar jadvali */}
       <div className="sb-card overflow-hidden mt-6">
         <div className="px-5 py-3 border-b border-zinc-800">
-          <p className="text-xs font-semibold text-zinc-300">Full Inventory Ledger</p>
+          <p className="text-xs font-semibold text-zinc-300">Barcha inventar ro'yxati</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead>
               <tr className="border-b border-zinc-800 bg-zinc-950/40">
-                {['Title','TG File ID','Cost','Status'].map(h => (
+                {['#', 'Kitob nomi', 'Kategoriya', 'Holati'].map(h => (
                   <th key={h} className="px-5 py-2.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/40">
-              {inventory.map(inv => (
+              {inventory.map((inv, idx) => (
                 <tr key={inv.id} className="hover:bg-zinc-800/20 transition-colors">
+                  <td className="px-5 py-3 text-zinc-500 font-mono text-[10px]">{idx + 1}</td>
                   <td className="px-5 py-3 font-medium text-zinc-200">{inv.title}</td>
-                  <td className="px-5 py-3 font-mono text-zinc-600 text-[10px] max-w-[200px] truncate">{inv.tgFileId}</td>
-                  <td className="px-5 py-3 font-mono text-zinc-300">${inv.bookCost}</td>
+                  <td className="px-5 py-3 text-zinc-400">{inv.categoryName ?? '—'}</td>
                   <td className="px-5 py-3">
                     {inv.isReturned
-                      ? <span className="px-2 py-0.5 bg-purple-950 border border-purple-800 text-purple-400 rounded text-[10px] font-semibold">Returned / Available</span>
-                      : <span className="px-2 py-0.5 bg-zinc-800 border border-zinc-700 text-zinc-400 rounded text-[10px]">In Circulation</span>
+                      ? <span className="px-2 py-0.5 bg-purple-950 border border-purple-800 text-purple-300 rounded text-[10px] font-semibold">Qaytarilgan / Mavjud</span>
+                      : <span className="px-2 py-0.5 bg-zinc-800 border border-zinc-700 text-zinc-400 rounded text-[10px]">Muomalada</span>
                     }
                   </td>
                 </tr>

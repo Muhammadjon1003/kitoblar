@@ -1,8 +1,6 @@
 /**
- * views/ManagerView/ManagerDashboard.tsx
- * ─────────────────────────────────────────────────────────────────────────────
- * Executive analytics hub. Routes between: Financial KPI cards (TR § 6),
- * LedgerTable, and CoverageMatrix based on activeSubPage.
+ * views/ManagerView/ManagerDashboard.tsx — O'zbek tili
+ * TR § havolalar va texnik atamalar foydalanuvchidan yashirilgan.
  */
 
 import { TrendingUp, TrendingDown, Activity, Archive, HardDrive, BarChart2 } from 'lucide-react';
@@ -11,98 +9,98 @@ import { KpiCard } from '../../components/ui';
 import LedgerTable from './LedgerTable';
 import CoverageMatrix from './CoverageMatrix';
 
-// ─── TR § 6 Financial Formula Cards ───────────────────────────────────────────
+// Holat nomlari o'zbekcha
+const STATUS_UZBE: Record<string, string> = {
+  CREATED:   'Yaratildi',
+  PAID:      "To'langan",
+  ORDERED:   'Buyurtma berildi',
+  ARRIVED:   'Keldi',
+  GIVEN:     'Topshirildi',
+  CANCELLED: 'Bekor qilindi',
+  RETURNED:  'Qaytarildi',
+};
 
-function FinancialAnalytics() {
-  const { orders, inventory } = useApp();
+// ─── Moliyaviy tahlil paneli ───────────────────────────────────────────────────
 
-  // TR § 6: Gross Revenue = Σ(amount_paid)
-  const grossRevenue = orders.reduce((s, o) => s + o.amountPaid, 0);
+function MoliyaviyTahlil() {
+  const { orders, inventory, getStudentName } = useApp();
 
-  // TR § 6: Total Capital Invested = Σ(book_cost)
-  const totalInvested = orders.reduce((s, o) => s + o.bookCost, 0);
+  const jamiBiriktirildi  = orders.reduce((s, o) => s + o.amountPaid, 0);
+  const jamiSarflandi      = orders.reduce((s, o) => s + o.bookCost,   0);
+  const sofFoyda           = jamiBiriktirildi - jamiSarflandi;
 
-  // TR § 6: Net Profit = Gross Revenue − Total Invested
-  const netProfit = grossRevenue - totalInvested;
-
-  // TR § 6: Unrealized Dead Capital = Σ(book_cost) WHERE status='RETURNED' OR (status='ARRIVED' AND unassigned)
-  // In our model: RETURNED orders + ARRIVED orders with 0 amountPaid (warehouse allocation)
-  const unrealizedCapital = orders
-    .filter(o =>
-      o.status === 'RETURNED' ||
-      (o.status === 'ARRIVED' && o.bookCost === 0)
-    )
+  const muomaladan          = orders
+    .filter(o => o.status === 'RETURNED' || (o.status === 'ARRIVED' && o.bookCost === 0))
     .reduce((s, o) => s + o.bookCost, 0);
 
-  // TR § 4: Telegram Storage Savings = inventory.length × 25 MB (average textbook size)
-  const savedMB = inventory.length * 25;
-  const savedGB = (savedMB / 1024).toFixed(2);
+  const tejasavedMB = inventory.length * 25;
+  const tejasavedGB = (tejasavedMB / 1024).toFixed(2);
 
-  const kpis = [
+  const kpilar = [
     {
-      label: 'Gross Revenue',
-      value: `$${grossRevenue}`,
+      label: 'Jami tushum',
+      value: `$${jamiBiriktirildi}`,
       icon: TrendingUp,
       accent: 'text-emerald-400',
-      sub: 'Σ orders.amount_paid',
+      sub: "Barcha buyurtmalar bo'yicha to'lovlar",
     },
     {
-      label: 'Total Capital Invested',
-      value: `$${totalInvested}`,
+      label: 'Jami xarajat',
+      value: `$${jamiSarflandi}`,
       icon: TrendingDown,
       accent: 'text-red-400',
-      sub: 'Σ orders.book_cost',
+      sub: 'Kitoblarni sotib olish xarajati',
     },
     {
-      label: 'Net Profit',
-      value: `${netProfit >= 0 ? '+' : ''}${netProfit}$`,
+      label: 'Sof foyda',
+      value: `${sofFoyda >= 0 ? '+' : ''}${sofFoyda}$`,
       icon: Activity,
-      accent: netProfit >= 0 ? 'text-blue-400' : 'text-amber-400',
-      sub: 'Gross Revenue − Total Invested',
+      accent: sofFoyda >= 0 ? 'text-blue-400' : 'text-amber-400',
+      sub: 'Tushum − Xarajat',
     },
     {
-      label: 'Unrealized Dead Capital',
-      value: `$${unrealizedCapital}`,
+      label: 'Muomaladagi kitoblar',
+      value: `$${muomaladan}`,
       icon: Archive,
       accent: 'text-purple-400',
-      sub: 'RETURNED + unassigned ARRIVED',
+      sub: 'Qaytarilgan va biriktirilmagan',
     },
     {
-      label: 'Telegram Storage Saved',
-      value: `${savedGB} GB`,
+      label: 'Tejashlar (bulut)',
+      value: `${tejasavedGB} GB`,
       icon: HardDrive,
       accent: 'text-cyan-400',
-      sub: `${inventory.length} books × 25 MB avg`,
+      sub: `${inventory.length} ta kitob × 25 MB`,
     },
   ];
 
   return (
     <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6">
-      {/* KPI cards */}
+      {/* KPI kartalar */}
       <div>
         <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-          <BarChart2 className="w-3.5 h-3.5" /> TR § 6 Financial Formulas
+          <BarChart2 className="w-3.5 h-3.5" /> Moliyaviy ko'rsatkichlar
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-          {kpis.map(kpi => (
+          {kpilar.map(kpi => (
             <KpiCard key={kpi.label} {...kpi} />
           ))}
         </div>
       </div>
 
-      {/* Order status distribution */}
+      {/* Buyurtma holatlari taqsimoti */}
       <div>
         <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">
-          Order Status Distribution
+          Buyurtmalar holati bo'yicha taqsimot
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
           {(['CREATED','PAID','ORDERED','ARRIVED','GIVEN','CANCELLED','RETURNED'] as const).map(status => {
-            const count = orders.filter(o => o.status === status).length;
-            const pct = orders.length > 0 ? Math.round((count / orders.length) * 100) : 0;
+            const soni = orders.filter(o => o.status === status).length;
+            const foiz = orders.length > 0 ? Math.round((soni / orders.length) * 100) : 0;
             return (
               <div key={status} className="sb-card px-4 py-3 text-center">
-                <p className="text-xl font-bold text-zinc-100">{count}</p>
-                <p className="text-[9px] font-semibold text-zinc-500 uppercase tracking-widest mt-0.5">{status}</p>
+                <p className="text-xl font-bold text-zinc-100">{soni}</p>
+                <p className="text-[9px] font-semibold text-zinc-400 mt-0.5">{STATUS_UZBE[status] ?? status}</p>
                 <div className="mt-2 bg-zinc-800 rounded-full h-1 overflow-hidden">
                   <div
                     className={`h-full rounded-full ${
@@ -114,27 +112,27 @@ function FinancialAnalytics() {
                       status === 'CANCELLED' ? 'bg-red-700'     :
                       'bg-purple-700'
                     }`}
-                    style={{ width: `${pct}%` }}
+                    style={{ width: `${foiz}%` }}
                   />
                 </div>
-                <p className="text-[9px] text-zinc-600 mt-1">{pct}%</p>
+                <p className="text-[9px] text-zinc-600 mt-1">{foiz}%</p>
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* Embedded mini-ledger (last 5 orders) */}
+      {/* So'nggi 5 ta buyurtma */}
       <div>
         <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">
-          Recent Activity (Last 5 Orders)
+          So'nggi faoliyat (oxirgi 5 ta buyurtma)
         </p>
         <div className="sb-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead>
                 <tr className="border-b border-zinc-800 bg-zinc-950/40">
-                  {['Student','Book','Paid','Cost','Net','Status'].map(h => (
+                  {['Talaba', 'Kitob', "To'landi", 'Tan narxi', 'Foyda', 'Holati'].map(h => (
                     <th key={h} className="px-5 py-2.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">{h}</th>
                   ))}
                 </tr>
@@ -148,7 +146,9 @@ function FinancialAnalytics() {
                     const net = o.amountPaid - o.bookCost;
                     return (
                       <tr key={o.id} className="hover:bg-zinc-800/20 transition-colors">
-                        <td className="px-5 py-3 font-medium text-zinc-200">{o.studentId}</td>
+                        <td className="px-5 py-3 font-medium text-zinc-200">
+                          {getStudentName(o.studentId)}
+                        </td>
                         <td className="px-5 py-3 text-zinc-400 max-w-[140px] truncate">{inv?.title ?? '—'}</td>
                         <td className="px-5 py-3 font-mono text-emerald-400">${o.amountPaid}</td>
                         <td className="px-5 py-3 font-mono text-red-400">${o.bookCost}</td>
@@ -156,7 +156,7 @@ function FinancialAnalytics() {
                           {net >= 0 ? '+' : ''}{net}$
                         </td>
                         <td className="px-5 py-3">
-                          <span className="text-[10px] font-semibold text-zinc-400">{o.status}</span>
+                          <span className="text-[10px] font-semibold text-zinc-400">{STATUS_UZBE[o.status] ?? o.status}</span>
                         </td>
                       </tr>
                     );
@@ -177,5 +177,5 @@ export default function ManagerDashboard() {
 
   if (activeSubPage === 'ledger')   return <LedgerTable />;
   if (activeSubPage === 'coverage') return <CoverageMatrix />;
-  return <FinancialAnalytics />;
+  return <MoliyaviyTahlil />;
 }
