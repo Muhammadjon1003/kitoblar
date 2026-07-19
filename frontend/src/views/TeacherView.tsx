@@ -12,9 +12,40 @@ function BulkOrderModal({ selectedIds, activeGroupId, onClose }: {
   selectedIds: string[]; activeGroupId: string; onClose: () => void;
 }) {
   const { inventory, getStudentName, createBulkOrders } = useApp();
-  const [entries, setEntries] = useState<Record<string, { bookId: string; comment: string }>>(
-    Object.fromEntries(selectedIds.map(id => [id, { bookId: inventory[0]?.id ?? '', comment: '' }]))
-  );
+  
+  // Extract unique category names
+  const categories = Array.from(new Set(inventory.map(i => i.categoryName || 'Umumiy')));
+
+  // Initial state helper
+  const getInitialBookForCategory = (cat: string) => {
+    return inventory.find(i => (i.categoryName || 'Umumiy') === cat)?.id || '';
+  };
+
+  const [entries, setEntries] = useState<Record<string, { categoryName: string; bookId: string; comment: string }>>(() => {
+    const initialCat = categories[0] || 'Umumiy';
+    return Object.fromEntries(
+      selectedIds.map(id => [
+        id,
+        {
+          categoryName: initialCat,
+          bookId: getInitialBookForCategory(initialCat),
+          comment: ''
+        }
+      ])
+    );
+  });
+
+  const handleCategoryChange = (studentId: string, catName: string) => {
+    const defaultBookId = getInitialBookForCategory(catName);
+    setEntries(prev => ({
+      ...prev,
+      [studentId]: {
+        ...prev[studentId],
+        categoryName: catName,
+        bookId: defaultBookId
+      }
+    }));
+  };
 
   const updateEntry = (studentId: string, field: 'bookId' | 'comment', value: string) => {
     setEntries(prev => ({ ...prev, [studentId]: { ...prev[studentId], [field]: value } }));
@@ -31,39 +62,57 @@ function BulkOrderModal({ selectedIds, activeGroupId, onClose }: {
   };
 
   return (
-    <ModalShell title="Create Bulk Order" subtitle={`${selectedIds.length} student(s) — assign books`}
+    <ModalShell title="Yangi buyurtma yaratish" subtitle={`${selectedIds.length} ta talaba — kitob biriktirish`}
       icon={BookOpen} onClose={onClose} width="max-w-2xl">
       <form onSubmit={handleSubmit} className="px-6 py-4 space-y-3">
-        {selectedIds.map(sid => (
-          <div key={sid} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-            <p className="text-xs font-semibold text-slate-700">{getStudentName(sid)}</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="sb-label">Textbook</label>
-                <div className="relative">
-                  <select className="sb-input appearance-none pr-8 text-xs"
-                    value={entries[sid].bookId}
-                    onChange={e => updateEntry(sid, 'bookId', e.target.value)} required>
-                    {inventory.filter(i => !i.isReturned).map(inv => (
-                      <option key={inv.id} value={inv.id}>{inv.title}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+        {selectedIds.map(sid => {
+          const studentCat = entries[sid].categoryName;
+          const filteredBooks = inventory.filter(i => (i.categoryName || 'Umumiy') === studentCat);
+
+          return (
+            <div key={sid} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+              <p className="text-xs font-semibold text-slate-800">{getStudentName(sid)}</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="sb-label">Fan (Kategoriya)</label>
+                  <div className="relative">
+                    <select className="sb-input appearance-none pr-8 text-xs font-medium"
+                      value={studentCat}
+                      onChange={e => handleCategoryChange(sid, e.target.value)} required>
+                      {categories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+                  </div>
+                </div>
+                <div>
+                  <label className="sb-label">Kitob</label>
+                  <div className="relative">
+                    <select className="sb-input appearance-none pr-8 text-xs font-medium"
+                      value={entries[sid].bookId}
+                      onChange={e => updateEntry(sid, 'bookId', e.target.value)} required>
+                      {filteredBooks.map(inv => (
+                        <option key={inv.id} value={inv.id}>{inv.title}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+                  </div>
+                </div>
+                <div>
+                  <label className="sb-label">Izoh</label>
+                  <input className="sb-input text-xs font-medium" placeholder="Ixtiyoriy eslatma..."
+                    value={entries[sid].comment}
+                    onChange={e => updateEntry(sid, 'comment', e.target.value)} />
                 </div>
               </div>
-              <div>
-                <label className="sb-label">Comment</label>
-                <input className="sb-input text-xs" placeholder="Optional note..."
-                  value={entries[sid].comment}
-                  onChange={e => updateEntry(sid, 'comment', e.target.value)} />
-              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 mt-2">
-          <button type="button" onClick={onClose} className="sb-btn-secondary text-xs">Cancel</button>
+          <button type="button" onClick={onClose} className="sb-btn-secondary text-xs">Bekor qilish</button>
           <button type="submit" className="sb-btn-primary flex items-center gap-1.5 text-xs">
-            <Send className="w-3.5 h-3.5" /> Submit Orders
+            <Send className="w-3.5 h-3.5" /> Buyurtma yuborish
           </button>
         </div>
       </form>
@@ -73,7 +122,7 @@ function BulkOrderModal({ selectedIds, activeGroupId, onClose }: {
 
 export default function TeacherView() {
   const {
-    students, inventory,
+    students,
     getStudentOrders, getInventoryItem,
     getGroupsByTeacher,
   } = useApp();
@@ -192,25 +241,6 @@ export default function TeacherView() {
           </TableShell>
         )}
 
-        {/* Inventory reference */}
-        <div className="mt-6">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">
-            Available Textbooks ({inventory.filter(i => !i.isReturned).length})
-          </p>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-            {inventory.filter(i => !i.isReturned).map(inv => (
-              <div key={inv.id} className="sb-card px-4 py-3 flex items-start gap-3">
-                <div className="w-7 h-7 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
-                  <BookOpen className="w-3.5 h-3.5 text-slate-500" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[12px] font-medium text-slate-700 leading-tight">{inv.title}</p>
-                  <p className="text-[10px] text-slate-400 font-mono mt-0.5 truncate">{inv.tgFileId}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
 
       {showModal && (

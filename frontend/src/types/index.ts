@@ -52,6 +52,7 @@ export interface InventoryItem {
   tgFileId: string;   // Telegram cloud storage reference (binary never hits server)
   isReturned: boolean; // true = available as reusable warehouse stock
   bookCost: number;   // Wholesale procurement cost (TR § 6: Σ book_cost)
+  categoryName?: string;
 }
 
 // ─── TR § 2: orders table (central state-machine table) ───────────────────────
