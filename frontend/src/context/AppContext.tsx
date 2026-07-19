@@ -8,7 +8,7 @@
  * Deliver guard: amount_paid >= bookCost × 1.5
  */
 
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type {
   Teacher, Group, Student, InventoryItem, Order,
@@ -157,6 +157,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [orders,     setOrders]     = useState<Order[]>(SEED_ORDERS);
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
   const [toasts,     setToasts]     = useState<AppToast[]>([]);
+
+  // ── Fetch Live Books from Vercel API ───────────────────────────────────────
+  useEffect(() => {
+    async function loadBooks() {
+      try {
+        const res = await fetch('https://kitoblar-seven.vercel.app/api/books');
+        if (!res.ok) throw new Error('API response failed');
+        const dbBooks = await res.json();
+        
+        // Map database TelegramBook objects to frontend InventoryItem format
+        const mappedBooks: InventoryItem[] = dbBooks.map((b: any) => ({
+          id: String(b.id),
+          title: b.name,
+          tgFileId: b.tgFileId,
+          isReturned: false,
+          bookCost: 10 // Assign a default mock cost since DB is only for storing and delivering
+        }));
+
+        if (mappedBooks.length > 0) {
+          setInventory(mappedBooks);
+        }
+      } catch (err) {
+        console.warn('Failed to load books from live DB API, falling back to mock list:', err);
+      }
+    }
+    loadBooks();
+  }, []);
 
   // ── Toast helpers ────────────────────────────────────────────────────────────
 

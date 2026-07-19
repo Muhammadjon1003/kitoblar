@@ -12,14 +12,38 @@ registerBotHandlers();
 const app = express();
 app.use(express.json());
 
+// Enable CORS middleware (allows frontend to call backend on different Vercel domains)
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // Default status route
 app.get('/', (req, res) => {
   res.json({
     status: 'active',
     service: 'SmartBook ERP Backend API',
     webhook: '/telegram-webhook',
-    endpoints: ['POST /api/orders/smart-create', 'GET /webhook-info', 'GET /webhook-debug']
+    endpoints: ['POST /api/orders/smart-create', 'GET /webhook-info', 'GET /webhook-debug', 'GET /api/books']
   });
+});
+
+// Fetch all uploaded books from Neon PostgreSQL
+app.get('/api/books', async (req, res) => {
+  try {
+    const books = await prisma.telegramBook.findMany({
+      include: { category: true },
+      orderBy: { id: 'asc' }
+    });
+    res.json(books);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Live request logger for debugging webhooks
