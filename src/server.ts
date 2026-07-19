@@ -59,10 +59,17 @@ if (WEBHOOK_DOMAIN) {
   console.log('Telegram bot started in polling mode.');
 }
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// Only listen on a port if we are NOT running as a Vercel Serverless Function
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
 
-// Enable graceful stop
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+// Enable graceful stop (only outside Vercel)
+if (!process.env.VERCEL) {
+  process.once('SIGINT', () => bot.stop('SIGINT'));
+  process.once('SIGTERM', () => bot.stop('SIGTERM'));
+}
+
+export default app;
