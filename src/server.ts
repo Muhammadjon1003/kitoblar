@@ -4,7 +4,10 @@ import { bot, uploadToTelegramChannel } from './telegram';
 import { registerBotHandlers } from './botHandlers';
 import { createSmartOrder } from './orderService';
 import * as dotenv from 'dotenv';
+import { PrismaClient } from '@prisma/client';
 dotenv.config();
+
+const prisma = new PrismaClient();
 
 // Register all Telegram Bot commands, document uploads, and FSM handlers
 registerBotHandlers();
@@ -98,15 +101,12 @@ app.get('/webhook-info', async (req, res) => {
     }
 
     // Test database connection
-    const prisma = new (require('@prisma/client').PrismaClient)();
     let dbStatus = '';
     try {
       await prisma.$queryRaw`SELECT 1`;
       dbStatus = 'CONNECTED';
     } catch (e: any) {
       dbStatus = `ERROR: ${e.message}`;
-    } finally {
-      await prisma.$disconnect();
     }
 
     res.json({
