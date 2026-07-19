@@ -77,10 +77,10 @@ const PORT = process.env.PORT || 3000;
 const WEBHOOK_DOMAIN = process.env.WEBHOOK_DOMAIN;
 
 if (WEBHOOK_DOMAIN) {
-  // Webhook setup for Serverless environments (e.g. Vercel / AWS Lambda)
+  const cleanDomain = WEBHOOK_DOMAIN.replace(/\/$/, '');
   app.use(bot.webhookCallback('/telegram-webhook'));
-  bot.telegram.setWebhook(`${WEBHOOK_DOMAIN}/telegram-webhook`);
-  console.log(`Webhook set to ${WEBHOOK_DOMAIN}/telegram-webhook`);
+  bot.telegram.setWebhook(`${cleanDomain}/telegram-webhook`);
+  console.log(`Webhook set to ${cleanDomain}/telegram-webhook`);
 } else {
   // Polling for local development
   bot.launch();
