@@ -63,6 +63,8 @@ async def main() -> None:
 
     logger.info("Starting polling …")
     try:
+        # Clear any active webhooks (like the one set by Vercel)
+        await bot.delete_webhook(drop_pending_updates=True)
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     finally:
         await close_pool()
