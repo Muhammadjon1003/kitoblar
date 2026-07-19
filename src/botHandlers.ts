@@ -49,6 +49,20 @@ function buildMainMenu() {
 
 export function registerBotHandlers() {
   
+  // 0. /start Command
+  bot.start(async (ctx) => {
+    await clearSession(ctx.from.id);
+    await ctx.reply(
+      "👋 <b>Assalomu alaykum! SmartBook tizimiga xush kelibsiz!</b>\n\n" +
+      "Ushbu bot orqali kitoblarni guruhlash, saqlash va kategoriyalarni boshqarishingiz mumkin.\n\n" +
+      "ℹ️ <b>Mavjud buyruqlar:</b>\n" +
+      "/categories - Kategoriyalarni boshqarish (Qo'shish, Tahrirlash, O'chirish)\n\n" +
+      "📥 <b>Kitob yuklash:</b>\n" +
+      "Menga har qanday kitob faylini (PDF, EPUB, DOCX va hk) yuboring, men uni kerakli kategoriyaga biriktirib saqlayman.",
+      { parse_mode: 'HTML' }
+    );
+  });
+  
   // 1. /categories Command
   bot.command('categories', async (ctx) => {
     await clearSession(ctx.from.id);
