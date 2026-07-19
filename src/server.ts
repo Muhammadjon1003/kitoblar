@@ -26,9 +26,32 @@ app.get('/', (req, res) => {
 app.get('/webhook-info', async (req, res) => {
   try {
     const info = await bot.telegram.getWebhookInfo();
+    
+    // Test bot token authentication
+    let botInfo = {};
+    try {
+      botInfo = await bot.telegram.getMe();
+    } catch (e: any) {
+      botInfo = { error: `Failed to authenticate bot token: ${e.message}` };
+    }
+
+    // Test database connection
+    const prisma = new (require('@prisma/client').PrismaClient)();
+    let dbStatus = '';
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      dbStatus = 'CONNECTED';
+    } catch (e: any) {
+      dbStatus = `ERROR: ${e.message}`;
+    } finally {
+      await prisma.$disconnect();
+    }
+
     res.json({
       webhook_domain_env: process.env.WEBHOOK_DOMAIN || 'NOT_SET',
       bot_token_env: process.env.BOT_TOKEN ? `SET (starts with ${process.env.BOT_TOKEN.slice(0, 5)}...)` : 'NOT_SET',
+      database_connection: dbStatus,
+      bot_details: botInfo,
       telegram_webhook_info: info
     });
   } catch (e: any) {
