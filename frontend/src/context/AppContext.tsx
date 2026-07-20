@@ -63,7 +63,7 @@ interface AppContextType {
   collectCash: (orderId: string, amount: number) => Promise<void>;
   cancelOrder: (orderId: string) => Promise<void>;
   dispatchToSupplier: (orderIds: string[]) => Promise<void>;
-  markArrived: (orderId: string) => Promise<void>;
+  markArrived: (orderId: string, bookCost: number) => Promise<void>;
   deliverBook: (orderId: string) => Promise<void>;
   decoupleBook: (orderId: string) => Promise<void>;
   allocateFromWarehouse: (invId: string, studentId: string, groupId: string) => void;
@@ -284,21 +284,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshOrders, fireToast]);
 
-  /** ORDERED → ARRIVED */
-  const markArrived = useCallback(async (orderId: string) => {
+  /** ORDERED → ARRIVED (cashier sets bookCost at arrival time) */
+  const markArrived = useCallback(async (orderId: string, bookCost: number) => {
     setOrders(prev => prev.map(o =>
       o.id === orderId && o.status === 'ORDERED'
-        ? { ...o, status: 'ARRIVED', updatedAt: todayISO() }
+        ? { ...o, status: 'ARRIVED', bookCost, updatedAt: todayISO() }
         : o
     ));
     try {
       await fetch(`${API}/backend/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'ARRIVED' }),
+        body: JSON.stringify({ status: 'ARRIVED', bookCost }),
       });
       await refreshOrders();
-      fireToast("Kitob keldi. Holat: Yo'lda → Keldi.");
+      fireToast("Kitob keldi. Holat: Yo'lda \u2192 Keldi.");
     } catch (err: any) {
       fireToast(`Xatolik: ${err.message}`, 'error');
       await refreshOrders();

@@ -175,7 +175,7 @@ export default function SupplierRouting() {
                       </td>
                       <td className="px-5 py-3.5">
                         <button
-                          onClick={() => markArrived(o.id)}
+                          onClick={() => markArrived(o.id, 0)}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-semibold
                                      bg-emerald-900/50 hover:bg-emerald-800 text-emerald-400 hover:text-emerald-100
                                      border border-emerald-800 transition-colors whitespace-nowrap"

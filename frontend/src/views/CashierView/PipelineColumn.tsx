@@ -5,13 +5,96 @@
 import { useState } from 'react';
 import {
   DollarSign, XCircle, CheckCircle, RotateCcw,
-  Lock, Unlock, AlertTriangle, X, ChevronRight,
+  Lock, Unlock, AlertTriangle, X, ChevronRight, Package,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { StatusBadge, EmptyState, uzs } from '../../components/ui';
 import type { Order, OrderStatus } from '../../types';
 
-// ─── To'lov qabul qilish modali ──────────────────────────────────────────────
+// ─── To'lov qabul qilish modali ────────────────────────────────────
+
+// ─── Kitobni qabul qilish modali (tan narx kirish) ──────────────────────
+
+function QabulQilishModali({ order, onClose }: { order: Order; onClose: () => void }) {
+  const { markArrived, getStudentName, getInventoryItem } = useApp();
+  const [tanNarx, setTanNarx] = useState('');
+  const [yuborish, setYuborish] = useState(false);
+  const [xato, setXato] = useState('');
+  const inv = getInventoryItem(order.bookId);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const val = parseFloat(tanNarx);
+    if (isNaN(val) || val <= 0) { setXato("Iltimos, to'g'ri tan narx kiriting."); return; }
+    setYuborish(true);
+    await markArrived(order.id, val);
+    setYuborish(false);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl z-10 overflow-hidden border border-slate-200">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-indigo-600 to-blue-600 px-6 py-4 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-bold text-white flex items-center gap-2">
+              <Package className="w-4 h-4" /> Kitobni qabul qilish
+            </p>
+            <p className="text-[11px] text-blue-100 mt-0.5">{getStudentName(order.studentId)}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/15 text-white">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="px-5 py-5 space-y-4">
+          {/* Book info */}
+          <div className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px]">
+            <Package className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+            <span className="font-semibold text-slate-700 truncate">{inv?.title ?? '—'}</span>
+          </div>
+
+          {/* Cost input */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-800 mb-1.5 uppercase tracking-wide">
+              Kitob tan narxi (so'm)
+            </label>
+            <input
+              type="number" min="1" step="1"
+              value={tanNarx}
+              onChange={e => { setTanNarx(e.target.value); setXato(''); }}
+              placeholder="Masalan: 45000"
+              className="w-full h-11 px-3 text-base font-bold text-slate-900 bg-white border-2 border-slate-300 focus:border-indigo-500 focus:outline-none rounded-xl transition-colors font-mono"
+              autoFocus
+            />
+            {xato && <p className="text-[11px] text-red-600 font-semibold mt-1">{xato}</p>}
+            <p className="text-[10px] text-slate-400 mt-1">
+              Chakana narx (talabaga): <span className="font-semibold text-slate-600">
+                {tanNarx && !isNaN(parseFloat(tanNarx)) ? uzs(parseFloat(tanNarx) * 1.5) : '—'}
+              </span>
+            </p>
+          </div>
+
+          <div className="flex gap-2 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl border-2 border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-50">
+              Bekor qilish
+            </button>
+            <button type="submit" disabled={yuborish}
+              className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-bold text-xs flex items-center justify-center gap-1.5">
+              {yuborish
+                ? <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saqlanmoqda...</>
+                : <><Package className="w-3.5 h-3.5" /> Qabul qilish</>
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 function TolovModali({ order, onClose }: { order: Order; onClose: () => void }) {
   const { collectCash, retailPrice, getStudentName, getInventoryItem } = useApp();
@@ -344,13 +427,26 @@ function QarzTolovModali({ order, onClose }: { order: Order; onClose: () => void
 // ─── Minimal karta ────────────────────────────────────────────────────────────
 
 function BuyurtmaKarta({ order, onClick }: { order: Order; onClick: () => void }) {
-  const { getStudentName, getGroupName, getInventoryItem, retailPrice, isDeliverable, markArrived, deliverBook } = useApp();
-  const [tolovKorsat, setTolovKorsat] = useState(false);
+  const {
+    getStudentName, getGroupName, getInventoryItem,
+    retailPrice, isDeliverable, deliverBook,
+    orders,
+  } = useApp();
+  const [tolovKorsat,  setTolovKorsat]  = useState(false);
+  const [qabulKorsat,  setQabulKorsat]  = useState(false);
 
   const inv     = getInventoryItem(order.bookId);
   const ochiq   = isDeliverable(order);
   const chakana = retailPrice(order.bookCost);
   const qoldiq  = Math.max(0, chakana - order.amountPaid);
+
+  // Cross-student debt: any OTHER arrived order for this student with unpaid balance
+  const boshqaQarz = orders.some(o =>
+    o.id !== order.id &&
+    o.studentId === order.studentId &&
+    o.status === 'ARRIVED' &&
+    o.amountPaid < retailPrice(o.bookCost)
+  );
 
   // For ARRIVED cards with debt: intercept click → open debt modal; otherwise open the drawer
   const handleCardClick = () => {
@@ -400,24 +496,31 @@ function BuyurtmaKarta({ order, onClick }: { order: Order; onClick: () => void }
             <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-400 transition-colors" />
           </div>
 
-          {/* Accept Books button for ORDERED */}
+          {/* Accept Books button for ORDERED — opens cost modal */}
           {order.status === 'ORDERED' && (
             <button
-              onClick={(e) => { e.stopPropagation(); markArrived(order.id); }}
+              onClick={(e) => { e.stopPropagation(); setQabulKorsat(true); }}
               className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-sm transition-all duration-150 flex items-center justify-center gap-1"
             >
-              Kitobni qabul qilish
+              <Package className="w-3 h-3" /> Kitobni qabul qilish
             </button>
           )}
 
-          {/* Hand Over button — only shown when ARRIVED and fully paid */}
-          {order.status === 'ARRIVED' && ochiq && (
+          {/* Hand Over button — only shown when ARRIVED, fully paid, AND no other student debts */}
+          {order.status === 'ARRIVED' && ochiq && !boshqaQarz && (
             <button
               onClick={(e) => { e.stopPropagation(); deliverBook(order.id); }}
               className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-sm transition-all duration-150 flex items-center justify-center gap-1"
             >
               <CheckCircle className="w-3 h-3" /> Topshirish
             </button>
+          )}
+
+          {/* Blocked: student has other unpaid books */}
+          {order.status === 'ARRIVED' && ochiq && boshqaQarz && (
+            <div className="w-full py-1.5 bg-orange-100 border border-orange-300 text-orange-700 text-[10px] font-bold rounded-lg flex items-center justify-center gap-1 px-2">
+              <Lock className="w-3 h-3 shrink-0" /> Boshqa kitoblarda qarz bor
+            </div>
           )}
 
           {/* Debt prompt — shown when ARRIVED and has outstanding balance */}
@@ -434,6 +537,9 @@ function BuyurtmaKarta({ order, onClick }: { order: Order; onClick: () => void }
 
       {tolovKorsat && (
         <QarzTolovModali order={order} onClose={() => setTolovKorsat(false)} />
+      )}
+      {qabulKorsat && (
+        <QabulQilishModali order={order} onClose={() => setQabulKorsat(false)} />
       )}
     </>
   );
