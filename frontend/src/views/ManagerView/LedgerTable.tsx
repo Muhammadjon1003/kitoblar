@@ -7,7 +7,7 @@ import { useApp } from '../../context/AppContext';
 import { StatusBadge, TableShell, Th, Td, uzs } from '../../components/ui';
 
 export default function LedgerTable() {
-  const { orders, getStudentName, getGroupName, getInventoryItem, retailPrice } = useApp();
+  const { orders, getStudentName, getGroupName, getInventoryItem } = useApp();
 
   const tartiblangan = [...orders].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
@@ -53,7 +53,7 @@ export default function LedgerTable() {
         <tbody className="divide-y divide-zinc-800/40">
           {tartiblangan.map(o => {
             const inv          = getInventoryItem(o.bookId);
-            const chakana      = retailPrice(o.bookCost);
+            const chakana      = o.sotuvNarxi;
             const foyda        = o.amountPaid - o.bookCost;
             const kutilmagan   = o.status === 'RETURNED' || o.status === 'ARRIVED';
 

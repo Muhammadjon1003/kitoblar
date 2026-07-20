@@ -54,7 +54,7 @@ interface FixPaymentModalProps {
 }
 
 function FixPaymentModal({ order, onClose }: FixPaymentModalProps) {
-  const { updateOrderAdmin, getStudentName, getInventoryItem, retailPrice, fireToast } = useApp();
+  const { updateOrderAdmin, getStudentName, getInventoryItem, fireToast } = useApp();
   const [amount,  setAmount]  = useState(String(order.amountPaid));
   const [status,  setStatus]  = useState<OrderStatus>(order.status);
   const [comment, setComment] = useState(order.comment);
@@ -97,7 +97,7 @@ function FixPaymentModal({ order, onClose }: FixPaymentModalProps) {
             </div>
             <div className="flex justify-between">
               <span className="text-slate-600 font-medium">Chakana narx:</span>
-              <span className="font-bold text-slate-800">{uzs(retailPrice(order.bookCost))}</span>
+              <span className="font-bold text-slate-800">{uzs(order.sotuvNarxi)}</span>
             </div>
           </div>
 
@@ -152,7 +152,7 @@ function FixPaymentModal({ order, onClose }: FixPaymentModalProps) {
 }
 
 function PaymentsHistoryView() {
-  const { orders, getStudentName, getGroupName, getInventoryItem, retailPrice } = useApp();
+  const { orders, getStudentName, getGroupName, getInventoryItem } = useApp();
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
 
   // Show all orders sorted newest first
@@ -198,7 +198,7 @@ function PaymentsHistoryView() {
                     <Td mono>
                       <span className="text-emerald-600 font-bold">{uzs(o.amountPaid)}</span>
                     </Td>
-                    <Td mono>{uzs(retailPrice(o.bookCost))}</Td>
+                    <Td mono>{uzs(o.sotuvNarxi)}</Td>
                     <Td>
                       <StatusBadge status={o.status} />
                     </Td>

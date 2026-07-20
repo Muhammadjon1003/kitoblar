@@ -70,7 +70,8 @@ export interface Order {
   bookId: string;     // FK → inventory.id
   status: OrderStatus;
   amountPaid: number; // TR § 6: Σ amount_paid (cash inflow)
-  bookCost: number;   // Snapshot of wholesale cost at time of order
+  bookCost: number;   // Snapshot of wholesale cost (tan narxi) — set by cashier at arrival
+  sotuvNarxi: number; // Manager-set selling price locked at order creation time
   comment: string;    // Teacher-authored custom note
   updatedAt: string;  // ISO date of last state transition
 }
@@ -102,13 +103,14 @@ export interface BulkOrderItem {
 
 /** Sub-page keys per role for sidebar navigation */
 export type SubPage =
-  | 'orders'       // TEACHER
-  | 'pipeline'     // CASHIER
-  | 'management'   // CASHIER
-  | 'payments'     // CASHIER
-  | 'warehouse'    // LOGISTICS
-  | 'supplier'     // LOGISTICS
-  | 'inbound'      // LOGISTICS
-  | 'analytics'    // MANAGER
-  | 'ledger'       // MANAGER
-  | 'coverage';    // MANAGER
+  | 'orders'        // TEACHER
+  | 'pipeline'      // CASHIER
+  | 'management'    // CASHIER
+  | 'payments'      // CASHIER
+  | 'warehouse'     // LOGISTICS
+  | 'supplier'      // LOGISTICS
+  | 'inbound'       // LOGISTICS
+  | 'analytics'     // MANAGER
+  | 'ledger'        // MANAGER
+  | 'coverage'      // MANAGER
+  | 'narxsozlama';  // MANAGER — price settings

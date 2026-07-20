@@ -100,7 +100,7 @@ function TolovModali({ order, onClose }: { order: Order; onClose: () => void }) 
   const { collectCash, retailPrice, getStudentName, getInventoryItem } = useApp();
   const [miqdor, setMiqdor] = useState('');
   const [xato, setXato] = useState('');
-  const chakana = retailPrice(order.bookCost);
+  const chakana = retailPrice(order);
   const qoldiq = chakana - order.amountPaid;
   const inv = getInventoryItem(order.bookId);
 
@@ -184,7 +184,7 @@ function TafsilotPaneli({ order, onClose }: { order: Order; onClose: () => void 
   const [tolovKorsat, setTolovKorsat] = useState(false);
 
   const inv       = getInventoryItem(order.bookId);
-  const chakana   = retailPrice(order.bookCost);
+  const chakana   = retailPrice(order);
   const ochiq     = isDeliverable(order);
   const qoldiq    = Math.max(0, chakana - order.amountPaid);
   const tolovPct  = chakana > 0 ? Math.min(100, Math.round((order.amountPaid / chakana) * 100)) : 0;
@@ -326,8 +326,8 @@ function TafsilotPaneli({ order, onClose }: { order: Order; onClose: () => void 
 // ─── Qarz to'lash modali ──────────────────────────────────────────────────────
 
 function QarzTolovModali({ order, onClose }: { order: Order; onClose: () => void }) {
-  const { collectCash, retailPrice, getStudentName, getInventoryItem } = useApp();
-  const chakana  = retailPrice(order.bookCost);
+  const { collectCash, getStudentName, getInventoryItem } = useApp();
+  const chakana  = order.sotuvNarxi;
   const qoldiq   = Math.max(0, chakana - order.amountPaid);
   const inv      = getInventoryItem(order.bookId);
 
@@ -437,15 +437,16 @@ function BuyurtmaKarta({ order, onClick }: { order: Order; onClick: () => void }
 
   const inv     = getInventoryItem(order.bookId);
   const ochiq   = isDeliverable(order);
-  const chakana = retailPrice(order.bookCost);
+  const chakana = retailPrice(order);
   const qoldiq  = Math.max(0, chakana - order.amountPaid);
 
-  // Cross-student debt: any OTHER arrived order for this student with unpaid balance
+  // Cross-student debt: ANY active order for this student with outstanding balance
   const boshqaQarz = orders.some(o =>
     o.id !== order.id &&
     o.studentId === order.studentId &&
-    o.status === 'ARRIVED' &&
-    o.amountPaid < retailPrice(o.bookCost)
+    ['CREATED', 'PAID', 'ORDERED', 'ARRIVED'].includes(o.status) &&
+    o.amountPaid < o.sotuvNarxi &&
+    o.sotuvNarxi > 0
   );
 
   // For ARRIVED cards with debt: intercept click → open debt modal; otherwise open the drawer

@@ -68,13 +68,17 @@ interface AppContextType {
   decoupleBook: (orderId: string) => Promise<void>;
   allocateFromWarehouse: (invId: string, studentId: string, groupId: string) => void;
   addInventoryItem: (title: string, bookCost: number) => void;
-  updateOrderAdmin: (orderId: string, patch: { status?: string; amountPaid?: number; comment?: string }) => Promise<void>;
+  updateOrderAdmin: (orderId: string, patch: { status?: string; amountPaid?: number; sotuvNarxi?: number; comment?: string }) => Promise<void>;
   dismissNotification: (id: string) => void;
   dismissToast: (id: string) => void;
   fireToast: (message: string, variant?: AppToast['variant']) => void;
   refreshGroups: () => Promise<void>;
   refreshStudents: () => Promise<void>;
   refreshOrders: () => Promise<void>;
+  refreshSettings: () => Promise<void>;
+
+  // ── Data
+  sotuvNarxi: number;  // current manager-set selling price
 
   // ── Computed helpers
   getTeacherName: (id: string) => string;
@@ -85,7 +89,7 @@ interface AppContextType {
   getLatestOrder: (studentId: string) => Order | undefined;
   getStudentsByGroup: (groupId: string) => Student[];
   getGroupsByTeacher: (teacherName: string) => Group[];
-  retailPrice: (bookCost: number) => number;
+  retailPrice: (order: Order) => number;  // returns order.sotuvNarxi
   isDeliverable: (order: Order) => boolean;
 }
 
@@ -108,6 +112,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [students,   setStudents]   = useState<Student[]>([]);
   const [inventory,  setInventory]  = useState<InventoryItem[]>([]);
   const [orders,     setOrders]     = useState<Order[]>([]);
+  const [sotuvNarxi, setSotuvNarxi] = useState<number>(0);
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
   const [toasts,     setToasts]     = useState<AppToast[]>([]);
 
@@ -140,6 +145,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setOrders(data);
     } catch (err) {
       console.warn('Failed to load orders:', err);
+    }
+  }, []);
+
+  const refreshSettings = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/backend/settings`);
+      if (!res.ok) throw new Error('settings API failed');
+      const data = await res.json();
+      setSotuvNarxi(data.sotuvNarxi ?? 0);
+    } catch (err) {
+      console.warn('Failed to load settings:', err);
     }
   }, []);
 
@@ -193,7 +209,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     refreshGroups();
     refreshStudents();
     refreshOrders();
-  }, [refreshGroups, refreshStudents, refreshOrders]);
+    refreshSettings();
+  }, [refreshGroups, refreshStudents, refreshOrders, refreshSettings]);
 
   // ── Mutations (all wired to backend) ─────────────────────────────────────────
 
@@ -420,8 +437,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const getStudentsByGroup  = (groupId: string) => students.filter(s => s.groupId === groupId);
   const getGroupsByTeacher  = (teacherName: string) => groups.filter(g => g.teacherName === teacherName);
 
-  const retailPrice     = (bookCost: number) => parseFloat((bookCost * 1.5).toFixed(2));
-  const isDeliverable   = (order: Order)     => order.amountPaid >= retailPrice(order.bookCost);
+  const retailPrice     = (order: Order) => order.sotuvNarxi;
+  const isDeliverable   = (order: Order) => order.amountPaid >= order.sotuvNarxi && order.sotuvNarxi > 0;
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -429,12 +446,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider value={{
       activeRole, activeSubPage, setActiveRole, setActiveSubPage,
       teachers, groups, students, inventory, orders, notifications, toasts, setOrders,
+      sotuvNarxi,
       fireToast,
       createBulkOrders, collectCash, cancelOrder,
       dispatchToSupplier, markArrived, deliverBook, decoupleBook,
       allocateFromWarehouse, addInventoryItem, updateOrderAdmin,
       dismissNotification, dismissToast,
-      refreshGroups, refreshStudents, refreshOrders,
+      refreshGroups, refreshStudents, refreshOrders, refreshSettings,
       getTeacherName, getStudentName, getGroupName, getInventoryItem,
       getStudentOrders, getLatestOrder, getStudentsByGroup, getGroupsByTeacher,
       retailPrice, isDeliverable,

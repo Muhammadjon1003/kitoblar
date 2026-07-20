@@ -131,7 +131,8 @@ model ErpOrder {
   bookId     String
   status     String     @default("CREATED")
   amountPaid Float      @default(0)
-  bookCost   Float      @default(0)
+  bookCost   Float      @default(0)   // tan narxi — set by cashier at arrival
+  sotuvNarxi Float      @default(0)   // sotuv narxi — locked from manager settings at order creation
   comment    String     @default("")
   updatedAt  String
   createdAt  DateTime   @default(now())
@@ -140,4 +141,14 @@ model ErpOrder {
   group      ErpGroup   @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@map("erp_orders")
+}
+
+// ─── ERP: Global Settings ──────────────────────────────────────────────
+
+model ErpSettings {
+  id         String   @id @default("global")
+  sotuvNarxi Float    @default(0)   // manager-set selling price (so'm)
+  updatedAt  DateTime @updatedAt
+
+  @@map("erp_settings")
 }

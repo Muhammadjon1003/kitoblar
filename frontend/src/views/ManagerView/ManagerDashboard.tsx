@@ -8,6 +8,7 @@ import { useApp } from '../../context/AppContext';
 import { KpiCard, uzs } from '../../components/ui';
 import LedgerTable from './LedgerTable';
 import CoverageMatrix from './CoverageMatrix';
+import NarxSozlamalari from './NarxSozlamalari';
 
 // Holat nomlari o'zbekcha
 const STATUS_UZBE: Record<string, string> = {
@@ -177,5 +178,6 @@ export default function ManagerDashboard() {
 
   if (activeSubPage === 'ledger')   return <LedgerTable />;
   if (activeSubPage === 'coverage') return <CoverageMatrix />;
+  if (activeSubPage === 'narxsozlama') return <NarxSozlamalari />;
   return <MoliyaviyTahlil />;
 }

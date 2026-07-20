@@ -195,6 +195,7 @@ app.get('/backend/orders', async (req, res) => {
       status: o.status,
       amountPaid: o.amountPaid,
       bookCost: o.bookCost,
+      sotuvNarxi: o.sotuvNarxi,
       comment: o.comment,
       updatedAt: o.updatedAt,
     })));
@@ -203,11 +204,22 @@ app.get('/backend/orders', async (req, res) => {
   }
 });
 
-// POST /backend/orders — create one or many orders (accepts array or single object)
+// POST /backend/orders — create one or many orders, auto-locks current sotuvNarxi
 app.post('/backend/orders', async (req, res) => {
   try {
     const body = Array.isArray(req.body) ? req.body : [req.body];
     const today = new Date().toISOString().slice(0, 10);
+
+    // Fetch current selling price from settings
+    let currentSotuvNarxi = 0;
+    try {
+      const settings = await prisma.erpSettings.upsert({
+        where: { id: 'global' },
+        update: {},
+        create: { id: 'global', sotuvNarxi: 0 },
+      });
+      currentSotuvNarxi = settings.sotuvNarxi;
+    } catch (_) { /* keep 0 if settings table not ready */ }
 
     const created = await Promise.all(body.map((item: any) => {
       const { studentId, groupId, bookId, bookCost, comment } = item;
@@ -222,6 +234,7 @@ app.post('/backend/orders', async (req, res) => {
           status: 'CREATED',
           amountPaid: 0,
           bookCost: bookCost ?? 0,
+          sotuvNarxi: currentSotuvNarxi,   // locked at creation time
           comment: comment ?? '',
           updatedAt: today,
         },
@@ -236,6 +249,7 @@ app.post('/backend/orders', async (req, res) => {
       status: o.status,
       amountPaid: o.amountPaid,
       bookCost: o.bookCost,
+      sotuvNarxi: o.sotuvNarxi,
       comment: o.comment,
       updatedAt: o.updatedAt,
     })));
@@ -244,11 +258,11 @@ app.post('/backend/orders', async (req, res) => {
   }
 });
 
-// PATCH /backend/orders/:id — update status, amountPaid, comment (partial update)
+// PATCH /backend/orders/:id — partial update: status, amountPaid, bookCost, sotuvNarxi, comment
 app.patch('/backend/orders/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, amountPaid, comment } = req.body;
+    const { status, amountPaid, bookCost, sotuvNarxi, comment } = req.body;
     const today = new Date().toISOString().slice(0, 10);
 
     const updated = await prisma.erpOrder.update({
@@ -256,6 +270,8 @@ app.patch('/backend/orders/:id', async (req, res) => {
       data: {
         ...(status     !== undefined && { status }),
         ...(amountPaid !== undefined && { amountPaid }),
+        ...(bookCost   !== undefined && { bookCost }),
+        ...(sotuvNarxi !== undefined && { sotuvNarxi }),
         ...(comment    !== undefined && { comment }),
         updatedAt: today,
       },
@@ -269,6 +285,7 @@ app.patch('/backend/orders/:id', async (req, res) => {
       status: updated.status,
       amountPaid: updated.amountPaid,
       bookCost: updated.bookCost,
+      sotuvNarxi: updated.sotuvNarxi,
       comment: updated.comment,
       updatedAt: updated.updatedAt,
     });
@@ -288,9 +305,40 @@ app.delete('/backend/orders/:id', async (req, res) => {
 });
 
 
+// ── ERP: Settings ──────────────────────────────────────────────────────────────
 
+// GET /backend/settings — return global settings, creating defaults if needed
+app.get('/backend/settings', async (req, res) => {
+  try {
+    const settings = await prisma.erpSettings.upsert({
+      where:  { id: 'global' },
+      update: {},
+      create: { id: 'global', sotuvNarxi: 0 },
+    });
+    res.json({ sotuvNarxi: settings.sotuvNarxi, updatedAt: settings.updatedAt });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
-// Live request logger for debugging webhooks
+// PATCH /backend/settings — manager updates the active selling price
+app.patch('/backend/settings', async (req, res) => {
+  try {
+    const { sotuvNarxi } = req.body;
+    if (sotuvNarxi === undefined || isNaN(Number(sotuvNarxi))) {
+      return res.status(400).json({ error: 'sotuvNarxi (number) is required.' });
+    }
+    const settings = await prisma.erpSettings.upsert({
+      where:  { id: 'global' },
+      update: { sotuvNarxi: Number(sotuvNarxi) },
+      create: { id: 'global', sotuvNarxi: Number(sotuvNarxi) },
+    });
+    res.json({ sotuvNarxi: settings.sotuvNarxi, updatedAt: settings.updatedAt });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const lastRequests: any[] = [];
 
 app.all('/telegram-webhook', (req, res, next) => {
