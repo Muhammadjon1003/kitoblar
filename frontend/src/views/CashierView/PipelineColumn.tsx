@@ -340,11 +340,14 @@ function QarzTolovModali({ order, onClose }: { order: Order; onClose: () => void
     const val = parseFloat(miqdor);
     if (isNaN(val) || val <= 0) { setXato('To\'g\'ri miqdor kiriting.'); return; }
     setYuborish(true);
-    // Simulate async API call (swap with real fetch when endpoint is ready)
-    await new Promise(r => setTimeout(r, 400));
-    collectCash(order.id, val);
-    setYuborish(false);
-    onClose();
+    try {
+      await collectCash(order.id, val);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setYuborish(false);
+      onClose();
+    }
   };
 
   return (
