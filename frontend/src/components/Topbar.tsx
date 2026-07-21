@@ -2,7 +2,7 @@
  * components/Topbar.tsx — O'zbek tili
  */
 
-import { Bell } from 'lucide-react';
+import { Bell, LogOut } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import type { UserRole } from '../types';
 
@@ -14,7 +14,7 @@ const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
 };
 
 export default function Topbar() {
-  const { activeRole, notifications } = useApp();
+  const { activeRole, notifications, currentUser, logout } = useApp();
   const unread = notifications.filter(n => !n.isRead).length;
 
   return (
@@ -35,9 +35,16 @@ export default function Topbar() {
             </span>
           )}
         </button>
-        <div className="text-[11px] text-slate-500 border border-slate-200 rounded-lg px-3 py-1.5 bg-slate-50 font-mono">
-          {new Date().toLocaleDateString('uz-UZ', { weekday: 'short', month: 'short', day: 'numeric' })}
-        </div>
+
+        {currentUser && (
+          <button
+            onClick={logout}
+            className="flex items-center gap-2 px-3 py-1.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold text-xs rounded-xl transition-colors"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            Chiqish
+          </button>
+        )}
       </div>
     </header>
   );
