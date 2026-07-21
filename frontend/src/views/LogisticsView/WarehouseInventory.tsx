@@ -46,7 +46,7 @@ export default function WarehouseInventory() {
     badgeColor: string;
   }> = [];
 
-  // Returned inventory items
+  // Returned inventory items (True inventory)
   inventory.filter(i => i.isReturned).forEach(i => {
     allocatableItems.push({
       key: `inv-${i.id}`,
@@ -58,23 +58,9 @@ export default function WarehouseInventory() {
     });
   });
 
-  // Cancelled orders (books returned to company hands)
-  orders.filter(o => o.status === 'CANCELLED').forEach(o => {
-    const inv = getInventoryItem(o.bookId);
-    allocatableItems.push({
-      key: `ord-cancel-${o.id}`,
-      bookId: o.bookId,
-      title: inv?.title ?? 'Kitob',
-      categoryName: inv?.categoryName,
-      reason: `Bekor qilingan buyurtma (${getStudentName(o.studentId)})`,
-      badgeColor: 'bg-rose-100 border-rose-200 text-rose-700',
-    });
-  });
-
-  // RETURNED status orders
+  // RETURNED status orders (True inventory)
   orders.filter(o => o.status === 'RETURNED').forEach(o => {
     const inv = getInventoryItem(o.bookId);
-    // avoid double counting if already in returned inventory
     if (!allocatableItems.some(item => item.bookId === o.bookId && item.reason.includes('Omborga'))) {
       allocatableItems.push({
         key: `ord-ret-${o.id}`,
@@ -87,11 +73,21 @@ export default function WarehouseInventory() {
     }
   });
 
+  // Cancelled orders (Books returned to company hands — placed after true inventory)
+  orders.filter(o => o.status === 'CANCELLED').forEach(o => {
+    const inv = getInventoryItem(o.bookId);
+    allocatableItems.push({
+      key: `ord-cancel-${o.id}`,
+      bookId: o.bookId,
+      title: inv?.title ?? 'Kitob',
+      categoryName: inv?.categoryName,
+      reason: `Bekor qilingan buyurtma (${getStudentName(o.studentId)})`,
+      badgeColor: 'bg-rose-100 border-rose-200 text-rose-700',
+    });
+  });
+
   // 2. Comprehensive Company Possession Inventory (All books physically in company hands)
-  // - ARRIVED (at center, not given yet)
-  // - CANCELLED (at center)
-  // - RETURNED (at center)
-  // - Inventory Stock
+  // True inventory & physical books come first; cancelled books come later.
   const companyBooksList = [
     ...orders.filter(o => o.status === 'ARRIVED').map(o => ({
       id: o.id,
@@ -103,15 +99,15 @@ export default function WarehouseInventory() {
       statusType: 'ARRIVED' as const,
       price: o.sotuvNarxi > 0 ? o.sotuvNarxi : sotuvNarxi,
     })),
-    ...orders.filter(o => o.status === 'CANCELLED').map(o => ({
-      id: o.id,
-      title: getInventoryItem(o.bookId)?.title ?? 'Kitob',
-      categoryName: getInventoryItem(o.bookId)?.categoryName ?? '—',
-      studentName: getStudentName(o.studentId),
-      groupName: getGroupName(o.groupId),
-      statusLabel: "Bekor qilingan (Omborda)",
-      statusType: 'CANCELLED' as const,
-      price: o.sotuvNarxi > 0 ? o.sotuvNarxi : sotuvNarxi,
+    ...inventory.filter(inv => inv.isReturned).map(inv => ({
+      id: `inv-${inv.id}`,
+      title: inv.title,
+      categoryName: inv.categoryName ?? '—',
+      studentName: '—',
+      groupName: '—',
+      statusLabel: "Ombor inventari (Qaytarilgan)",
+      statusType: 'STOCK' as const,
+      price: sotuvNarxi,
     })),
     ...orders.filter(o => o.status === 'RETURNED').map(o => ({
       id: o.id,
@@ -123,15 +119,15 @@ export default function WarehouseInventory() {
       statusType: 'RETURNED' as const,
       price: o.sotuvNarxi > 0 ? o.sotuvNarxi : sotuvNarxi,
     })),
-    ...inventory.filter(inv => inv.isReturned).map(inv => ({
-      id: `inv-${inv.id}`,
-      title: inv.title,
-      categoryName: inv.categoryName ?? '—',
-      studentName: '—',
-      groupName: '—',
-      statusLabel: "Ombor inventari (Qaytarilgan)",
-      statusType: 'STOCK' as const,
-      price: sotuvNarxi,
+    ...orders.filter(o => o.status === 'CANCELLED').map(o => ({
+      id: o.id,
+      title: getInventoryItem(o.bookId)?.title ?? 'Kitob',
+      categoryName: getInventoryItem(o.bookId)?.categoryName ?? '—',
+      studentName: getStudentName(o.studentId),
+      groupName: getGroupName(o.groupId),
+      statusLabel: "Bekor qilingan (Omborda)",
+      statusType: 'CANCELLED' as const,
+      price: o.sotuvNarxi > 0 ? o.sotuvNarxi : sotuvNarxi,
     })),
   ];
 
