@@ -76,6 +76,7 @@ interface AppContextType {
   refreshStudents: () => Promise<void>;
   refreshOrders: () => Promise<void>;
   refreshSettings: () => Promise<void>;
+  sendToTelegram: (orderIds: string[]) => Promise<boolean>;
 
   // ── Data
   sotuvNarxi: number;  // current manager-set selling price
@@ -418,6 +419,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
     fireToast(`"${title}" ro'yxatga olindi.`);
   }, [fireToast]);
 
+  const sendToTelegram = useCallback(async (orderIds: string[]): Promise<boolean> => {
+    try {
+      const res = await fetch(`${API}/backend/orders/send-telegram`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderIds }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      if (data.success) {
+        fireToast("Buyurtmalar ro'yxati Telegramga yuborildi!", 'success');
+        return true;
+      } else {
+        throw new Error(data.error || "Noma'lum xatolik");
+      }
+    } catch (err: any) {
+      fireToast(`Telegramga yuborishda xatolik: ${err.message}`, 'error');
+      return false;
+    }
+  }, [fireToast]);
+
   const dismissNotification = useCallback((id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
   }, []);
@@ -453,6 +475,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       allocateFromWarehouse, addInventoryItem, updateOrderAdmin,
       dismissNotification, dismissToast,
       refreshGroups, refreshStudents, refreshOrders, refreshSettings,
+      sendToTelegram,
       getTeacherName, getStudentName, getGroupName, getInventoryItem,
       getStudentOrders, getLatestOrder, getStudentsByGroup, getGroupsByTeacher,
       retailPrice, isDeliverable,

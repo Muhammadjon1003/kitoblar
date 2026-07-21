@@ -339,6 +339,80 @@ app.patch('/backend/settings', async (req, res) => {
   }
 });
 
+// POST /backend/orders/send-telegram — send selected orders grouped by book to Telegram channel/group
+app.post('/backend/orders/send-telegram', async (req, res) => {
+  try {
+    const { orderIds } = req.body;
+    if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+      return res.status(400).json({ error: 'orderIds array is required.' });
+    }
+
+    const orders = await prisma.erpOrder.findMany({
+      where: { id: { in: orderIds } },
+      include: {
+        student: true,
+      }
+    });
+
+    if (orders.length === 0) {
+      return res.status(404).json({ error: 'No orders found matching the IDs.' });
+    }
+
+    const bookIds = Array.from(new Set(orders.map(o => parseInt(o.bookId)).filter(id => !isNaN(id))));
+    const books = await prisma.telegramBook.findMany({
+      where: { id: { in: bookIds } }
+    });
+    const bookMap = new Map(books.map(b => [String(b.id), b]));
+
+    const groups: Record<string, { bookName: string; tgFileId: string; students: string[] }> = {};
+    for (const o of orders) {
+      const book = bookMap.get(o.bookId);
+      if (!book) continue;
+      if (!groups[o.bookId]) {
+        groups[o.bookId] = {
+          bookName: book.name,
+          tgFileId: book.tgFileId,
+          students: [],
+        };
+      }
+      groups[o.bookId].students.push(o.student.fullName);
+    }
+
+    let targetChatId = process.env.STAFF_GROUP_ID || process.env.STORAGE_CHANNEL_ID || '';
+    if (targetChatId && !targetChatId.startsWith('@') && !targetChatId.startsWith('-')) {
+      if (targetChatId.length >= 10) {
+        targetChatId = `-100${targetChatId}`;
+      } else {
+        targetChatId = `-${targetChatId}`;
+      }
+    }
+
+    if (!targetChatId) {
+      return res.status(400).json({ error: 'Telegram target chat/channel ID is not configured on the server.' });
+    }
+
+    const sentResults = [];
+    for (const bookId in groups) {
+      const group = groups[bookId];
+      const caption = `kitob nomi: ${group.bookName}\nSoni: ${group.students.length}\nKimlar uchun:\n${group.students.join('\n')}`;
+
+      try {
+        const msg = await bot.telegram.sendDocument(targetChatId, group.tgFileId, {
+          caption: caption
+        });
+        sentResults.push({ bookId, bookName: group.bookName, success: true, messageId: msg.message_id });
+      } catch (err: any) {
+        console.error(`Failed to send document for book ${group.bookName}:`, err);
+        sentResults.push({ bookId, bookName: group.bookName, success: false, error: err.message });
+      }
+    }
+
+    res.json({ success: true, results: sentResults });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const lastRequests: any[] = [];
 
 app.all('/telegram-webhook', (req, res, next) => {

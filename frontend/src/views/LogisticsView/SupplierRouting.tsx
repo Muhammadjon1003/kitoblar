@@ -4,10 +4,11 @@ import { useApp } from '../../context/AppContext';
 import { StatusBadge, EmptyState, uzs } from '../../components/ui';
 
 export default function SupplierRouting() {
-  const { orders, dispatchToSupplier, markArrived, getStudentName, getGroupName, getInventoryItem } = useApp();
+  const { orders, dispatchToSupplier, markArrived, getStudentName, getGroupName, getInventoryItem, sendToTelegram } = useApp();
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [yuborildi, setYuborildi]     = useState(false);
+  const [yuborilmoqda, setYuborilmoqda] = useState(false);
 
   const tolovBuyurtmalar  = orders.filter(o => o.status === 'PAID');
   const yoldaBuyurtmalar  = orders.filter(o => o.status === 'ORDERED');
@@ -34,15 +35,22 @@ export default function SupplierRouting() {
     setSelectedIds(new Set());
   };
 
-  /** Tanlangan buyurtmalar ro'yxatini buferga nusxalash */
-  const handleCopyBatch = () => {
-    const payload = tolovBuyurtmalar.map((o, i) => {
-      const inv = getInventoryItem(o.bookId);
-      return `${i + 1}. ${getStudentName(o.studentId)} — ${inv?.title ?? '—'}`;
-    });
-    navigator.clipboard.writeText(payload.join('\n'));
-    setYuborildi(true);
-    setTimeout(() => setYuborildi(false), 2500);
+  /** Group selected or all paid orders by book and send to Telegram */
+  const handleSendTelegram = async () => {
+    const targetIds = selectedIds.size > 0 
+      ? [...selectedIds] 
+      : tolovBuyurtmalar.map(o => o.id);
+
+    if (targetIds.length === 0) return;
+
+    setYuborilmoqda(true);
+    const success = await sendToTelegram(targetIds);
+    setYuborilmoqda(false);
+    if (success) {
+      setYuborildi(true);
+      setTimeout(() => setYuborildi(false), 2500);
+      setSelectedIds(new Set());
+    }
   };
 
   const hasTolov = tolovBuyurtmalar.length > 0;
@@ -71,11 +79,18 @@ export default function SupplierRouting() {
             </div>
             <div className="flex items-center gap-2 ml-4 shrink-0">
               <button
-                onClick={handleCopyBatch}
-                className="flex items-center gap-1.5 text-xs sb-btn-secondary py-1.5 px-3"
+                onClick={handleSendTelegram}
+                disabled={yuborilmoqda}
+                className="flex items-center gap-1.5 text-xs sb-btn-secondary py-1.5 px-3 disabled:opacity-50"
               >
-                {yuborildi ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Package className="w-3.5 h-3.5" />}
-                {yuborildi ? 'Nusxalandi!' : 'Ro\'yxatni nusxalash'}
+                {yuborilmoqda ? (
+                  <Clock className="w-3.5 h-3.5 animate-spin text-zinc-400" />
+                ) : yuborildi ? (
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                ) : (
+                  <Send className="w-3.5 h-3.5 text-sky-400" />
+                )}
+                {yuborilmoqda ? 'Yuborilmoqda...' : yuborildi ? 'Yuborildi!' : 'Telegramga yuborish'}
               </button>
               <button
                 onClick={handleDispatch}
