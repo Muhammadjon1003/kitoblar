@@ -10,7 +10,7 @@ export const uzs = (n: number) =>
   `${Math.round(n).toLocaleString('ru-RU')} so'm`;
 
 
-const STATUS_META: Record<OrderStatus, { label: string; cls: string; Icon: React.FC<{ className?: string }> }> = {
+const STATUS_META: Record<string, { label: string; cls: string; Icon: React.FC<{ className?: string }> }> = {
   CREATED:   { label: 'Yaratildi',         cls: 'bg-blue-600 text-white border-transparent',          Icon: Clock       },
   PAID:      { label: 'To\'langan',        cls: 'bg-indigo-600 text-white border-transparent',    Icon: CheckCircle },
   ORDERED:   { label: 'Buyurtma berildi',  cls: 'bg-amber-500 text-slate-900 border-transparent',       Icon: Package     },
@@ -18,11 +18,17 @@ const STATUS_META: Record<OrderStatus, { label: string; cls: string; Icon: React
   GIVEN:     { label: 'Topshirildi',       cls: 'bg-slate-700 text-white border-transparent',      Icon: CheckCircle },
   CANCELLED: { label: 'Bekor qilindi',     cls: 'bg-red-600 text-white border-transparent',             Icon: XCircle     },
   RETURNED:  { label: 'Qaytarildi',        cls: 'bg-purple-600 text-white border-transparent',    Icon: RotateCcw   },
+  REASSIGNED: { label: 'Ombordan biriktirildi', cls: 'bg-teal-600 text-white border-transparent', Icon: CheckCircle },
   'Ombordan biriktirildi': { label: 'Ombordan biriktirildi', cls: 'bg-teal-600 text-white border-transparent', Icon: CheckCircle },
 };
 
-export function StatusBadge({ status }: { status: OrderStatus }) {
-  const { label, cls, Icon } = STATUS_META[status];
+export function StatusBadge({ status }: { status: OrderStatus | string }) {
+  const meta = STATUS_META[status] ?? {
+    label: status ?? 'Noma\'lum',
+    cls: 'bg-slate-600 text-white border-transparent',
+    Icon: CheckCircle,
+  };
+  const { label, cls, Icon } = meta;
   return (
     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap shadow-sm ${cls}`}>
       <Icon className="w-3 h-3 shrink-0" />

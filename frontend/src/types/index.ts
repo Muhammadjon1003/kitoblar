@@ -16,6 +16,7 @@ export type OrderStatus =
   | 'GIVEN'      // Final delivery to student (terminal success state)
   | 'CANCELLED'  // Order aborted; refund processed externally
   | 'RETURNED'   // Book decoupled from student; returned to warehouse
+  | 'REASSIGNED'
   | 'Ombordan biriktirildi';
 
 // ─── RBAC Roles (TR § 1) ──────────────────────────────────────────────────────
