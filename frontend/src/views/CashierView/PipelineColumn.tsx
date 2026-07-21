@@ -741,9 +741,6 @@ export default function PipelineColumn({ statuses, title, subtitle, accentLeft, 
 
   const selectedOrdersToAccept = statusBuyurtmalari.filter(o => selectedIds.has(o.id));
 
-  // If column has no orders at all AND no active search, hide it entirely
-  if (statusBuyurtmalari.length === 0 && qidiruv.trim() === '') return null;
-
   return (
     <>
       <div className={`flex flex-col min-w-[280px] max-w-[320px] w-full rounded-2xl border border-slate-200 bg-slate-50/60 border-l-4 ${accentLeft}`}>

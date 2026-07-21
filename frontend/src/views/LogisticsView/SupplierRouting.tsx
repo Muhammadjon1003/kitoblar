@@ -89,56 +89,49 @@ export default function SupplierRouting() {
 
   const bulkYoldaOrdersToAccept = yoldaBuyurtmalar.filter(o => selectedYoldaIds.has(o.id));
 
-  const hasTolov = tolovBuyurtmalar.length > 0;
-  const hasYolda = yoldaBuyurtmalar.length > 0;
-
-  if (!hasTolov && !hasYolda) {
-    return (
-      <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6 bg-slate-50">
-        <EmptyState label="Ta'minot yo'nalishida hech qanday buyurtma mavjud emas." />
-      </div>
-    );
-  }
-
   return (
     <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6 bg-slate-50">
 
       {/* ── To'langan buyurtmalar: tanlash va yetkazib berish ── */}
-      {hasTolov && (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 bg-slate-100/60 border-b border-slate-200 gap-4">
-            <div>
-              <p className="text-sm font-bold text-slate-800">To'langan buyurtmalar — Ta'minotchiga yo'naltirish</p>
-              <p className="text-[11px] font-semibold text-slate-600 mt-0.5">
-                Buyurtmalarni tanlang va ta'minotchiga yuboring. Holat: To'langan → Yo'lda.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={handleSendTelegram}
-                disabled={yuborilmoqda}
-                className="flex items-center gap-1.5 text-xs sb-btn-secondary py-2 px-3.5 disabled:opacity-50 font-bold"
-              >
-                {yuborilmoqda ? (
-                  <Clock className="w-3.5 h-3.5 animate-spin text-slate-500" />
-                ) : yuborildi ? (
-                  <Check className="w-3.5 h-3.5 text-emerald-600" />
-                ) : (
-                  <Send className="w-3.5 h-3.5 text-indigo-600" />
-                )}
-                {yuborilmoqda ? 'Yuborilmoqda...' : yuborildi ? 'Yuborildi!' : 'Telegramga yuborish'}
-              </button>
-              <button
-                onClick={handleDispatch}
-                disabled={selectedPaidIds.size === 0}
-                className="flex items-center gap-1.5 text-xs sb-btn-primary py-2 px-3.5 disabled:opacity-40 font-bold"
-              >
-                <Send className="w-3.5 h-3.5 text-white" />
-                {selectedPaidIds.size > 0 ? `${selectedPaidIds.size} tasini yuborish` : 'Tanlanganlarini yuborish'}
-              </button>
-            </div>
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 bg-slate-100/60 border-b border-slate-200 gap-4">
+          <div>
+            <p className="text-sm font-bold text-slate-800">To'langan buyurtmalar — Ta'minotchiga yo'naltirish</p>
+            <p className="text-[11px] font-semibold text-slate-600 mt-0.5">
+              Buyurtmalarni tanlang va ta'minotchiga yuboring. Holat: To'langan → Yo'lda.
+            </p>
           </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleSendTelegram}
+              disabled={yuborilmoqda || tolovBuyurtmalar.length === 0}
+              className="flex items-center gap-1.5 text-xs sb-btn-secondary py-2 px-3.5 disabled:opacity-40 font-bold"
+            >
+              {yuborilmoqda ? (
+                <Clock className="w-3.5 h-3.5 animate-spin text-slate-500" />
+              ) : yuborildi ? (
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+              ) : (
+                <Send className="w-3.5 h-3.5 text-indigo-600" />
+              )}
+              {yuborilmoqda ? 'Yuborilmoqda...' : yuborildi ? 'Yuborildi!' : 'Telegramga yuborish'}
+            </button>
+            <button
+              onClick={handleDispatch}
+              disabled={selectedPaidIds.size === 0}
+              className="flex items-center gap-1.5 text-xs sb-btn-primary py-2 px-3.5 disabled:opacity-40 font-bold"
+            >
+              <Send className="w-3.5 h-3.5 text-white" />
+              {selectedPaidIds.size > 0 ? `${selectedPaidIds.size} tasini yuborish` : 'Tanlanganlarini yuborish'}
+            </button>
+          </div>
+        </div>
 
+        {tolovBuyurtmalar.length === 0 ? (
+          <div className="p-8">
+            <EmptyState label="Hozircha to'langan va yuborilish kutilayotgan buyurtmalar yo'q." />
+          </div>
+        ) : (
           <TableShell>
             <thead>
               <tr>
@@ -192,38 +185,42 @@ export default function SupplierRouting() {
               })}
             </tbody>
           </TableShell>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* ── Yo'lda buyurtmalar — Keldi deb belgilash ── */}
-      {hasYolda && (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 bg-slate-100/60 border-b border-slate-200 gap-4">
-            <div>
-              <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                <Truck className="w-4.5 h-4.5 text-amber-500" />
-                Yo'lda — Ta'minotchidan kutilmoqda
-              </p>
-              <p className="text-[11px] font-semibold text-slate-600 mt-0.5">
-                O'quv markaziga jismoniy kitoblar kelganda qabul qilish va tan narxini kiritish.
-              </p>
-            </div>
-
-            {/* Bulk accept button for Yo'lda section */}
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => setShowBulkAcceptModal(true)}
-                disabled={selectedYoldaIds.size === 0}
-                className="flex items-center gap-1.5 text-xs py-2 px-3.5 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 text-white transition-all shadow-sm"
-              >
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                {selectedYoldaIds.size > 0 
-                  ? `${selectedYoldaIds.size} ta kitobni ommaviy qabul qilish` 
-                  : 'Tanlanganlarni qabul qilish'}
-              </button>
-            </div>
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 bg-slate-100/60 border-b border-slate-200 gap-4">
+          <div>
+            <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <Truck className="w-4.5 h-4.5 text-amber-500" />
+              Yo'lda — Ta'minotchidan kutilmoqda
+            </p>
+            <p className="text-[11px] font-semibold text-slate-600 mt-0.5">
+              O'quv markaziga jismoniy kitoblar kelganda qabul qilish va tan narxini kiritish.
+            </p>
           </div>
-          
+
+          {/* Bulk accept button for Yo'lda section */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setShowBulkAcceptModal(true)}
+              disabled={selectedYoldaIds.size === 0}
+              className="flex items-center gap-1.5 text-xs py-2 px-3.5 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 text-white transition-all shadow-sm"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              {selectedYoldaIds.size > 0 
+                ? `${selectedYoldaIds.size} ta kitobni ommaviy qabul qilish` 
+                : 'Tanlanganlarini qabul qilish'}
+            </button>
+          </div>
+        </div>
+        
+        {yoldaBuyurtmalar.length === 0 ? (
+          <div className="p-8">
+            <EmptyState label="Hozircha yo'lda bo'lgan kutilayotgan kitoblar yo'q." />
+          </div>
+        ) : (
           <TableShell>
             <thead>
               <tr>
@@ -291,8 +288,8 @@ export default function SupplierRouting() {
               })}
             </tbody>
           </TableShell>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Single accept modal */}
       {singleOrderToAccept && (
