@@ -429,7 +429,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       if (data.success) {
-        fireToast("Buyurtmalar ro'yxati Telegramga yuborildi!", 'success');
+        await refreshOrders();
+        if (data.autoFulfilledCount > 0) {
+          fireToast(
+            `${data.autoFulfilledCount} ta kitob omborda mavjud bo'lgani uchun Telegramga yuborilmasdan avtomatik biriktirildi!`,
+            'info'
+          );
+        }
+        if (data.results && data.results.length > 0) {
+          fireToast("Qolgan buyurtmalar ro'yxati Telegramga yuborildi!", 'success');
+        } else if (data.autoFulfilledCount === 0) {
+          fireToast("Buyurtmalar ro'yxati Telegramga yuborildi!", 'success');
+        }
         return true;
       } else {
         throw new Error(data.error || "Noma'lum xatolik");
@@ -438,7 +449,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       fireToast(`Telegramga yuborishda xatolik: ${err.message}`, 'error');
       return false;
     }
-  }, [fireToast]);
+  }, [refreshOrders, fireToast]);
 
   const dismissNotification = useCallback((id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));

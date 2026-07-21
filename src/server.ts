@@ -340,6 +340,7 @@ app.patch('/backend/settings', async (req, res) => {
 });
 
 // POST /backend/orders/send-telegram — send selected orders grouped by book to Telegram channel/group
+// POST /backend/orders/send-telegram — send selected orders grouped by book to Telegram channel/group
 app.post('/backend/orders/send-telegram', async (req, res) => {
   try {
     const { orderIds } = req.body;
@@ -364,8 +365,60 @@ app.post('/backend/orders/send-telegram', async (req, res) => {
     });
     const bookMap = new Map(books.map(b => [String(b.id), b]));
 
-    const groups: Record<string, { bookName: string; tgFileId: string; students: string[] }> = {};
+    const today = new Date().toISOString().slice(0, 10);
+    const autoFulfilled: Array<{ orderId: string; studentName: string; bookName: string }> = [];
+    const ordersToSendTelegram: typeof orders = [];
+
+    // Check inventory for matching unassigned physical books (CANCELLED or RETURNED status)
     for (const o of orders) {
+      const book = bookMap.get(o.bookId);
+      const bookName = book?.name || 'Kitob';
+
+      const stockOrder = await prisma.erpOrder.findFirst({
+        where: {
+          bookId: o.bookId,
+          status: { in: ['CANCELLED', 'RETURNED'] },
+          id: { not: o.id }
+        }
+      });
+
+      if (stockOrder) {
+        // Auto-fulfill: assign existing inventory book directly to student (moves to ARRIVED at 0 cost)
+        await prisma.erpOrder.update({
+          where: { id: o.id },
+          data: {
+            status: 'ARRIVED',
+            comment: "Omborda mavjud bo'lgani uchun avtomatik biriktirildi",
+            updatedAt: today,
+          }
+        });
+
+        // Consume the stock order
+        await prisma.erpOrder.delete({
+          where: { id: stockOrder.id }
+        });
+
+        autoFulfilled.push({
+          orderId: o.id,
+          studentName: o.student.fullName,
+          bookName,
+        });
+      } else {
+        // If not in inventory stock, mark order as ORDERED and prepare for Telegram
+        await prisma.erpOrder.update({
+          where: { id: o.id },
+          data: {
+            status: 'ORDERED',
+            updatedAt: today,
+          }
+        });
+        ordersToSendTelegram.push(o);
+      }
+    }
+
+    // Group only remaining orders that were NOT auto-fulfilled from inventory
+    const groups: Record<string, { bookName: string; tgFileId: string; students: string[] }> = {};
+    for (const o of ordersToSendTelegram) {
       const book = bookMap.get(o.bookId);
       if (!book) continue;
       if (!groups[o.bookId]) {
@@ -387,27 +440,30 @@ app.post('/backend/orders/send-telegram', async (req, res) => {
       }
     }
 
-    if (!targetChatId) {
-      return res.status(400).json({ error: 'Telegram target chat/channel ID is not configured on the server.' });
-    }
-
     const sentResults = [];
-    for (const bookId in groups) {
-      const group = groups[bookId];
-      const caption = `kitob nomi: ${group.bookName}\nSoni: ${group.students.length}\nKimlar uchun:\n${group.students.join('\n')}`;
+    if (targetChatId && ordersToSendTelegram.length > 0) {
+      for (const bookId in groups) {
+        const group = groups[bookId];
+        const caption = `kitob nomi: ${group.bookName}\nSoni: ${group.students.length}\nKimlar uchun:\n${group.students.join('\n')}`;
 
-      try {
-        const msg = await bot.telegram.sendDocument(targetChatId, group.tgFileId, {
-          caption: caption
-        });
-        sentResults.push({ bookId, bookName: group.bookName, success: true, messageId: msg.message_id });
-      } catch (err: any) {
-        console.error(`Failed to send document for book ${group.bookName}:`, err);
-        sentResults.push({ bookId, bookName: group.bookName, success: false, error: err.message });
+        try {
+          const msg = await bot.telegram.sendDocument(targetChatId, group.tgFileId, {
+            caption: caption
+          });
+          sentResults.push({ bookId, bookName: group.bookName, success: true, messageId: msg.message_id });
+        } catch (err: any) {
+          console.error(`Failed to send document for book ${group.bookName}:`, err);
+          sentResults.push({ bookId, bookName: group.bookName, success: false, error: err.message });
+        }
       }
     }
 
-    res.json({ success: true, results: sentResults });
+    res.json({
+      success: true,
+      autoFulfilledCount: autoFulfilled.length,
+      autoFulfilled,
+      results: sentResults,
+    });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
