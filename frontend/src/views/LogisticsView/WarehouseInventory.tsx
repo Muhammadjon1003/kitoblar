@@ -123,13 +123,13 @@ export default function WarehouseInventory() {
       statusType: 'RETURNED' as const,
       price: o.sotuvNarxi > 0 ? o.sotuvNarxi : sotuvNarxi,
     })),
-    ...inventory.map(inv => ({
+    ...inventory.filter(inv => inv.isReturned).map(inv => ({
       id: `inv-${inv.id}`,
       title: inv.title,
       categoryName: inv.categoryName ?? '—',
       studentName: '—',
       groupName: '—',
-      statusLabel: inv.isReturned ? "Ombor inventari (Qaytarilgan)" : "Ombor inventari",
+      statusLabel: "Ombor inventari (Qaytarilgan)",
       statusType: 'STOCK' as const,
       price: sotuvNarxi,
     })),
