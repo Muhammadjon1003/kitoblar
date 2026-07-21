@@ -104,6 +104,15 @@ export interface BulkOrderItem {
   comment: string;
 }
 
+/** Logged-in staff user credentials and role */
+export interface AuthUser {
+  id: string;
+  fullName: string;
+  username: string;
+  role: UserRole;
+  createdAt?: string;
+}
+
 /** Sub-page keys per role for sidebar navigation */
 export type SubPage =
   | 'orders'        // TEACHER
@@ -117,4 +126,5 @@ export type SubPage =
   | 'ledger'        // MANAGER
   | 'coverage'      // MANAGER
   | 'groups'        // MANAGER — groups management
+  | 'users'         // MANAGER — staff accounts management
   | 'narxsozlama';  // MANAGER — price settings

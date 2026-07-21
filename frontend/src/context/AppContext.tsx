@@ -1,11 +1,8 @@
 /**
  * context/AppContext.tsx
  * ─────────────────────────────────────────────────────────────────────────────
- * Core state engine. Holds ALL business data and exposes every mutation.
- * Orders are fully persisted to the Neon backend — no mock data.
- *
- * Price model: retailPrice = bookCost × 1.5
- * Deliver guard: amount_paid >= bookCost × 1.5
+ * Core state engine. Holds ALL business data, authentication, and exposes every mutation.
+ * Session guard: All mutations check if user is logged in.
  */
 
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
@@ -13,7 +10,7 @@ import type { ReactNode } from 'react';
 import type {
   Teacher, Group, Student, InventoryItem, Order,
   SystemNotification, AppToast, BulkOrderItem,
-  UserRole, SubPage,
+  UserRole, SubPage, AuthUser,
 } from '../types';
 
 const API = 'https://kitoblar-seven.vercel.app';
@@ -47,6 +44,15 @@ interface AppContextType {
   activeSubPage: SubPage;
   setActiveRole: (r: UserRole) => void;
   setActiveSubPage: (p: SubPage) => void;
+
+  // ── Authentication & User Accounts
+  currentUser: AuthUser | null;
+  users: AuthUser[];
+  login: (username: string, password: string) => Promise<boolean>;
+  logout: () => void;
+  createUserAccount: (data: { fullName: string; username: string; password: string; role: UserRole }) => Promise<boolean>;
+  deleteUserAccount: (id: string) => Promise<boolean>;
+  refreshUsers: () => Promise<void>;
 
   // ── Data (read-only refs)
   teachers: Teacher[];
@@ -128,12 +134,23 @@ function updateHashRoute(role: UserRole, subPage: SubPage) {
   }
   try {
     localStorage.setItem('smartbooks_route', JSON.stringify({ role, subPage }));
-  } catch (e) {
-    // Ignore
-  }
+  } catch (e) {}
 }
 
-function getInitialRoute(): { role: UserRole; subPage: SubPage } {
+function getInitialUser(): AuthUser | null {
+  try {
+    const saved = localStorage.getItem('smartbooks_auth_user');
+    if (saved) return JSON.parse(saved);
+  } catch (e) {}
+  return null;
+}
+
+function getInitialRoute(user: AuthUser | null): { role: UserRole; subPage: SubPage } {
+  if (user) {
+    const defaultSub = DEFAULT_SUBPAGE[user.role];
+    return { role: user.role, subPage: defaultSub };
+  }
+
   const hashRoute = parseHashRoute();
   if (hashRoute) return hashRoute;
 
@@ -149,9 +166,7 @@ function getInitialRoute(): { role: UserRole; subPage: SubPage } {
         };
       }
     }
-  } catch (e) {
-    // Ignore
-  }
+  } catch (e) {}
 
   return { role: 'CASHIER', subPage: 'pipeline' };
 }
@@ -159,10 +174,13 @@ function getInitialRoute(): { role: UserRole; subPage: SubPage } {
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const initial = getInitialRoute();
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(getInitialUser);
+  const initial = getInitialRoute(currentUser);
+
   const [activeRole,    setActiveRoleState]     = useState<UserRole>(initial.role);
   const [activeSubPage, setActiveSubPageState] = useState<SubPage>(initial.subPage);
 
+  const [users,      setUsers]          = useState<AuthUser[]>([]);
   const [teachers]  = useState<Teacher[]>(SEED_TEACHERS);
   const [groups,     setGroups]     = useState<Group[]>([]);
   const [students,   setStudents]   = useState<Student[]>([]);
@@ -184,7 +202,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  // ── Navigation with Route Persistence ───────────────────────────────────────
+  // ── Session Guard ─────────────────────────────────────────────────────────────
+
+  const checkAuth = useCallback((): boolean => {
+    if (!currentUser) {
+      fireToast("Sessiya tugagan yoki tizimga kirilmagan. Iltimos, qayta tizimga kiring.", 'error');
+      setCurrentUser(null);
+      try { localStorage.removeItem('smartbooks_auth_user'); } catch (e) {}
+      return false;
+    }
+    return true;
+  }, [currentUser, fireToast]);
+
+  // ── Navigation with Route Persistence & Role View Lockdown ─────────────────
 
   const setActiveSubPage = useCallback((sp: SubPage) => {
     setActiveSubPageState(sp);
@@ -201,18 +231,146 @@ export function AppProvider({ children }: { children: ReactNode }) {
     updateHashRoute(r, defaultSub);
   }, []);
 
+  // Enforce RBAC Role View Lockdown: user can ONLY view their assigned role!
+  useEffect(() => {
+    if (currentUser) {
+      if (activeRole !== currentUser.role) {
+        setActiveRoleState(currentUser.role);
+        const defaultSub = DEFAULT_SUBPAGE[currentUser.role];
+        setActiveSubPageState(defaultSub);
+        updateHashRoute(currentUser.role, defaultSub);
+      }
+    }
+  }, [currentUser, activeRole]);
+
   useEffect(() => {
     const handleHashChange = () => {
       const route = parseHashRoute();
       if (route) {
-        setActiveRoleState(route.role);
-        setActiveSubPageState(route.subPage);
+        // Only allow hash change if role matches currentUser's role or no user logged in
+        if (!currentUser || route.role === currentUser.role) {
+          setActiveRoleState(route.role);
+          setActiveSubPageState(route.subPage);
+        }
       }
     };
     window.addEventListener('hashchange', handleHashChange);
     updateHashRoute(activeRole, activeSubPage);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [activeRole, activeSubPage]);
+  }, [currentUser, activeRole, activeSubPage]);
+
+  // ── Authentication API ────────────────────────────────────────────────────────
+
+  const login = useCallback(async (username: string, password: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`${API}/backend/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        let errMsg = "Foydalanuvchi nomi yoki parol noto'g'ri.";
+        try {
+          const json = JSON.parse(text);
+          if (json.error) errMsg = json.error;
+        } catch (e) {}
+        fireToast(errMsg, 'error');
+        return false;
+      }
+
+      const data = await res.json();
+      const user: AuthUser = data.user;
+
+      setCurrentUser(user);
+      try {
+        localStorage.setItem('smartbooks_auth_user', JSON.stringify(user));
+      } catch (e) {}
+
+      // Lock user into their assigned role view
+      setActiveRoleState(user.role);
+      const defaultSub = DEFAULT_SUBPAGE[user.role];
+      setActiveSubPageState(defaultSub);
+      updateHashRoute(user.role, defaultSub);
+
+      fireToast(`Xush kelibsiz, ${user.fullName}! (${user.role} bo'limi)`);
+      return true;
+    } catch (err: any) {
+      fireToast(`Tizimga kirishda xatolik: ${err.message}`, 'error');
+      return false;
+    }
+  }, [fireToast]);
+
+  const logout = useCallback(() => {
+    setCurrentUser(null);
+    try {
+      localStorage.removeItem('smartbooks_auth_user');
+      localStorage.removeItem('smartbooks_route');
+    } catch (e) {}
+    window.location.hash = '';
+    fireToast("Tizimdan chiqildi.", 'info');
+  }, [fireToast]);
+
+  const refreshUsers = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/backend/users`);
+      if (!res.ok) throw new Error('users API failed');
+      const data: AuthUser[] = await res.json();
+      setUsers(data);
+    } catch (err) {
+      console.warn('Failed to load users:', err);
+    }
+  }, []);
+
+  const createUserAccount = useCallback(async (data: { fullName: string; username: string; password: string; role: UserRole }): Promise<boolean> => {
+    if (!checkAuth()) return false;
+    if (currentUser?.role !== 'MANAGER') {
+      fireToast("Faqat Bosh Menejer yangi xodim qo'sha oladi.", 'error');
+      return false;
+    }
+
+    try {
+      const res = await fetch(`${API}/backend/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        let errStr = "Xodim yaratishda xatolik.";
+        try { errStr = JSON.parse(text).error || errStr; } catch (e) {}
+        throw new Error(errStr);
+      }
+
+      await refreshUsers();
+      fireToast(`Yangi xodim "${data.fullName}" (${data.role}) yaratildi!`);
+      return true;
+    } catch (err: any) {
+      fireToast(`Xatolik: ${err.message}`, 'error');
+      return false;
+    }
+  }, [currentUser, checkAuth, refreshUsers, fireToast]);
+
+  const deleteUserAccount = useCallback(async (id: string): Promise<boolean> => {
+    if (!checkAuth()) return false;
+    if (currentUser?.role !== 'MANAGER') {
+      fireToast("Faqat Bosh Menejer xodimlarni o'chira oladi.", 'error');
+      return false;
+    }
+
+    try {
+      const res = await fetch(`${API}/backend/users/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(await res.text());
+      await refreshUsers();
+      fireToast("Xodim akkaunti o'chirildi.", 'info');
+      return true;
+    } catch (err: any) {
+      fireToast(`O'chirishda xatolik: ${err.message}`, 'error');
+      return false;
+    }
+  }, [currentUser, checkAuth, refreshUsers, fireToast]);
 
   // ── Live data fetchers ────────────────────────────────────────────────────────
 
@@ -289,12 +447,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     refreshStudents();
     refreshOrders();
     refreshSettings();
-  }, [refreshGroups, refreshStudents, refreshOrders, refreshSettings]);
+    refreshUsers();
+  }, [refreshGroups, refreshStudents, refreshOrders, refreshSettings, refreshUsers]);
 
-  // ── Mutations (all wired to backend) ─────────────────────────────────────────
+  // ── Mutations (all guarded by checkAuth) ───────────────────────────────────
 
   /** Teacher creates orders → POST /backend/orders */
   const createBulkOrders = useCallback(async (items: BulkOrderItem[]) => {
+    if (!checkAuth()) return;
     try {
       const payload = items.map(item => {
         const inv = inventory.find(i => i.id === item.bookId);
@@ -317,11 +477,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch (err: any) {
       fireToast(`Buyurtma yaratishda xatolik: ${err.message}`, 'error');
     }
-  }, [inventory, refreshOrders, fireToast]);
+  }, [inventory, checkAuth, refreshOrders, fireToast]);
 
   /** CREATED → PAID: Cashier records payment → PATCH */
   const collectCash = useCallback(async (orderId: string, amount: number) => {
-    // Optimistic update
+    if (!checkAuth()) return;
     setOrders(prev => prev.map(o =>
       o.id === orderId
         ? { ...o, status: 'PAID', amountPaid: o.amountPaid + amount, updatedAt: todayISO() }
@@ -341,11 +501,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       fireToast(`To'lovda xatolik: ${err.message}`, 'error');
       await refreshOrders();
     }
-  }, [orders, refreshOrders, fireToast]);
+  }, [orders, checkAuth, refreshOrders, fireToast]);
 
-  /** CREATED/PAID/ORDERED → CANCELLED: Keep order in DB as CANCELLED inventory stock */
+  /** CANCELLED: Keep order in DB as CANCELLED inventory stock */
   const cancelOrder = useCallback(async (orderId: string) => {
-    // Optimistic update — keep order in state as CANCELLED
+    if (!checkAuth()) return;
     setOrders(prev => prev.map(o =>
       o.id === orderId ? { ...o, status: 'CANCELLED', updatedAt: todayISO() } : o
     ));
@@ -361,9 +521,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       fireToast(`Bekor qilishda xatolik: ${err.message}`, 'error');
       await refreshOrders();
     }
-  }, [refreshOrders, fireToast]);
+  }, [checkAuth, refreshOrders, fireToast]);
 
   const sendToTelegram = useCallback(async (orderIds: string[]): Promise<boolean> => {
+    if (!checkAuth()) return false;
     try {
       const res = await fetch(`${API}/backend/orders/send-telegram`, {
         method: 'POST',
@@ -393,16 +554,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       fireToast(`Telegramga yuborishda xatolik: ${err.message}`, 'error');
       return false;
     }
-  }, [refreshOrders, fireToast]);
+  }, [checkAuth, refreshOrders, fireToast]);
 
-  /** PAID → ORDERED: Logistics dispatches to supplier (with smart inventory auto-fulfillment) */
+  /** PAID → ORDERED: Logistics dispatches to supplier */
   const dispatchToSupplier = useCallback(async (orderIds: string[]) => {
+    if (!checkAuth()) return;
     if (orderIds.length === 0) return;
     await sendToTelegram(orderIds);
-  }, [sendToTelegram]);
+  }, [checkAuth, sendToTelegram]);
 
   /** ORDERED → ARRIVED (cashier sets bookCost at arrival time) */
   const markArrived = useCallback(async (orderId: string, bookCost: number) => {
+    if (!checkAuth()) return;
     setOrders(prev => prev.map(o =>
       o.id === orderId && o.status === 'ORDERED'
         ? { ...o, status: 'ARRIVED', bookCost, updatedAt: todayISO() }
@@ -415,18 +578,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ status: 'ARRIVED', bookCost }),
       });
       await refreshOrders();
-      fireToast("Kitob keldi. Holat: Yo'lda \u2192 Keldi.");
+      fireToast("Kitob keldi. Holat: Yo'lda → Keldi.");
     } catch (err: any) {
       fireToast(`Xatolik: ${err.message}`, 'error');
       await refreshOrders();
     }
-  }, [refreshOrders, fireToast]);
+  }, [checkAuth, refreshOrders, fireToast]);
 
-  /** ARRIVED → GIVEN (guarded: amountPaid >= bookCost × 1.5) */
+  /** ARRIVED → GIVEN (guarded: amountPaid >= sotuvNarxi) */
   const deliverBook = useCallback(async (orderId: string) => {
+    if (!checkAuth()) return;
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
-    if (order.amountPaid < order.bookCost * 1.5) {
+    if (order.amountPaid < order.sotuvNarxi) {
       fireToast("Topshirib bo'lmaydi — qoldiq qarz mavjud.", 'error');
       return;
     }
@@ -445,10 +609,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       fireToast(`Xatolik: ${err.message}`, 'error');
       await refreshOrders();
     }
-  }, [orders, refreshOrders, fireToast]);
+  }, [orders, checkAuth, refreshOrders, fireToast]);
 
   /** ARRIVED → RETURNED: Decouple book back to warehouse */
   const decoupleBook = useCallback(async (orderId: string) => {
+    if (!checkAuth()) return;
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
     setOrders(prev => prev.map(o =>
@@ -469,13 +634,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       fireToast(`Xatolik: ${err.message}`, 'error');
       await refreshOrders();
     }
-  }, [orders, refreshOrders, fireToast]);
+  }, [orders, checkAuth, refreshOrders, fireToast]);
 
   /** Warehouse allocation: 0-cost ARRIVED order via POST */
   const allocateFromWarehouse = useCallback((invId: string, studentId: string, groupId: string) => {
+    if (!checkAuth()) return;
     const inv = inventory.find(i => i.id === invId);
     if (!inv) return;
-    // Create order in backend
     fetch(`${API}/backend/orders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -483,22 +648,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
         studentId, groupId, bookId: invId,
         bookCost: 0, comment: 'Ombordan bepul biriktirish',
       }]),
-    }).then(() => {
-      // Also immediately PATCH it to ARRIVED since it skips the pipeline
-      return refreshOrders();
-    }).catch(console.warn);
+    }).then(() => refreshOrders()).catch(console.warn);
 
     setInventory(prev => prev.map(i =>
       i.id === invId ? { ...i, isReturned: false } : i
     ));
-    fireToast(`"${inv.title}" ombordan biriktiriildi. Keldi holati. 0 so'm.`);
-  }, [inventory, refreshOrders, fireToast]);
+    fireToast(`"${inv.title}" ombordan biriktirildi. Keldi holati. 0 so'm.`);
+  }, [inventory, checkAuth, refreshOrders, fireToast]);
 
   /** Admin/cashier direct edit of any order field */
   const updateOrderAdmin = useCallback(async (
     orderId: string,
-    patch: { status?: string; amountPaid?: number; comment?: string }
+    patch: { status?: string; amountPaid?: number; sotuvNarxi?: number; comment?: string }
   ) => {
+    if (!checkAuth()) return;
     try {
       const res = await fetch(`${API}/backend/orders/${orderId}`, {
         method: 'PATCH',
@@ -511,14 +674,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch (err: any) {
       fireToast(`Tuzatishda xatolik: ${err.message}`, 'error');
     }
-  }, [refreshOrders, fireToast]);
+  }, [checkAuth, refreshOrders, fireToast]);
 
-  /** Inbound ingestion: register a new book in inventory (local only — books come from Telegram) */
   const addInventoryItem = useCallback((title: string, _bookCost: number) => {
     fireToast(`"${title}" ro'yxatga olindi.`);
   }, [fireToast]);
-
-
 
   const dismissNotification = useCallback((id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
@@ -547,6 +707,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       activeRole, activeSubPage, setActiveRole, setActiveSubPage,
+      currentUser, users, login, logout, createUserAccount, deleteUserAccount, refreshUsers,
       teachers, groups, students, inventory, orders, notifications, toasts, setOrders,
       sotuvNarxi,
       fireToast,

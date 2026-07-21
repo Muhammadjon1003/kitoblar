@@ -1,5 +1,5 @@
 /**
- * App.tsx — Light theme root
+ * App.tsx — Light theme root with Auth Guard
  */
 
 import { AppProvider, useApp } from './context/AppContext';
@@ -7,13 +7,24 @@ import Topbar   from './components/Topbar';
 import Sidebar  from './components/Sidebar';
 import { ToastContainer } from './components/ui';
 
+import LoginPage          from './views/AuthView/LoginPage';
 import TeacherView        from './views/TeacherView';
 import CashierDashboard   from './views/CashierView/CashierDashboard';
 import LogisticsDashboard from './views/LogisticsView/LogisticsDashboard';
 import ManagerDashboard   from './views/ManagerView/ManagerDashboard';
 
 function AppShell() {
-  const { activeRole, toasts, dismissToast } = useApp();
+  const { currentUser, activeRole, toasts, dismissToast } = useApp();
+
+  // Session / Auth Guard: render LoginPage if not authenticated
+  if (!currentUser) {
+    return (
+      <>
+        <LoginPage />
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      </>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-slate-50 text-slate-800 overflow-hidden">

@@ -152,3 +152,17 @@ model ErpSettings {
 
   @@map("erp_settings")
 }
+
+// ─── ERP: Users & Authentication ──────────────────────────────────────
+
+model ErpUser {
+  id        String   @id @default(cuid())
+  fullName  String
+  username  String   @unique
+  password  String
+  role      String   // TEACHER, CASHIER, LOGISTICS, MANAGER
+  createdAt DateTime @default(now())
+
+  @@map("erp_users")
+}
+

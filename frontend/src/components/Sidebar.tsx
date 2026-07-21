@@ -2,7 +2,7 @@
  * components/Sidebar.tsx — O'zbek tili
  */
 
-import { Package, ChevronRight } from 'lucide-react';
+import { Package, ChevronRight, LogOut } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import type { UserRole, SubPage } from '../types';
 
@@ -12,7 +12,7 @@ const ROLE_NAV: Record<UserRole, NavItem[]> = {
   TEACHER:   [{ key: 'orders',    label: 'Buyurtmalar' }],
   CASHIER:   [{ key: 'pipeline',  label: 'CRM Yo\'nalishi' }, { key: 'management', label: 'Guruhlar boshqaruvi' }, { key: 'payments', label: 'To\'lovlar tarixi' }],
   LOGISTICS: [{ key: 'supplier',  label: 'Ta\'minotchi stoli' }, { key: 'warehouse', label: 'Ombor zaxirasi' }],
-  MANAGER:   [{ key: 'analytics', label: 'Moliyaviy tahlil' }, { key: 'ledger', label: 'Buyurtmalar hisoboti' }, { key: 'groups', label: 'Guruhlar boshqaruvi' }, { key: 'narxsozlama', label: 'Narx Sozlamalari' }],
+  MANAGER:   [{ key: 'analytics', label: 'Moliyaviy tahlil' }, { key: 'ledger', label: 'Buyurtmalar hisoboti' }, { key: 'groups', label: 'Guruhlar boshqaruvi' }, { key: 'users', label: 'Xodimlar va Rollar' }, { key: 'narxsozlama', label: 'Narx Sozlamalari' }],
 };
 
 const ROLE_DOT: Record<UserRole, string> = {
@@ -30,7 +30,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
 };
 
 export default function Sidebar() {
-  const { activeRole, activeSubPage, setActiveSubPage } = useApp();
+  const { activeRole, activeSubPage, setActiveSubPage, currentUser, logout } = useApp();
   const navItems = ROLE_NAV[activeRole];
 
   return (
@@ -50,7 +50,7 @@ export default function Sidebar() {
       <div className="px-4 py-3 border-b border-slate-100">
         <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
           <span className={`w-2 h-2 rounded-full shrink-0 ${ROLE_DOT[activeRole]}`} />
-          <span className="text-[11px] font-semibold text-slate-600">{ROLE_LABEL[activeRole]} ko'rinishi</span>
+          <span className="text-[11px] font-semibold text-slate-600">{ROLE_LABEL[activeRole]} bo'limi</span>
         </div>
       </div>
 
@@ -65,7 +65,7 @@ export default function Sidebar() {
               onClick={() => setActiveSubPage(key)}
               className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-[13px] font-medium transition-all duration-100 ${
                 active
-                  ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                  ? 'bg-blue-50 text-blue-700 border border-blue-100 font-bold'
                   : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border border-transparent'
               }`}
             >
@@ -76,21 +76,27 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Foydalanuvchi */}
-      <div className="px-3 pb-4 pt-3 border-t border-slate-100">
+      {/* Foydalanuvchi Profil & Logout */}
+      <div className="px-3 pb-4 pt-3 border-t border-slate-100 space-y-2">
         <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg border border-slate-200 bg-slate-50">
-          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 ${ROLE_DOT[activeRole]}`}>
-            {activeRole.charAt(0)}
+          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 ${ROLE_DOT[activeRole]}`}>
+            {currentUser?.fullName?.charAt(0) || activeRole.charAt(0)}
           </div>
-          <div className="overflow-hidden">
-            <p className="text-xs font-semibold text-slate-700 truncate">
-              {activeRole === 'TEACHER'   ? 'Alisher Nazarov'  :
-               activeRole === 'CASHIER'   ? 'Kassir Admin'     :
-               activeRole === 'LOGISTICS' ? 'Logistika Admin'  : 'Direktor'}
+          <div className="overflow-hidden flex-1">
+            <p className="text-xs font-bold text-slate-800 truncate">
+              {currentUser?.fullName || ROLE_LABEL[activeRole]}
             </p>
-            <p className="text-[10px] text-slate-400 truncate">{activeRole.toLowerCase()}@smartbook.uz</p>
+            <p className="text-[10px] text-slate-500 font-semibold truncate">@{currentUser?.username || 'user'}</p>
           </div>
         </div>
+
+        <button
+          onClick={logout}
+          className="w-full py-1.5 px-3 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          Tizimdan Chiqish
+        </button>
       </div>
     </aside>
   );

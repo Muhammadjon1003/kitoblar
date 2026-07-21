@@ -10,6 +10,7 @@ import { useApp } from '../../context/AppContext';
 import { KpiCard, uzs, TableShell, Th, Td, StatusBadge } from '../../components/ui';
 import LedgerTable from './LedgerTable';
 import ManagerGroupsView from './ManagerGroupsView';
+import UserManagement from './UserManagement';
 import NarxSozlamalari from './NarxSozlamalari';
 
 // ─── Moliyaviy va Statistik tahlil paneli ─────────────────────────────────────────────
@@ -324,6 +325,7 @@ export default function ManagerDashboard() {
 
   if (activeSubPage === 'ledger')   return <LedgerTable />;
   if (activeSubPage === 'groups' || activeSubPage === 'coverage') return <ManagerGroupsView />;
+  if (activeSubPage === 'users')   return <UserManagement />;
   if (activeSubPage === 'narxsozlama') return <NarxSozlamalari />;
   return <MoliyaviyTahlil />;
 }
