@@ -9,7 +9,7 @@ import {
 import { useApp } from '../../context/AppContext';
 import { KpiCard, uzs, TableShell, Th, Td, StatusBadge } from '../../components/ui';
 import LedgerTable from './LedgerTable';
-import CoverageMatrix from './CoverageMatrix';
+import ManagerGroupsView from './ManagerGroupsView';
 import NarxSozlamalari from './NarxSozlamalari';
 
 // ─── Moliyaviy va Statistik tahlil paneli ─────────────────────────────────────────────
@@ -323,7 +323,7 @@ export default function ManagerDashboard() {
   const { activeSubPage } = useApp();
 
   if (activeSubPage === 'ledger')   return <LedgerTable />;
-  if (activeSubPage === 'coverage') return <CoverageMatrix />;
+  if (activeSubPage === 'groups' || activeSubPage === 'coverage') return <ManagerGroupsView />;
   if (activeSubPage === 'narxsozlama') return <NarxSozlamalari />;
   return <MoliyaviyTahlil />;
 }

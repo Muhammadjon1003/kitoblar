@@ -12,7 +12,7 @@ const ROLE_NAV: Record<UserRole, NavItem[]> = {
   TEACHER:   [{ key: 'orders',    label: 'Buyurtmalar' }],
   CASHIER:   [{ key: 'pipeline',  label: 'CRM Yo\'nalishi' }, { key: 'management', label: 'Guruhlar boshqaruvi' }, { key: 'payments', label: 'To\'lovlar tarixi' }],
   LOGISTICS: [{ key: 'supplier',  label: 'Ta\'minotchi stoli' }, { key: 'warehouse', label: 'Ombor zaxirasi' }],
-  MANAGER:   [{ key: 'analytics', label: 'Moliyaviy tahlil' }, { key: 'ledger', label: 'Buyurtmalar hisoboti' }, { key: 'coverage', label: 'Qamrov matritsasi' }, { key: 'narxsozlama', label: 'Narx Sozlamalari' }],
+  MANAGER:   [{ key: 'analytics', label: 'Moliyaviy tahlil' }, { key: 'ledger', label: 'Buyurtmalar hisoboti' }, { key: 'groups', label: 'Guruhlar boshqaruvi' }, { key: 'narxsozlama', label: 'Narx Sozlamalari' }],
 };
 
 const ROLE_DOT: Record<UserRole, string> = {

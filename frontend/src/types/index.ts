@@ -116,4 +116,5 @@ export type SubPage =
   | 'analytics'     // MANAGER
   | 'ledger'        // MANAGER
   | 'coverage'      // MANAGER
+  | 'groups'        // MANAGER — groups management
   | 'narxsozlama';  // MANAGER — price settings
