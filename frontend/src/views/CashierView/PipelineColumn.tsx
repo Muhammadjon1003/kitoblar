@@ -751,7 +751,7 @@ export default function PipelineColumn({ statuses, title, subtitle, accentLeft, 
 
   return (
     <>
-      <div className={`flex flex-col min-w-[280px] max-w-[320px] w-full rounded-2xl border border-slate-200 bg-slate-50/60 border-l-4 ${accentLeft}`}>
+      <div className={`flex flex-col w-full rounded-2xl border border-slate-200 bg-slate-50/60 border-l-4 shadow-sm ${accentLeft}`}>
         {/* Column header */}
         <div className="px-4 pt-3.5 pb-2 shrink-0">
           <div className="flex items-center justify-between">

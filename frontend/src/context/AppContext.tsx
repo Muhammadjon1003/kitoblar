@@ -102,11 +102,66 @@ export function useApp(): AppContextType {
   return useContext(AppContext);
 }
 
+// Route Persistence Helpers
+function parseHashRoute(): { role: UserRole; subPage: SubPage } | null {
+  const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase();
+  if (!hash) return null;
+
+  const parts = hash.split('/');
+  const roleStr = parts[0]?.toUpperCase();
+  const subStr = parts[1];
+
+  const validRoles: UserRole[] = ['TEACHER', 'CASHIER', 'LOGISTICS', 'MANAGER'];
+  if (roleStr && validRoles.includes(roleStr as UserRole)) {
+    const role = roleStr as UserRole;
+    const defaultSub = DEFAULT_SUBPAGE[role];
+    const subPage = (subStr as SubPage) || defaultSub;
+    return { role, subPage };
+  }
+  return null;
+}
+
+function updateHashRoute(role: UserRole, subPage: SubPage) {
+  const hash = `#${role.toLowerCase()}/${subPage}`;
+  if (window.location.hash !== hash) {
+    window.history.replaceState(null, '', hash);
+  }
+  try {
+    localStorage.setItem('smartbooks_route', JSON.stringify({ role, subPage }));
+  } catch (e) {
+    // Ignore
+  }
+}
+
+function getInitialRoute(): { role: UserRole; subPage: SubPage } {
+  const hashRoute = parseHashRoute();
+  if (hashRoute) return hashRoute;
+
+  try {
+    const saved = localStorage.getItem('smartbooks_route');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      const validRoles: UserRole[] = ['TEACHER', 'CASHIER', 'LOGISTICS', 'MANAGER'];
+      if (parsed?.role && validRoles.includes(parsed.role)) {
+        return {
+          role: parsed.role,
+          subPage: parsed.subPage || DEFAULT_SUBPAGE[parsed.role as UserRole],
+        };
+      }
+    }
+  } catch (e) {
+    // Ignore
+  }
+
+  return { role: 'CASHIER', subPage: 'pipeline' };
+}
+
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [activeRole,    setActiveRoleState] = useState<UserRole>('CASHIER');
-  const [activeSubPage, setActiveSubPage]   = useState<SubPage>('pipeline');
+  const initial = getInitialRoute();
+  const [activeRole,    setActiveRoleState]     = useState<UserRole>(initial.role);
+  const [activeSubPage, setActiveSubPageState] = useState<SubPage>(initial.subPage);
 
   const [teachers]  = useState<Teacher[]>(SEED_TEACHERS);
   const [groups,     setGroups]     = useState<Group[]>([]);
@@ -129,12 +184,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  // ── Navigation ────────────────────────────────────────────────────────────────
+  // ── Navigation with Route Persistence ───────────────────────────────────────
+
+  const setActiveSubPage = useCallback((sp: SubPage) => {
+    setActiveSubPageState(sp);
+    setActiveRoleState(prevRole => {
+      updateHashRoute(prevRole, sp);
+      return prevRole;
+    });
+  }, []);
 
   const setActiveRole = useCallback((r: UserRole) => {
+    const defaultSub = DEFAULT_SUBPAGE[r];
     setActiveRoleState(r);
-    setActiveSubPage(DEFAULT_SUBPAGE[r]);
+    setActiveSubPageState(defaultSub);
+    updateHashRoute(r, defaultSub);
   }, []);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const route = parseHashRoute();
+      if (route) {
+        setActiveRoleState(route.role);
+        setActiveSubPageState(route.subPage);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    updateHashRoute(activeRole, activeSubPage);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [activeRole, activeSubPage]);
 
   // ── Live data fetchers ────────────────────────────────────────────────────────
 
