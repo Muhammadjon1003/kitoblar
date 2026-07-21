@@ -393,9 +393,14 @@ app.post('/backend/orders/send-telegram', async (req, res) => {
           }
         });
 
-        // Consume the stock order
-        await prisma.erpOrder.delete({
-          where: { id: stockOrder.id }
+        // Consume the stock order by marking its status as REASSIGNED
+        await prisma.erpOrder.update({
+          where: { id: stockOrder.id },
+          data: {
+            status: 'REASSIGNED',
+            comment: `Ombordan biriktirildi → ${o.student.fullName}`,
+            updatedAt: today,
+          }
         });
 
         autoFulfilled.push({

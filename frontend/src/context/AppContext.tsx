@@ -265,42 +265,63 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [orders, refreshOrders, fireToast]);
 
-  /** CREATED → CANCELLED (hard delete from DB) */
+  /** CREATED/PAID/ORDERED → CANCELLED: Keep order in DB as CANCELLED inventory stock */
   const cancelOrder = useCallback(async (orderId: string) => {
-    // Optimistic update
-    setOrders(prev => prev.filter(o => o.id !== orderId));
+    // Optimistic update — keep order in state as CANCELLED
+    setOrders(prev => prev.map(o =>
+      o.id === orderId ? { ...o, status: 'CANCELLED', updatedAt: todayISO() } : o
+    ));
     try {
-      await fetch(`${API}/backend/orders/${orderId}`, { method: 'DELETE' });
-      fireToast("Buyurtma bekor qilindi.", 'error');
+      await fetch(`${API}/backend/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'CANCELLED' }),
+      });
+      await refreshOrders();
+      fireToast("Buyurtma bekor qilindi va ombor zaxirasiga o'tkazildi.", 'info');
     } catch (err: any) {
       fireToast(`Bekor qilishda xatolik: ${err.message}`, 'error');
       await refreshOrders();
     }
   }, [refreshOrders, fireToast]);
 
-  /** PAID → ORDERED: Logistics dispatches to supplier */
-  const dispatchToSupplier = useCallback(async (orderIds: string[]) => {
-    // Optimistic update
-    setOrders(prev => prev.map(o =>
-      orderIds.includes(o.id) && o.status === 'PAID'
-        ? { ...o, status: 'ORDERED', updatedAt: todayISO() }
-        : o
-    ));
+  const sendToTelegram = useCallback(async (orderIds: string[]): Promise<boolean> => {
     try {
-      await Promise.all(orderIds.map(id =>
-        fetch(`${API}/backend/orders/${id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'ORDERED' }),
-        })
-      ));
-      await refreshOrders();
-      fireToast(`${orderIds.length} ta buyurtma ta'minotchiga yuborildi.`);
+      const res = await fetch(`${API}/backend/orders/send-telegram`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderIds }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      if (data.success) {
+        await refreshOrders();
+        if (data.autoFulfilledCount > 0) {
+          fireToast(
+            `${data.autoFulfilledCount} ta kitob omborda mavjud bo'lgani uchun Telegramga yuborilmasdan avtomatik biriktirildi!`,
+            'info'
+          );
+        }
+        if (data.results && data.results.length > 0) {
+          fireToast("Qolgan buyurtmalar ro'yxati Telegramga yuborildi!", 'success');
+        } else if (data.autoFulfilledCount === 0) {
+          fireToast("Buyurtmalar ro'yxati Telegramga yuborildi!", 'success');
+        }
+        return true;
+      } else {
+        throw new Error(data.error || "Noma'lum xatolik");
+      }
     } catch (err: any) {
-      fireToast(`Yuborishda xatolik: ${err.message}`, 'error');
-      await refreshOrders();
+      fireToast(`Telegramga yuborishda xatolik: ${err.message}`, 'error');
+      return false;
     }
   }, [refreshOrders, fireToast]);
+
+  /** PAID → ORDERED: Logistics dispatches to supplier (with smart inventory auto-fulfillment) */
+  const dispatchToSupplier = useCallback(async (orderIds: string[]) => {
+    if (orderIds.length === 0) return;
+    await sendToTelegram(orderIds);
+  }, [sendToTelegram]);
 
   /** ORDERED → ARRIVED (cashier sets bookCost at arrival time) */
   const markArrived = useCallback(async (orderId: string, bookCost: number) => {
@@ -419,37 +440,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     fireToast(`"${title}" ro'yxatga olindi.`);
   }, [fireToast]);
 
-  const sendToTelegram = useCallback(async (orderIds: string[]): Promise<boolean> => {
-    try {
-      const res = await fetch(`${API}/backend/orders/send-telegram`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderIds }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      if (data.success) {
-        await refreshOrders();
-        if (data.autoFulfilledCount > 0) {
-          fireToast(
-            `${data.autoFulfilledCount} ta kitob omborda mavjud bo'lgani uchun Telegramga yuborilmasdan avtomatik biriktirildi!`,
-            'info'
-          );
-        }
-        if (data.results && data.results.length > 0) {
-          fireToast("Qolgan buyurtmalar ro'yxati Telegramga yuborildi!", 'success');
-        } else if (data.autoFulfilledCount === 0) {
-          fireToast("Buyurtmalar ro'yxati Telegramga yuborildi!", 'success');
-        }
-        return true;
-      } else {
-        throw new Error(data.error || "Noma'lum xatolik");
-      }
-    } catch (err: any) {
-      fireToast(`Telegramga yuborishda xatolik: ${err.message}`, 'error');
-      return false;
-    }
-  }, [refreshOrders, fireToast]);
+
 
   const dismissNotification = useCallback((id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
