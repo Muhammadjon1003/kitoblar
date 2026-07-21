@@ -273,7 +273,17 @@ function MoliyaviyTahlil() {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {[...orders]
-              .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+              .sort((a, b) => {
+                const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                if (dateB !== dateA) return dateB - dateA;
+
+                const upA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+                const upB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+                if (upB !== upA) return upB - upA;
+
+                return b.id.localeCompare(a.id);
+              })
               .slice(0, 5)
               .map(o => {
                 const inv = getInventoryItem(o.bookId);

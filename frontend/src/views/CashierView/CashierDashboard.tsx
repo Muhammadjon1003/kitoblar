@@ -155,8 +155,18 @@ function PaymentsHistoryView() {
   const { orders, getStudentName, getGroupName, getInventoryItem } = useApp();
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
 
-  // Show all orders sorted newest first
-  const allOrders = [...orders].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  // Show all orders sorted newest first strictly by createdAt, updatedAt, and id
+  const allOrders = [...orders].sort((a, b) => {
+    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    if (dateB !== dateA) return dateB - dateA;
+
+    const upA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+    const upB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+    if (upB !== upA) return upB - upA;
+
+    return b.id.localeCompare(a.id);
+  });
 
   return (
     <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6 bg-slate-50">

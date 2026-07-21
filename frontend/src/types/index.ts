@@ -76,6 +76,7 @@ export interface Order {
   sotuvNarxi: number; // Manager-set selling price locked at order creation time
   comment: string;    // Teacher-authored custom note
   updatedAt: string;  // ISO date of last state transition
+  createdAt?: string; // ISO date of creation
 }
 
 // ─── TR § 5: system_notifications table ───────────────────────────────────────
