@@ -6,6 +6,7 @@ import { useState } from 'react';
 import {
   DollarSign, XCircle, CheckCircle, RotateCcw,
   Lock, Unlock, AlertTriangle, X, ChevronRight, Package,
+  CheckSquare, Square, CheckCircle2,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { StatusBadge, EmptyState, uzs } from '../../components/ui';
@@ -509,7 +510,14 @@ function StudentQarzlarModali({ studentId, onClose }: StudentQarzlarModaliProps)
 // ─── Minimal karta ────────────────────────────────────────────────────────────
 
 
-function BuyurtmaKarta({ order, onClick }: { order: Order; onClick: () => void }) {
+interface BuyurtmaKartaProps {
+  order: Order;
+  onClick: () => void;
+  isSelected?: boolean;
+  onToggleSelect?: (id: string) => void;
+}
+
+function BuyurtmaKarta({ order, onClick, isSelected, onToggleSelect }: BuyurtmaKartaProps) {
   const {
     getStudentName, getGroupName, getInventoryItem,
     retailPrice, isDeliverable, deliverBook,
@@ -564,7 +572,9 @@ function BuyurtmaKarta({ order, onClick }: { order: Order; onClick: () => void }
       <div
         onClick={handleCardClick}
         className={`w-full text-left bg-white border rounded-xl px-4 py-3.5 transition-all duration-150 cursor-pointer group ${
-          order.status === 'ARRIVED' && qoldiq > 0
+          isSelected
+            ? 'border-emerald-500 bg-emerald-50/20 ring-2 ring-emerald-500/20'
+            : order.status === 'ARRIVED' && qoldiq > 0
             ? 'border-red-300 hover:border-red-400 hover:shadow-md hover:shadow-red-100'
             : 'border-slate-200 hover:border-blue-300 hover:shadow-md hover:shadow-blue-55'
         }`}
@@ -572,7 +582,7 @@ function BuyurtmaKarta({ order, onClick }: { order: Order; onClick: () => void }
         {/* Header - clicking student name or group name opens the comprehensive StudentQarzlarModali */}
         <div className="flex items-start justify-between gap-2">
           <div 
-            className="min-w-0 hover:text-indigo-600 transition-colors"
+            className="min-w-0 hover:text-indigo-600 transition-colors flex-1"
             onClick={(e) => { e.stopPropagation(); setStudentQarzlarKorsat(true); }}
             title="Talabaning barcha kitoblarini ko'rish"
           >
@@ -581,7 +591,21 @@ function BuyurtmaKarta({ order, onClick }: { order: Order; onClick: () => void }
             </p>
             <p className="text-[10px] text-slate-700 font-bold mt-0.5">{getGroupName(order.groupId)}</p>
           </div>
-          <StatusBadge status={order.status} />
+          <div className="flex items-center gap-1.5 shrink-0">
+            {onToggleSelect && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onToggleSelect(order.id); }}
+                className="text-slate-400 hover:text-emerald-600 transition-colors p-0.5"
+                title={isSelected ? "Tanlovni bekor qilish" : "Qabul qilish uchun tanlash"}
+              >
+                {isSelected
+                  ? <CheckSquare className="w-4 h-4 text-emerald-600 font-bold" />
+                  : <Square className="w-4 h-4 text-slate-400" />
+                }
+              </button>
+            )}
+            <StatusBadge status={order.status} />
+          </div>
         </div>
 
         <p className="text-[11px] font-semibold text-slate-700 mt-2 leading-snug truncate">{inv?.title ?? '—'}</p>
@@ -683,9 +707,26 @@ export default function PipelineColumn({ statuses, title, subtitle, accentLeft, 
   const { orders, getStudentName, getInventoryItem } = useApp();
   const [tanlangan, setTanlangan] = useState<Order | null>(null);
   const [qidiruv, setQidiruv] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkAcceptModal, setShowBulkAcceptModal] = useState(false);
 
   const statusBuyurtmalari = orders.filter(o => statuses.includes(o.status));
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds(prev =>
+      prev.size === statusBuyurtmalari.length
+        ? new Set()
+        : new Set(statusBuyurtmalari.map(o => o.id))
+    );
+  };
 
   const filtered = qidiruv.trim() === ''
     ? statusBuyurtmalari
@@ -697,6 +738,8 @@ export default function PipelineColumn({ statuses, title, subtitle, accentLeft, 
         const orderId     = o.id.toLowerCase();
         return studentName.includes(q) || bookTitle.includes(q) || orderId.includes(q);
       });
+
+  const selectedOrdersToAccept = statusBuyurtmalari.filter(o => selectedIds.has(o.id));
 
   // If column has no orders at all AND no active search, hide it entirely
   if (statusBuyurtmalari.length === 0 && qidiruv.trim() === '') return null;
@@ -716,12 +759,23 @@ export default function PipelineColumn({ statuses, title, subtitle, accentLeft, 
 
           {/* Bulk accept button for Yo'lda (ORDERED) column */}
           {statuses.includes('ORDERED') && statusBuyurtmalari.length > 0 && (
-            <button
-              onClick={() => setShowBulkAcceptModal(true)}
-              className="w-full mt-2 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1 shadow-sm"
-            >
-              <Package className="w-3 h-3" /> Barchasini ommaviy qabul qilish ({statusBuyurtmalari.length})
-            </button>
+            <div className="mt-2 flex items-center gap-1.5">
+              {selectedIds.size > 0 ? (
+                <button
+                  onClick={() => setShowBulkAcceptModal(true)}
+                  className="w-full py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1 shadow-sm"
+                >
+                  <CheckCircle2 className="w-3 h-3" /> Tanlangan {selectedIds.size} ta kitobni qabul qilish
+                </button>
+              ) : (
+                <button
+                  onClick={toggleSelectAll}
+                  className="w-full py-1.5 px-2 bg-slate-200/80 hover:bg-slate-200 text-slate-700 text-[10px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1"
+                >
+                  <CheckSquare className="w-3 h-3 text-slate-600" /> Barchasini tanlash / qabul qilish
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -759,7 +813,13 @@ export default function PipelineColumn({ statuses, title, subtitle, accentLeft, 
           {filtered.length === 0
             ? <EmptyState label={qidiruv ? `"${qidiruv}" bo'yicha natija topilmadi.` : "Bu bosqichda buyurtmalar yo'q."} />
             : filtered.map(o => (
-                <BuyurtmaKarta key={o.id} order={o} onClick={() => setTanlangan(o)} />
+                <BuyurtmaKarta
+                  key={o.id}
+                  order={o}
+                  onClick={() => setTanlangan(o)}
+                  isSelected={selectedIds.has(o.id)}
+                  onToggleSelect={statuses.includes('ORDERED') ? toggleSelect : undefined}
+                />
               ))
           }
         </div>
@@ -769,10 +829,11 @@ export default function PipelineColumn({ statuses, title, subtitle, accentLeft, 
         <TafsilotPaneli order={tanlangan} onClose={() => setTanlangan(null)} />
       )}
 
-      {showBulkAcceptModal && (
+      {showBulkAcceptModal && selectedOrdersToAccept.length > 0 && (
         <OmmaviyQabulModali
-          orders={statusBuyurtmalari}
+          orders={selectedOrdersToAccept}
           onClose={() => setShowBulkAcceptModal(false)}
+          onSuccess={() => setSelectedIds(new Set())}
         />
       )}
     </>
