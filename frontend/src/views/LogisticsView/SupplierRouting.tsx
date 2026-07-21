@@ -8,6 +8,7 @@ import type { Order } from '../../types';
 export default function SupplierRouting() {
   const {
     orders,
+    groups,
     dispatchToSupplier,
     getStudentName,
     getGroupName,
@@ -173,7 +174,9 @@ export default function SupplierRouting() {
                     </Td>
                     <Td>
                       <p className="font-bold text-slate-800 text-xs">{getStudentName(o.studentId)}</p>
-                      <p className="text-[10px] text-slate-500 font-semibold mt-0.5">{getGroupName(o.groupId)}</p>
+                      <p className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                        {getGroupName(o.groupId)} <span className="text-slate-400 font-normal">•</span> O'qituvchi: <span className="text-slate-700 font-bold">{groups.find(g => g.id === o.groupId)?.teacherName ?? '—'}</span>
+                      </p>
                     </Td>
                     <Td>{inv?.title ?? '—'}</Td>
                     <Td mono>
@@ -263,7 +266,9 @@ export default function SupplierRouting() {
                     </Td>
                     <Td>
                       <p className="font-bold text-slate-800 text-xs">{getStudentName(o.studentId)}</p>
-                      <p className="text-[10px] text-slate-500 font-semibold mt-0.5">{getGroupName(o.groupId)}</p>
+                      <p className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                        {getGroupName(o.groupId)} <span className="text-slate-400 font-normal">•</span> O'qituvchi: <span className="text-slate-700 font-bold">{groups.find(g => g.id === o.groupId)?.teacherName ?? '—'}</span>
+                      </p>
                     </Td>
                     <Td>{inv?.title ?? '—'}</Td>
                     <Td mono>

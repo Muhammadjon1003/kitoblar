@@ -21,7 +21,7 @@ const STATUS_OPTIONS: Array<{ value: string; label: string }> = [
 ];
 
 export default function LedgerTable() {
-  const { orders, getStudentName, getGroupName, getInventoryItem } = useApp();
+  const { orders, groups, getStudentName, getGroupName, getInventoryItem } = useApp();
 
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [searchQuery, setSearchQuery]       = useState<string>('');
@@ -169,6 +169,7 @@ export default function LedgerTable() {
               <tr>
                 <Th>Talaba</Th>
                 <Th>Guruh</Th>
+                <Th>O'qituvchi</Th>
                 <Th>Kitob nomi</Th>
                 <Th right>Sotuv Narxi</Th>
                 <Th right>To'langan</Th>
@@ -183,6 +184,7 @@ export default function LedgerTable() {
                 const inv     = getInventoryItem(o.bookId);
                 const chakana = o.sotuvNarxi;
                 const foyda   = o.amountPaid - o.bookCost;
+                const teacherName = groups.find(g => g.id === o.groupId)?.teacherName ?? '—';
 
                 return (
                   <tr key={o.id} className="hover:bg-slate-50/80 transition-colors">
@@ -190,6 +192,7 @@ export default function LedgerTable() {
                       <span className="font-bold text-slate-800">{getStudentName(o.studentId)}</span>
                     </Td>
                     <Td muted>{getGroupName(o.groupId)}</Td>
+                    <Td muted><span className="font-semibold text-slate-700">{teacherName}</span></Td>
                     <Td>{inv?.title ?? '—'}</Td>
                     <Td right mono muted>{uzs(chakana)}</Td>
                     <Td right mono>
@@ -215,7 +218,7 @@ export default function LedgerTable() {
             {/* Summary Footer */}
             <tfoot>
               <tr className="border-t-2 border-slate-200 bg-slate-100/80 text-xs font-bold">
-                <td className="px-5 py-3.5 text-slate-700" colSpan={4}>Filtr bo'yicha jami ({filteredOrders.length} ta buyurtma)</td>
+                <td className="px-5 py-3.5 text-slate-700" colSpan={5}>Filtr bo'yicha jami ({filteredOrders.length} ta buyurtma)</td>
                 <td className="px-5 py-3.5 text-right font-mono text-emerald-600">{uzs(jami_tolov)}</td>
                 <td className="px-5 py-3.5 text-right font-mono text-red-500">{uzs(jami_narx)}</td>
                 <td className={`px-5 py-3.5 text-right font-mono font-bold ${jami_foyda >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>

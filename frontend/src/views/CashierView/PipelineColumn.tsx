@@ -99,7 +99,7 @@ function TafsilotPaneli({ order, onClose }: { order: Order; onClose: () => void 
   const {
     getStudentName, getGroupName, getInventoryItem,
     cancelOrder, deliverBook, decoupleBook,
-    retailPrice, isDeliverable,
+    retailPrice, isDeliverable, groups,
   } = useApp();
   const [tolovKorsat, setTolovKorsat] = useState(false);
 
@@ -117,7 +117,11 @@ function TafsilotPaneli({ order, onClose }: { order: Order; onClose: () => void 
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div>
             <p className="text-sm font-bold text-slate-800">{getStudentName(order.studentId)}</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">{getGroupName(order.groupId)}</p>
+            <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+              Guruh: <span className="text-slate-800 font-semibold">{getGroupName(order.groupId)}</span>
+              <span className="mx-1.5">•</span>
+              O'qituvchi: <span className="text-slate-800 font-semibold">{groups.find(g => g.id === order.groupId)?.teacherName ?? '—'}</span>
+            </p>
           </div>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors">
             <X className="w-4 h-4" />
@@ -521,7 +525,7 @@ function BuyurtmaKarta({ order, onClick, isSelected, onToggleSelect }: BuyurtmaK
   const {
     getStudentName, getGroupName, getInventoryItem,
     retailPrice, isDeliverable, deliverBook,
-    orders,
+    orders, groups,
   } = useApp();
   const [tolovKorsat,  setTolovKorsat]  = useState(false);
   const [qabulKorsat,  setQabulKorsat]  = useState(false);
@@ -589,7 +593,11 @@ function BuyurtmaKarta({ order, onClick, isSelected, onToggleSelect }: BuyurtmaK
             <p className="text-[13px] font-bold text-slate-800 truncate underline decoration-dashed decoration-slate-350 hover:decoration-indigo-500">
               {getStudentName(order.studentId)}
             </p>
-            <p className="text-[10px] text-slate-700 font-bold mt-0.5">{getGroupName(order.groupId)}</p>
+            <p className="text-[10px] text-slate-700 font-bold mt-0.5">
+              {getGroupName(order.groupId)}
+              <span className="text-slate-400 font-normal mx-1">•</span>
+              <span className="text-slate-500 font-medium">O'qituvchi: {groups.find(g => g.id === order.groupId)?.teacherName ?? '—'}</span>
+            </p>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             {onToggleSelect && (
