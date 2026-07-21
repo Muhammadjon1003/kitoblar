@@ -393,11 +393,11 @@ app.post('/backend/orders/send-telegram', async (req, res) => {
           }
         });
 
-        // Consume the stock order by marking its status as REASSIGNED
+        // Consume the stock order by marking its status as Ombordan biriktirildi
         await prisma.erpOrder.update({
           where: { id: stockOrder.id },
           data: {
-            status: 'REASSIGNED',
+            status: 'Ombordan biriktirildi',
             comment: `Ombordan biriktirildi → ${o.student.fullName}`,
             updatedAt: today,
           }

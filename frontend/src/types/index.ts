@@ -15,7 +15,8 @@ export type OrderStatus =
   | 'ARRIVED'    // Physical books received at learning center
   | 'GIVEN'      // Final delivery to student (terminal success state)
   | 'CANCELLED'  // Order aborted; refund processed externally
-  | 'RETURNED';  // Book decoupled from student; returned to warehouse
+  | 'RETURNED'   // Book decoupled from student; returned to warehouse
+  | 'Ombordan biriktirildi';
 
 // ─── RBAC Roles (TR § 1) ──────────────────────────────────────────────────────
 export type UserRole = 'TEACHER' | 'CASHIER' | 'LOGISTICS' | 'MANAGER';

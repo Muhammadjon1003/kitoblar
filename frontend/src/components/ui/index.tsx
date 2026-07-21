@@ -18,6 +18,7 @@ const STATUS_META: Record<OrderStatus, { label: string; cls: string; Icon: React
   GIVEN:     { label: 'Topshirildi',       cls: 'bg-slate-700 text-white border-transparent',      Icon: CheckCircle },
   CANCELLED: { label: 'Bekor qilindi',     cls: 'bg-red-600 text-white border-transparent',             Icon: XCircle     },
   RETURNED:  { label: 'Qaytarildi',        cls: 'bg-purple-600 text-white border-transparent',    Icon: RotateCcw   },
+  'Ombordan biriktirildi': { label: 'Ombordan biriktirildi', cls: 'bg-teal-600 text-white border-transparent', Icon: CheckCircle },
 };
 
 export function StatusBadge({ status }: { status: OrderStatus }) {
