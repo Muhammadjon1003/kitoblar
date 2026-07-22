@@ -36,6 +36,14 @@ const DEFAULT_SUBPAGE: Record<UserRole, SubPage> = {
   MANAGER:   'analytics',
 };
 
+// Valid sub-pages per role
+const VALID_SUBPAGES: Record<UserRole, SubPage[]> = {
+  TEACHER:   ['orders'],
+  CASHIER:   ['pipeline', 'management', 'payments'],
+  LOGISTICS: ['supplier', 'warehouse'],
+  MANAGER:   ['analytics', 'ledger', 'groups', 'users', 'narxsozlama'],
+};
+
 // ─── Context interface ─────────────────────────────────────────────────────────
 
 interface AppContextType {
@@ -145,40 +153,36 @@ function getInitialUser(): AuthUser | null {
   return null;
 }
 
-function getInitialRoute(user: AuthUser | null): { role: UserRole; subPage: SubPage } {
-  if (user) {
-    const defaultSub = DEFAULT_SUBPAGE[user.role];
-    return { role: user.role, subPage: defaultSub };
-  }
+function getInitialSubPage(user: AuthUser | null): SubPage {
+  if (!user) return 'pipeline';
+  const validSubs = VALID_SUBPAGES[user.role] || [];
 
   const hashRoute = parseHashRoute();
-  if (hashRoute) return hashRoute;
+  if (hashRoute && hashRoute.role === user.role && validSubs.includes(hashRoute.subPage)) {
+    return hashRoute.subPage;
+  }
 
   try {
     const saved = localStorage.getItem('smartbooks_route');
     if (saved) {
       const parsed = JSON.parse(saved);
-      const validRoles: UserRole[] = ['TEACHER', 'CASHIER', 'LOGISTICS', 'MANAGER'];
-      if (parsed?.role && validRoles.includes(parsed.role)) {
-        return {
-          role: parsed.role,
-          subPage: parsed.subPage || DEFAULT_SUBPAGE[parsed.role as UserRole],
-        };
+      if (parsed?.role === user.role && validSubs.includes(parsed.subPage)) {
+        return parsed.subPage;
       }
     }
   } catch (e) {}
 
-  return { role: 'CASHIER', subPage: 'pipeline' };
+  return DEFAULT_SUBPAGE[user.role];
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(getInitialUser);
-  const initial = getInitialRoute(currentUser);
 
-  const [activeRole,    setActiveRoleState]     = useState<UserRole>(initial.role);
-  const [activeSubPage, setActiveSubPageState] = useState<SubPage>(initial.subPage);
+  // Active role is strictly bound to currentUser's role
+  const activeRole: UserRole = currentUser ? currentUser.role : 'CASHIER';
+  const [activeSubPage, setActiveSubPageState] = useState<SubPage>(() => getInitialSubPage(currentUser));
 
   const [users,      setUsers]          = useState<AuthUser[]>([]);
   const [teachers]  = useState<Teacher[]>(SEED_TEACHERS);
@@ -217,47 +221,52 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ── Navigation with Route Persistence & Role View Lockdown ─────────────────
 
   const setActiveSubPage = useCallback((sp: SubPage) => {
-    setActiveSubPageState(sp);
-    setActiveRoleState(prevRole => {
-      updateHashRoute(prevRole, sp);
-      return prevRole;
-    });
-  }, []);
+    if (!currentUser) return;
+    const validSubs = VALID_SUBPAGES[currentUser.role];
+    if (validSubs.includes(sp)) {
+      setActiveSubPageState(sp);
+      updateHashRoute(currentUser.role, sp);
+    }
+  }, [currentUser]);
 
   const setActiveRole = useCallback((r: UserRole) => {
+    if (currentUser && currentUser.role !== r) {
+      return; // Cannot switch to another role view if logged in as a specific role
+    }
     const defaultSub = DEFAULT_SUBPAGE[r];
-    setActiveRoleState(r);
     setActiveSubPageState(defaultSub);
     updateHashRoute(r, defaultSub);
-  }, []);
+  }, [currentUser]);
 
-  // Enforce RBAC Role View Lockdown: user can ONLY view their assigned role!
+  // Ensure activeSubPage is always valid for the current user's role
   useEffect(() => {
     if (currentUser) {
-      if (activeRole !== currentUser.role) {
-        setActiveRoleState(currentUser.role);
+      const validSubs = VALID_SUBPAGES[currentUser.role];
+      if (!validSubs.includes(activeSubPage)) {
         const defaultSub = DEFAULT_SUBPAGE[currentUser.role];
         setActiveSubPageState(defaultSub);
         updateHashRoute(currentUser.role, defaultSub);
+      } else {
+        updateHashRoute(currentUser.role, activeSubPage);
       }
     }
-  }, [currentUser, activeRole]);
+  }, [currentUser, activeSubPage]);
 
+  // Listen to browser hash changes
   useEffect(() => {
     const handleHashChange = () => {
+      if (!currentUser) return;
       const route = parseHashRoute();
-      if (route) {
-        // Only allow hash change if role matches currentUser's role or no user logged in
-        if (!currentUser || route.role === currentUser.role) {
-          setActiveRoleState(route.role);
+      if (route && route.role === currentUser.role) {
+        const validSubs = VALID_SUBPAGES[currentUser.role];
+        if (validSubs.includes(route.subPage)) {
           setActiveSubPageState(route.subPage);
         }
       }
     };
     window.addEventListener('hashchange', handleHashChange);
-    updateHashRoute(activeRole, activeSubPage);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [currentUser, activeRole, activeSubPage]);
+  }, [currentUser]);
 
   // ── Authentication API ────────────────────────────────────────────────────────
 
@@ -283,16 +292,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const data = await res.json();
       const user: AuthUser = data.user;
 
-      setCurrentUser(user);
       try {
         localStorage.setItem('smartbooks_auth_user', JSON.stringify(user));
       } catch (e) {}
 
-      // Lock user into their assigned role view
-      setActiveRoleState(user.role);
       const defaultSub = DEFAULT_SUBPAGE[user.role];
       setActiveSubPageState(defaultSub);
       updateHashRoute(user.role, defaultSub);
+
+      setCurrentUser(user);
 
       fireToast(`Xush kelibsiz, ${user.fullName}! (${user.role} bo'limi)`);
       return true;
