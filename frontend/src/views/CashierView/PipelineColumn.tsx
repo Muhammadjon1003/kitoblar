@@ -16,20 +16,35 @@ import { QabulQilishModali, OmmaviyQabulModali } from '../../components/QabulMod
 
 // ─── To'lov qabul qilish modali ────────────────────────────────────
 
-function TolovModali({ order, onClose }: { order: Order; onClose: () => void }) {
+interface TolovModaliProps {
+  order: Order;
+  onClose: () => void;
+  onSuccess?: () => void;
+}
+
+function TolovModali({ order, onClose, onSuccess }: TolovModaliProps) {
   const { collectCash, retailPrice, getStudentName, getInventoryItem } = useApp();
   const [miqdor, setMiqdor] = useState('');
   const [xato, setXato] = useState('');
+  const [yuborish, setYuborish] = useState(false);
   const chakana = retailPrice(order);
   const qoldiq = chakana - order.amountPaid;
   const inv = getInventoryItem(order.bookId);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const val = parseFloat(miqdor);
     if (isNaN(val) || val <= 0) { setXato('To\'g\'ri miqdor kiriting.'); return; }
-    collectCash(order.id, val);
-    onClose();
+    setYuborish(true);
+    try {
+      await collectCash(order.id, val);
+      if (onSuccess) onSuccess();
+      onClose();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setYuborish(false);
+    }
   };
 
   return (
@@ -83,8 +98,11 @@ function TolovModali({ order, onClose }: { order: Order; onClose: () => void }) 
 
           <div className="flex gap-2 pt-2 border-t border-slate-100">
             <button type="button" onClick={onClose} className="sb-btn-secondary flex-1 text-xs">Bekor qilish</button>
-            <button type="submit" className="sb-btn-primary flex-1 flex items-center justify-center gap-1.5 text-xs">
-              <CheckCircle className="w-3.5 h-3.5" /> Tasdiqlash — To'langan
+            <button type="submit" disabled={yuborish} className="sb-btn-primary flex-1 flex items-center justify-center gap-1.5 text-xs disabled:opacity-50">
+              {yuborish
+                ? <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saqlanmoqda...</>
+                : <><CheckCircle className="w-3.5 h-3.5" /> Tasdiqlash — To'langan</>
+              }
             </button>
           </div>
         </form>
@@ -242,7 +260,16 @@ function TafsilotPaneli({ order, onClose }: { order: Order; onClose: () => void 
         </div>
       </div>
 
-      {tolovKorsat && <TolovModali order={order} onClose={() => setTolovKorsat(false)} />}
+      {tolovKorsat && (
+        <TolovModali
+          order={order}
+          onClose={() => setTolovKorsat(false)}
+          onSuccess={() => {
+            setTolovKorsat(false);
+            onClose();
+          }}
+        />
+      )}
     </>
   );
 }
@@ -379,8 +406,15 @@ function StudentQarzlarModali({ studentId, onClose }: StudentQarzlarModaliProps)
     setSubmittingId(orderId);
     try {
       await collectCash(orderId, amount);
-      // Clear input
       setPaymentAmounts(prev => ({ ...prev, [orderId]: '' }));
+      // Check if all student debts are cleared
+      const remainingTotal = activeOrders.reduce((sum, o) => {
+        const paidNow = o.id === orderId ? amount : 0;
+        return sum + Math.max(0, o.sotuvNarxi - (o.amountPaid + paidNow));
+      }, 0);
+      if (remainingTotal <= 0) {
+        onClose();
+      }
     } catch (e) {
       console.error(e);
     } finally {
