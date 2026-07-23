@@ -29,11 +29,17 @@ export default function MoliyaviyTahlil() {
   const jamiSarflandi    = orders.reduce((s, o) => s + o.bookCost, 0);
   const sofFoyda         = jamiBiriktirildi - jamiSarflandi;
 
-  // 4th KPI: Inventory books & potential revenue
-  const returnedInvCount = inventory.filter(i => i.isReturned).length;
-  const stockOrdersCount = orders.filter(o => o.status === 'CANCELLED' || o.status === 'RETURNED').length;
-  const totalUnassignedBooks = returnedInvCount + stockOrdersCount;
-  const potentialRevenue = totalUnassignedBooks * sotuvNarxi;
+  // 4th KPI: Physical books in company hands (Ombordagi kitoblar) & total valuation
+  const arrivedOrders = orders.filter(o => o.status === 'ARRIVED');
+  const stockOrders   = orders.filter(o => o.status === 'CANCELLED' || o.status === 'RETURNED');
+  const returnedInvs  = inventory.filter(i => i.isReturned);
+
+  const physicalCompanyBooksCount = arrivedOrders.length + stockOrders.length + returnedInvs.length;
+
+  const physicalBooksValuation =
+    arrivedOrders.reduce((sum, o) => sum + (o.sotuvNarxi > 0 ? o.sotuvNarxi : (o.bookCost > 0 ? o.bookCost : sotuvNarxi)), 0) +
+    stockOrders.reduce((sum, o) => sum + (o.sotuvNarxi > 0 ? o.sotuvNarxi : (o.bookCost > 0 ? o.bookCost : sotuvNarxi)), 0) +
+    (returnedInvs.length * sotuvNarxi);
 
   const kpilar = [
     {
@@ -58,11 +64,11 @@ export default function MoliyaviyTahlil() {
       sub: 'Tushum − Xarajat (Sof daromad)',
     },
     {
-      label: 'Ombor kitoblari & Potensial',
-      value: uzs(potentialRevenue),
+      label: 'Ombor kitoblari qiymati',
+      value: uzs(physicalBooksValuation),
       icon: Archive,
       accent: 'text-purple-600',
-      sub: `${totalUnassignedBooks} ta kitob × ${uzs(sotuvNarxi)}`,
+      sub: `${physicalCompanyBooksCount} ta kitob kompaniya qo'lida (Omborda)`,
     },
   ];
 
