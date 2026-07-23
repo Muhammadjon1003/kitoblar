@@ -613,21 +613,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
   /** ORDERED → ARRIVED (cashier/logistics sets bookCost and optional sotuvNarxi at arrival time) */
   const markArrived = useCallback(async (orderId: string, bookCost: number, newSotuvNarxi?: number) => {
     if (!checkAuth()) return;
+    const targetOrder = orders.find(o => o.id === orderId);
+    const isCourseIncluded = targetOrder?.sotuvNarxi === 0;
+    const finalSotuvNarxi = isCourseIncluded ? 0 : (newSotuvNarxi !== undefined && newSotuvNarxi >= 0 ? newSotuvNarxi : targetOrder?.sotuvNarxi);
+
     setOrders(prev => prev.map(o =>
       o.id === orderId
         ? {
             ...o,
             status: 'ARRIVED',
             bookCost,
-            ...(newSotuvNarxi !== undefined && newSotuvNarxi >= 0 && { sotuvNarxi: newSotuvNarxi }),
+            ...(finalSotuvNarxi !== undefined && { sotuvNarxi: finalSotuvNarxi }),
             updatedAt: todayISO()
           }
         : o
     ));
     try {
       const payload: any = { status: 'ARRIVED', bookCost };
-      if (newSotuvNarxi !== undefined && newSotuvNarxi >= 0) {
-        payload.sotuvNarxi = newSotuvNarxi;
+      if (finalSotuvNarxi !== undefined) {
+        payload.sotuvNarxi = finalSotuvNarxi;
       }
       await fetch(`${API}/backend/orders/${orderId}`, {
         method: 'PATCH',
@@ -641,7 +645,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       fireToast(`Xatolik: ${err.message}`, 'error');
       await refreshOrders();
     }
-  }, [checkAuth, refreshOrders, fireToast]);
+  }, [orders, checkAuth, refreshOrders, fireToast]);
 
   /** ARRIVED → GIVEN (guarded: amountPaid >= sotuvNarxi) */
   const deliverBook = useCallback(async (orderId: string) => {

@@ -19,10 +19,11 @@ interface SingleAcceptProps {
 
 export function QabulQilishModali({ order, onClose, onSuccess }: SingleAcceptProps) {
   const { markArrived, getStudentName, getInventoryItem, sotuvNarxi } = useApp();
-  const defaultSellingPrice = sotuvNarxi > 0 ? sotuvNarxi : order.sotuvNarxi;
+  const isCourseIncluded = order.sotuvNarxi === 0;
+  const defaultSellingPrice = isCourseIncluded ? 0 : (sotuvNarxi > 0 ? sotuvNarxi : order.sotuvNarxi);
 
   const [tanNarx, setTanNarx] = useState('');
-  const [sotuvNarxInput, setSotuvNarxInput] = useState(String(defaultSellingPrice || ''));
+  const [sotuvNarxInput, setSotuvNarxInput] = useState(String(defaultSellingPrice));
   const [yuborish, setYuborish] = useState(false);
   const [xato, setXato] = useState('');
   const inv = getInventoryItem(order.bookId);
@@ -34,7 +35,7 @@ export function QabulQilishModali({ order, onClose, onSuccess }: SingleAcceptPro
       setXato("Iltimos, to'g'ri tan narx kiriting.");
       return;
     }
-    const valSell = parseFloat(sotuvNarxInput);
+    const valSell = isCourseIncluded ? 0 : parseFloat(sotuvNarxInput);
     if (isNaN(valSell) || valSell < 0) {
       setXato("Iltimos, to'g'ri sotuv narxi kiriting.");
       return;
