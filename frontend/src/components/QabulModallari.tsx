@@ -19,7 +19,7 @@ interface SingleAcceptProps {
 
 export function QabulQilishModali({ order, onClose, onSuccess }: SingleAcceptProps) {
   const { markArrived, getStudentName, getInventoryItem, sotuvNarxi } = useApp();
-  const defaultSellingPrice = order.sotuvNarxi > 0 ? order.sotuvNarxi : sotuvNarxi;
+  const defaultSellingPrice = sotuvNarxi > 0 ? sotuvNarxi : order.sotuvNarxi;
 
   const [tanNarx, setTanNarx] = useState('');
   const [sotuvNarxInput, setSotuvNarxInput] = useState(String(defaultSellingPrice || ''));

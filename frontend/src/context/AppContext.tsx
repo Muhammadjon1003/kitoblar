@@ -635,22 +635,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(payload),
       });
 
-      if (newSotuvNarxi !== undefined && newSotuvNarxi >= 0) {
-        await fetch(`${API}/backend/settings`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sotuvNarxi: newSotuvNarxi }),
-        });
-        await refreshSettings();
-      }
-
       await refreshOrders();
       fireToast("Kitob keldi. Holat: Yo'lda → Keldi.");
     } catch (err: any) {
       fireToast(`Xatolik: ${err.message}`, 'error');
       await refreshOrders();
     }
-  }, [checkAuth, refreshOrders, refreshSettings, fireToast]);
+  }, [checkAuth, refreshOrders, fireToast]);
 
   /** ARRIVED → GIVEN (guarded: amountPaid >= sotuvNarxi) */
   const deliverBook = useCallback(async (orderId: string) => {
