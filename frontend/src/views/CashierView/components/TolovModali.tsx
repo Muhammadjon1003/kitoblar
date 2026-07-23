@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react';
-import { DollarSign, X, CheckCircle } from 'lucide-react';
+import { DollarSign, X, CheckCircle, Tag } from 'lucide-react';
 import { useApp } from '../../../context/AppContext';
 import { uzs } from '../../../components/ui';
 import type { Order } from '../../../types';
@@ -15,10 +15,11 @@ interface TolovModaliProps {
 }
 
 export default function TolovModali({ order, onClose, onSuccess }: TolovModaliProps) {
-  const { collectCash, retailPrice, getStudentName, getInventoryItem } = useApp();
+  const { collectCash, markCoursePayment, retailPrice, getStudentName, getInventoryItem } = useApp();
   const [miqdor, setMiqdor] = useState('');
   const [xato, setXato] = useState('');
   const [yuborish, setYuborish] = useState(false);
+  const [yuborishCourse, setYuborishCourse] = useState(false);
   const chakana = retailPrice(order);
   const qoldiq = chakana - order.amountPaid;
   const inv = getInventoryItem(order.bookId);
@@ -36,6 +37,19 @@ export default function TolovModali({ order, onClose, onSuccess }: TolovModaliPr
       console.error(err);
     } finally {
       setYuborish(false);
+    }
+  };
+
+  const handleCoursePayment = async () => {
+    setYuborishCourse(true);
+    try {
+      await markCoursePayment(order.id);
+      if (onSuccess) onSuccess();
+      onClose();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setYuborishCourse(false);
     }
   };
 
@@ -88,14 +102,29 @@ export default function TolovModali({ order, onClose, onSuccess }: TolovModaliPr
             {xato && <p className="text-[11px] text-red-500 mt-1">{xato}</p>}
           </div>
 
-          <div className="flex gap-2 pt-2 border-t border-slate-100">
-            <button type="button" onClick={onClose} className="sb-btn-secondary flex-1 text-xs">Bekor qilish</button>
-            <button type="submit" disabled={yuborish} className="sb-btn-primary flex-1 flex items-center justify-center gap-1.5 text-xs disabled:opacity-50">
-              {yuborish
-                ? <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saqlanmoqda...</>
-                : <><CheckCircle className="w-3.5 h-3.5" /> Tasdiqlash — To'langan</>
-              }
+          <div className="pt-2 border-t border-slate-100 space-y-2">
+            <button
+              type="button"
+              onClick={handleCoursePayment}
+              disabled={yuborish || yuborishCourse}
+              className="w-full py-2 px-3 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+            >
+              {yuborishCourse ? (
+                <><span className="w-3.5 h-3.5 border-2 border-purple-700 border-t-transparent rounded-full animate-spin" /> Saqlanmoqda...</>
+              ) : (
+                <><Tag className="w-3.5 h-3.5" /> To'lov ichida (Kurs to'loviga kiritilgan — 0 so'm)</>
+              )}
             </button>
+
+            <div className="flex gap-2">
+              <button type="button" onClick={onClose} className="sb-btn-secondary flex-1 text-xs">Bekor qilish</button>
+              <button type="submit" disabled={yuborish || yuborishCourse} className="sb-btn-primary flex-1 flex items-center justify-center gap-1.5 text-xs disabled:opacity-50">
+                {yuborish
+                  ? <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saqlanmoqda...</>
+                  : <><CheckCircle className="w-3.5 h-3.5" /> Tasdiqlash — To'langan</>
+                }
+              </button>
+            </div>
           </div>
         </form>
       </div>

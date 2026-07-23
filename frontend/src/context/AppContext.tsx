@@ -75,6 +75,7 @@ interface AppContextType {
   // ── Mutations
   createBulkOrders: (items: BulkOrderItem[]) => Promise<void>;
   collectCash: (orderId: string, amount: number) => Promise<void>;
+  markCoursePayment: (orderId: string) => Promise<void>;
   cancelOrder: (orderId: string) => Promise<void>;
   dispatchToSupplier: (orderIds: string[]) => Promise<void>;
   markArrived: (orderId: string, bookCost: number) => Promise<void>;
@@ -511,6 +512,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [orders, checkAuth, refreshOrders, fireToast]);
 
+  /** CREATED → PAID with sotuvNarxi = 0 (To'lov ichida / Course payment included) */
+  const markCoursePayment = useCallback(async (orderId: string) => {
+    if (!checkAuth()) return;
+    setOrders(prev => prev.map(o =>
+      o.id === orderId
+        ? { ...o, status: 'PAID', sotuvNarxi: 0, amountPaid: 0, updatedAt: todayISO() }
+        : o
+    ));
+    try {
+      await fetch(`${API}/backend/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'PAID', sotuvNarxi: 0, amountPaid: 0 }),
+      });
+      await refreshOrders();
+      fireToast("To'lov ichida deb belgilandi. Holat: To'langan (Sotuv narxi: 0).");
+    } catch (err: any) {
+      fireToast(`Xatolik: ${err.message}`, 'error');
+      await refreshOrders();
+    }
+  }, [checkAuth, refreshOrders, fireToast]);
+
   /** CANCELLED: Keep order in DB as CANCELLED inventory stock */
   const cancelOrder = useCallback(async (orderId: string) => {
     if (!checkAuth()) return;
@@ -719,7 +742,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       teachers, groups, students, inventory, orders, notifications, toasts, setOrders,
       sotuvNarxi,
       fireToast,
-      createBulkOrders, collectCash, cancelOrder,
+      createBulkOrders, collectCash, markCoursePayment, cancelOrder,
       dispatchToSupplier, markArrived, deliverBook, decoupleBook,
       allocateFromWarehouse, addInventoryItem, updateOrderAdmin,
       dismissNotification, dismissToast,
