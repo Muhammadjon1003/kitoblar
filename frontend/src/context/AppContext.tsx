@@ -590,8 +590,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const dispatchToSupplier = useCallback(async (orderIds: string[]) => {
     if (!checkAuth()) return;
     if (orderIds.length === 0) return;
-    await sendToTelegram(orderIds);
-  }, [checkAuth, sendToTelegram]);
+    setOrders(prev => prev.map(o =>
+      orderIds.includes(o.id) ? { ...o, status: 'ORDERED', updatedAt: todayISO() } : o
+    ));
+    try {
+      await Promise.all(orderIds.map(id =>
+        fetch(`${API}/backend/orders/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'ORDERED' }),
+        })
+      ));
+      await sendToTelegram(orderIds);
+      await refreshOrders();
+      fireToast(`${orderIds.length} ta buyurtma ta'minotchiga yo'naltirildi. Holat: Yo'lda.`, 'success');
+    } catch (err: any) {
+      fireToast(`Xatolik: ${err.message}`, 'error');
+      await refreshOrders();
+    }
+  }, [checkAuth, sendToTelegram, refreshOrders, fireToast]);
 
   /** ORDERED → ARRIVED (cashier/logistics sets bookCost and optional sotuvNarxi at arrival time) */
   const markArrived = useCallback(async (orderId: string, bookCost: number, newSotuvNarxi?: number) => {
@@ -640,7 +657,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!checkAuth()) return;
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
-    if (order.amountPaid < order.sotuvNarxi) {
+    if (order.sotuvNarxi > 0 && order.amountPaid < order.sotuvNarxi) {
       fireToast("Topshirib bo'lmaydi — qoldiq qarz mavjud.", 'error');
       return;
     }
@@ -648,11 +665,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       o.id === orderId ? { ...o, status: 'GIVEN', updatedAt: todayISO() } : o
     ));
     try {
-      await fetch(`${API}/backend/orders/${orderId}`, {
+      const res = await fetch(`${API}/backend/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'GIVEN' }),
       });
+      if (!res.ok) throw new Error(await res.text());
       await refreshOrders();
       fireToast("Kitob topshirildi. Holat: Keldi → Topshirildi.");
     } catch (err: any) {
