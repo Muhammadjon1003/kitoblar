@@ -490,21 +490,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
   /** CREATED → PAID: Cashier records payment → PATCH */
   const collectCash = useCallback(async (orderId: string, amount: number) => {
     if (!checkAuth()) return;
+    const order = orders.find(o => o.id === orderId);
+    const newStatus = order?.status === 'CREATED' ? 'PAID' : (order?.status ?? 'PAID');
+    const newAmount = (order?.amountPaid ?? 0) + amount;
+
     setOrders(prev => prev.map(o =>
       o.id === orderId
-        ? { ...o, status: 'PAID', amountPaid: o.amountPaid + amount, updatedAt: todayISO() }
+        ? { ...o, status: newStatus, amountPaid: newAmount, updatedAt: todayISO() }
         : o
     ));
     try {
-      const order = orders.find(o => o.id === orderId);
-      const newAmount = (order?.amountPaid ?? 0) + amount;
       await fetch(`${API}/backend/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'PAID', amountPaid: newAmount }),
+        body: JSON.stringify({ status: newStatus, amountPaid: newAmount }),
       });
       await refreshOrders();
-      fireToast("To'lov qabul qilindi. Holat: Yaratildi → To'langan.");
+      fireToast("To'lov qabul qilindi.");
     } catch (err: any) {
       fireToast(`To'lovda xatolik: ${err.message}`, 'error');
       await refreshOrders();
@@ -514,24 +516,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
   /** CREATED → PAID with sotuvNarxi = 0 (To'lov ichida / Course payment included) */
   const markCoursePayment = useCallback(async (orderId: string) => {
     if (!checkAuth()) return;
+    const order = orders.find(o => o.id === orderId);
+    const newStatus = order?.status === 'CREATED' ? 'PAID' : (order?.status ?? 'PAID');
+
     setOrders(prev => prev.map(o =>
       o.id === orderId
-        ? { ...o, status: 'PAID', sotuvNarxi: 0, amountPaid: 0, updatedAt: todayISO() }
+        ? { ...o, status: newStatus, sotuvNarxi: 0, amountPaid: 0, updatedAt: todayISO() }
         : o
     ));
     try {
       await fetch(`${API}/backend/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'PAID', sotuvNarxi: 0, amountPaid: 0 }),
+        body: JSON.stringify({ status: newStatus, sotuvNarxi: 0, amountPaid: 0 }),
       });
       await refreshOrders();
-      fireToast("To'lov ichida deb belgilandi. Holat: To'langan (Sotuv narxi: 0).");
+      fireToast("To'lov ichida deb belgilandi. Holat saqlandi.");
     } catch (err: any) {
       fireToast(`Xatolik: ${err.message}`, 'error');
       await refreshOrders();
     }
-  }, [checkAuth, refreshOrders, fireToast]);
+  }, [orders, checkAuth, refreshOrders, fireToast]);
 
   /** CANCELLED: Keep order in DB as CANCELLED inventory stock */
   const cancelOrder = useCallback(async (orderId: string) => {
