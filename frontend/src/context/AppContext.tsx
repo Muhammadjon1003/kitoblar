@@ -788,7 +788,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const getGroupsByTeacher  = (teacherName: string) => groups.filter(g => g.teacherName === teacherName);
 
   const retailPrice     = (order: Order) => order.sotuvNarxi;
-  const isDeliverable   = (order: Order) => order.amountPaid >= order.sotuvNarxi;
+  const isDeliverable   = (order: Order) => order.sotuvNarxi === 0 || order.amountPaid >= order.sotuvNarxi;
 
   // ─────────────────────────────────────────────────────────────────────────────
 

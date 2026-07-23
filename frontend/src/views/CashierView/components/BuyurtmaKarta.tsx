@@ -150,7 +150,7 @@ export default function BuyurtmaKarta({ order, onClick, isSelected, onToggleSele
           )}
 
           {/* Hand Over button — shown for PAID, ORDERED, or ARRIVED when fully paid / course-included */}
-          {['PAID', 'ORDERED', 'ARRIVED'].includes(order.status) && ochiq && !boshqaQarz && (
+          {['PAID', 'ORDERED', 'ARRIVED'].includes(order.status) && ochiq && (order.sotuvNarxi === 0 || !boshqaQarz) && (
             <button
               onClick={(e) => { e.stopPropagation(); deliverBook(order.id); }}
               className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-sm transition-all duration-150 flex items-center justify-center gap-1"
@@ -160,7 +160,7 @@ export default function BuyurtmaKarta({ order, onClick, isSelected, onToggleSele
           )}
 
           {/* Blocked: student has other unpaid books. Interactive button opens StudentQarzlarModali */}
-          {order.status === 'ARRIVED' && ochiq && boshqaQarz && (
+          {['PAID', 'ORDERED', 'ARRIVED'].includes(order.status) && ochiq && order.sotuvNarxi > 0 && boshqaQarz && (
             <button
               onClick={(e) => { e.stopPropagation(); setStudentQarzlarKorsat(true); }}
               className="w-full py-2 bg-orange-50 border border-orange-200 hover:bg-orange-100/80 text-orange-850 text-[10px] font-bold rounded-lg text-left px-3 transition-all duration-150 space-y-1"

@@ -13,7 +13,7 @@ interface StudentQarzlarModaliProps {
 }
 
 export default function StudentQarzlarModali({ studentId, onClose }: StudentQarzlarModaliProps) {
-  const { orders, collectCash, getStudentName, getInventoryItem, getGroupName } = useApp();
+  const { orders, collectCash, deliverBook, getStudentName, getInventoryItem, getGroupName } = useApp();
   const [paymentAmounts, setPaymentAmounts] = useState<Record<string, string>>({});
   const [submittingId, setSubmittingId] = useState<string | null>(null);
 
@@ -164,8 +164,18 @@ export default function StudentQarzlarModali({ studentId, onClose }: StudentQarz
                 )}
 
                 {qoldiq === 0 && (
-                  <div className="flex items-center gap-1.5 text-emerald-600 text-xs font-bold pt-1">
-                    <CheckCircle2 className="w-4 h-4" /> To me'yori to'liq to'langan
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                    <div className="flex items-center gap-1.5 text-emerald-600 text-xs font-bold">
+                      <CheckCircle2 className="w-4 h-4" /> To'lov to'liq qoplangan
+                    </div>
+                    {o.status !== 'GIVEN' && (
+                      <button
+                        onClick={() => deliverBook(o.id)}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg flex items-center gap-1 transition-all shadow-sm"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Topshirish — Berildi
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
