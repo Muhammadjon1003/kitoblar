@@ -78,7 +78,7 @@ interface AppContextType {
   markCoursePayment: (orderId: string) => Promise<void>;
   cancelOrder: (orderId: string) => Promise<void>;
   dispatchToSupplier: (orderIds: string[]) => Promise<void>;
-  markArrived: (orderId: string, bookCost: number) => Promise<void>;
+  markArrived: (orderId: string, bookCost: number, newSotuvNarxi?: number) => Promise<void>;
   deliverBook: (orderId: string) => Promise<void>;
   decoupleBook: (orderId: string) => Promise<void>;
   allocateFromWarehouse: (invId: string, studentId: string, groupId: string) => void;
@@ -594,27 +594,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await sendToTelegram(orderIds);
   }, [checkAuth, sendToTelegram]);
 
-  /** ORDERED → ARRIVED (cashier sets bookCost at arrival time) */
-  const markArrived = useCallback(async (orderId: string, bookCost: number) => {
+  /** ORDERED → ARRIVED (cashier/logistics sets bookCost and optional sotuvNarxi at arrival time) */
+  const markArrived = useCallback(async (orderId: string, bookCost: number, newSotuvNarxi?: number) => {
     if (!checkAuth()) return;
     setOrders(prev => prev.map(o =>
       o.id === orderId && o.status === 'ORDERED'
-        ? { ...o, status: 'ARRIVED', bookCost, updatedAt: todayISO() }
+        ? {
+            ...o,
+            status: 'ARRIVED',
+            bookCost,
+            ...(newSotuvNarxi !== undefined && newSotuvNarxi >= 0 && { sotuvNarxi: newSotuvNarxi }),
+            updatedAt: todayISO()
+          }
         : o
     ));
     try {
+      const payload: any = { status: 'ARRIVED', bookCost };
+      if (newSotuvNarxi !== undefined && newSotuvNarxi >= 0) {
+        payload.sotuvNarxi = newSotuvNarxi;
+      }
       await fetch(`${API}/backend/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'ARRIVED', bookCost }),
+        body: JSON.stringify(payload),
       });
+
+      if (newSotuvNarxi !== undefined && newSotuvNarxi >= 0) {
+        await fetch(`${API}/backend/settings`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sotuvNarxi: newSotuvNarxi }),
+        });
+        await refreshSettings();
+      }
+
       await refreshOrders();
       fireToast("Kitob keldi. Holat: Yo'lda → Keldi.");
     } catch (err: any) {
       fireToast(`Xatolik: ${err.message}`, 'error');
       await refreshOrders();
     }
-  }, [checkAuth, refreshOrders, fireToast]);
+  }, [checkAuth, refreshOrders, refreshSettings, fireToast]);
 
   /** ARRIVED → GIVEN (guarded: amountPaid >= sotuvNarxi) */
   const deliverBook = useCallback(async (orderId: string) => {

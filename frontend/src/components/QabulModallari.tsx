@@ -18,22 +18,31 @@ interface SingleAcceptProps {
 }
 
 export function QabulQilishModali({ order, onClose, onSuccess }: SingleAcceptProps) {
-  const { markArrived, getStudentName, getInventoryItem } = useApp();
+  const { markArrived, getStudentName, getInventoryItem, sotuvNarxi } = useApp();
+  const defaultSellingPrice = order.sotuvNarxi > 0 ? order.sotuvNarxi : sotuvNarxi;
+
   const [tanNarx, setTanNarx] = useState('');
+  const [sotuvNarxInput, setSotuvNarxInput] = useState(String(defaultSellingPrice || ''));
   const [yuborish, setYuborish] = useState(false);
   const [xato, setXato] = useState('');
   const inv = getInventoryItem(order.bookId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const val = parseFloat(tanNarx);
-    if (isNaN(val) || val < 0) {
+    const valCost = parseFloat(tanNarx);
+    if (isNaN(valCost) || valCost < 0) {
       setXato("Iltimos, to'g'ri tan narx kiriting.");
       return;
     }
+    const valSell = parseFloat(sotuvNarxInput);
+    if (isNaN(valSell) || valSell < 0) {
+      setXato("Iltimos, to'g'ri sotuv narxi kiriting.");
+      return;
+    }
+
     setYuborish(true);
     try {
-      await markArrived(order.id, val);
+      await markArrived(order.id, valCost, valSell);
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
@@ -68,8 +77,8 @@ export function QabulQilishModali({ order, onClose, onSuccess }: SingleAcceptPro
               <span className="font-bold text-slate-800 truncate max-w-[180px]">{inv?.title ?? '—'}</span>
             </div>
             <div className="flex justify-between items-center pt-1 border-t border-slate-200/60">
-              <span className="text-slate-500 font-semibold">Sotuv narxi (talabaga):</span>
-              <span className="font-mono font-bold text-emerald-600">{uzs(order.sotuvNarxi)}</span>
+              <span className="text-slate-500 font-semibold">Menejer belgilagan standart narx:</span>
+              <span className="font-mono font-bold text-emerald-600">{uzs(defaultSellingPrice)}</span>
             </div>
           </div>
 
@@ -88,8 +97,28 @@ export function QabulQilishModali({ order, onClose, onSuccess }: SingleAcceptPro
               className="w-full h-11 px-3 text-base font-bold text-slate-900 bg-white border-2 border-slate-300 focus:border-indigo-500 focus:outline-none rounded-xl transition-colors font-mono"
               autoFocus
             />
-            {xato && <p className="text-[11px] text-red-600 font-semibold mt-1">{xato}</p>}
           </div>
+
+          {/* Selling price input (autofilled from manager setting, editable by logistics) */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-800 mb-1.5 uppercase tracking-wide">
+              Sotuv narxi (so'm)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={sotuvNarxInput}
+              onChange={e => { setSotuvNarxInput(e.target.value); setXato(''); }}
+              placeholder="Menejer tomonidan belgilangan sotuv narxi"
+              className="w-full h-11 px-3 text-base font-bold text-slate-900 bg-white border-2 border-slate-300 focus:border-indigo-500 focus:outline-none rounded-xl transition-colors font-mono"
+            />
+            <p className="text-[10px] text-slate-400 mt-1">
+              * Menejer belgilagan standart sotuv narxi avto-to'ldiriladi. O'zgartirilsa, menejer narxi ham o'zgaradi.
+            </p>
+          </div>
+
+          {xato && <p className="text-[11px] text-red-600 font-semibold mt-1">{xato}</p>}
 
           <div className="flex gap-2 pt-1">
             <button
@@ -124,8 +153,9 @@ interface BulkAcceptProps {
 }
 
 export function OmmaviyQabulModali({ orders, onClose, onSuccess }: BulkAcceptProps) {
-  const { markArrived, getInventoryItem, fireToast } = useApp();
+  const { markArrived, getInventoryItem, sotuvNarxi, fireToast } = useApp();
   const [tanNarx, setTanNarx] = useState('');
+  const [sotuvNarxInput, setSotuvNarxInput] = useState(String(sotuvNarxi || ''));
   const [yuborish, setYuborish] = useState(false);
   const [xato, setXato] = useState('');
 
@@ -136,15 +166,20 @@ export function OmmaviyQabulModali({ orders, onClose, onSuccess }: BulkAcceptPro
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const val = parseFloat(tanNarx);
-    if (isNaN(val) || val < 0) {
+    const valCost = parseFloat(tanNarx);
+    if (isNaN(valCost) || valCost < 0) {
       setXato("Iltimos, to'g'ri tan narx kiriting.");
+      return;
+    }
+    const valSell = parseFloat(sotuvNarxInput);
+    if (isNaN(valSell) || valSell < 0) {
+      setXato("Iltimos, to'g'ri sotuv narxi kiriting.");
       return;
     }
 
     setYuborish(true);
     try {
-      await Promise.all(orders.map(o => markArrived(o.id, val)));
+      await Promise.all(orders.map(o => markArrived(o.id, valCost, valSell)));
       fireToast(`${orders.length} ta kitob muvaffaqiyatli qabul qilindi!`, 'success');
       if (onSuccess) onSuccess();
       onClose();
@@ -183,7 +218,7 @@ export function OmmaviyQabulModali({ orders, onClose, onSuccess }: BulkAcceptPro
             </p>
           </div>
 
-          {/* Single cost input applied to all */}
+          {/* Cost input */}
           <div>
             <label className="block text-[11px] font-bold text-slate-800 mb-1.5 uppercase tracking-wide">
               Umumiy tan narxi (har bir kitob uchun so'mda)
@@ -198,11 +233,28 @@ export function OmmaviyQabulModali({ orders, onClose, onSuccess }: BulkAcceptPro
               className="w-full h-11 px-3 text-base font-bold text-slate-900 bg-white border-2 border-slate-300 focus:border-emerald-500 focus:outline-none rounded-xl transition-colors font-mono"
               autoFocus
             />
-            {xato && <p className="text-[11px] text-red-600 font-semibold mt-1">{xato}</p>}
+          </div>
+
+          {/* Selling price input */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-800 mb-1.5 uppercase tracking-wide">
+              Sotuv narxi (har bir kitob uchun so'mda)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={sotuvNarxInput}
+              onChange={e => { setSotuvNarxInput(e.target.value); setXato(''); }}
+              placeholder="Menejer narxi..."
+              className="w-full h-11 px-3 text-base font-bold text-slate-900 bg-white border-2 border-slate-300 focus:border-emerald-500 focus:outline-none rounded-xl transition-colors font-mono"
+            />
             <p className="text-[10px] text-slate-400 mt-1">
-              * Ushbu narx barcha <span className="font-bold">{orders.length}</span> ta kitob uchun bir xil belgilanadi.
+              * Menejer belgilagan standart sotuv narxi avto-to'ldiriladi.
             </p>
           </div>
+
+          {xato && <p className="text-[11px] text-red-600 font-semibold mt-1">{xato}</p>}
 
           <div className="flex gap-2 pt-2">
             <button

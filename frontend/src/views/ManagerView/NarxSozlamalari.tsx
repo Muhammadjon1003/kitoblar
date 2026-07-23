@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Settings, Save, TrendingUp, Clock } from 'lucide-react';
+import { Settings, Save, TrendingUp, Clock, Info, CheckCircle2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { uzs } from '../../components/ui';
 
@@ -59,72 +59,77 @@ export default function NarxSozlamalari() {
   const hasPreview = !isNaN(preview) && preview > 0;
 
   return (
-    <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6 bg-zinc-950">
+    <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6 bg-slate-50">
 
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-          <Settings className="w-4.5 h-4.5 text-amber-400" />
+        <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shadow-sm">
+          <Settings className="w-5 h-5" />
         </div>
         <div>
-          <h2 className="text-sm font-bold text-zinc-100">Narx Sozlamalari</h2>
-          <p className="text-[11px] text-zinc-400 mt-0.5">Yangi buyurtmalar uchun kitob sotuv narxini belgilang</p>
+          <h2 className="text-lg font-bold text-slate-800">Narx Sozlamalari</h2>
+          <p className="text-xs font-semibold text-slate-500 mt-0.5">Yangi buyurtmalar uchun kitob sotuv narxini belgilash</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
         {/* Current active price card */}
-        <div className="sb-card p-5 flex items-center gap-4 border-amber-900/30">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
-            <TrendingUp className="w-5 h-5 text-amber-400" />
+        <div className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl p-6 text-white shadow-md relative overflow-hidden flex flex-col justify-between">
+          <div className="absolute right-0 bottom-0 opacity-10 translate-x-4 translate-y-4 pointer-events-none">
+            <TrendingUp className="w-48 h-48" />
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">
-              Hozirgi sotuv narxi
+            <div className="flex items-center gap-2 text-blue-100 text-xs font-bold uppercase tracking-wider mb-2">
+              <TrendingUp className="w-4 h-4" />
+              <span>Hozirgi sotuv narxi</span>
+            </div>
+            <p className="text-3xl font-black font-mono tracking-tight">
+              {sotuvNarxi > 0 ? uzs(sotuvNarxi) : <span className="text-blue-200 text-xl font-sans">Belgilanmagan</span>}
             </p>
-            <p className="text-2xl font-black text-amber-400 font-mono">
-              {sotuvNarxi > 0 ? uzs(sotuvNarxi) : <span className="text-zinc-500 text-base">Belgilanmagan</span>}
-            </p>
-            {lastUpdated && (
-              <p className="text-[10px] text-zinc-500 mt-1 flex items-center gap-1">
-                <Clock className="w-2.5 h-2.5" /> Oxirgi o'zgarish: {lastUpdated}
-              </p>
-            )}
           </div>
+          {lastUpdated && (
+            <p className="text-[11px] text-blue-100/80 mt-4 flex items-center gap-1.5 font-medium">
+              <Clock className="w-3.5 h-3.5" /> Oxirgi o'zgartirilgan vaqt: <span className="font-bold">{lastUpdated}</span>
+            </p>
+          )}
         </div>
 
-        {/* How it works info */}
-        <div className="sb-card p-5 border-zinc-700/40">
-          <p className="text-xs font-bold text-zinc-300 mb-2">Qanday ishlaydi?</p>
-          <ul className="space-y-1.5 text-[11px] text-zinc-400">
-            <li className="flex items-start gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0 mt-1" />
-              Narx o'zgartirilgan paytdan boshlab yaratilgan barcha yangi buyurtmalarga yangi narx qo'llanadi.
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 shrink-0 mt-1" />
-              Mavjud buyurtmalar o'z narxini saqlab qoladi — ular o'zgarmaydi.
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 shrink-0 mt-1" />
-              Tan narxi (bookCost) kassa tomonidan kitobi qabul qilinganida alohida kiritiladi.
-            </li>
-          </ul>
+        {/* How it works info card */}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 flex flex-col justify-between">
+          <div>
+            <p className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Info className="w-4 h-4 text-blue-600" /> Qanday ishlaydi?
+            </p>
+            <ul className="space-y-2.5 text-xs text-slate-600 font-medium">
+              <li className="flex items-start gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0 mt-1.5" />
+                Narx o'zgartirilgan paytdan boshlab yaratilgan barcha yangi buyurtmalarga yangi narx qo'llanadi.
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
+                Mavjud buyurtmalar o'z narxini saqlab qoladi — ular o'zgarmaydi.
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
+                Logistika va Kassa tomonidan kitob qabul qilish vaqtida ushbu standart narx avto-to'ldiriladi.
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
 
       {/* Set new price form */}
-      <div className="sb-card p-6 max-w-md">
-        <p className="text-sm font-bold text-zinc-100 mb-4 flex items-center gap-2">
-          <Settings className="w-4 h-4 text-amber-400" />
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 max-w-lg">
+        <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <Settings className="w-4 h-4 text-blue-600" />
           Yangi sotuv narxini belgilash
-        </p>
+        </h3>
 
         <form onSubmit={handleSave} className="space-y-4">
           <div>
-            <label className="block text-[11px] font-bold text-zinc-300 uppercase tracking-wider mb-2">
-              Sotuv narxi (so'm)
+            <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Standart sotuv narxi (so'm)
             </label>
             <input
               type="number"
@@ -133,18 +138,20 @@ export default function NarxSozlamalari() {
               value={inputVal}
               onChange={e => setInputVal(e.target.value)}
               placeholder="Masalan: 75000"
-              className="w-full h-12 px-4 text-lg font-bold text-zinc-100 bg-zinc-800 border-2 border-zinc-600 focus:border-amber-500 focus:outline-none rounded-xl transition-colors font-mono"
+              className="w-full h-12 px-4 text-lg font-bold text-slate-800 bg-slate-50 border border-slate-300 focus:border-blue-500 focus:bg-white focus:outline-none rounded-xl transition-colors font-mono shadow-inner"
               autoFocus
             />
           </div>
 
           {/* Live preview */}
           {hasPreview && (
-            <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl text-[11px] space-y-1">
-              <p className="text-amber-400 font-semibold">Ko'rinish:</p>
-              <p className="text-zinc-300">
-                Yangi buyurtmalar → talaba to'laydi:{' '}
-                <span className="font-mono font-bold text-amber-400">{uzs(preview)}</span>
+            <div className="p-3.5 bg-blue-50/70 border border-blue-150 rounded-xl text-xs space-y-1">
+              <p className="text-blue-700 font-bold flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Narx ko'rinishi:
+              </p>
+              <p className="text-slate-700 font-medium">
+                Yangi yaratilgan buyurtmalarda talaba to'laydi:{' '}
+                <span className="font-mono font-bold text-blue-700">{uzs(preview)}</span>
               </p>
             </div>
           )}
@@ -152,12 +159,13 @@ export default function NarxSozlamalari() {
           <button
             type="submit"
             disabled={saving}
-            className="w-full py-3 bg-amber-500 hover:bg-amber-400 disabled:bg-amber-700 text-zinc-950 font-black text-sm rounded-xl flex items-center justify-center gap-2 transition-colors"
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm"
           >
-            {saving
-              ? <><span className="w-4 h-4 border-2 border-zinc-950 border-t-transparent rounded-full animate-spin" /> Saqlanmoqda...</>
-              : <><Save className="w-4 h-4" /> Narxni saqlash</>
-            }
+            {saving ? (
+              <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saqlanmoqda...</>
+            ) : (
+              <><Save className="w-4 h-4" /> Narxni saqlash</>
+            )}
           </button>
         </form>
       </div>
