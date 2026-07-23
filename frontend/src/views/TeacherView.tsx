@@ -16,13 +16,20 @@ export default function TeacherView() {
     getStudentOrders, getInventoryItem,
   } = useApp();
 
-  // Filter groups for currently logged-in teacher (if logged in as TEACHER), or show all groups as fallback
+  // Filter groups strictly for currently logged-in teacher (if logged in as TEACHER)
   const teacherGroups = useMemo(() => {
     if (currentUser?.role === 'TEACHER' && currentUser.fullName) {
-      const matched = groups.filter(g => g.teacherName.toLowerCase().trim() === currentUser.fullName.toLowerCase().trim());
-      if (matched.length > 0) return matched;
+      const userLower = currentUser.fullName.toLowerCase().trim();
+      return groups.filter(g => {
+        const groupTeacherLower = g.teacherName.toLowerCase().trim();
+        return (
+          groupTeacherLower === userLower ||
+          (userLower.length > 2 && groupTeacherLower.includes(userLower)) ||
+          (groupTeacherLower.length > 2 && userLower.includes(groupTeacherLower))
+        );
+      });
     }
-    return groups;
+    return groups; // Manager/Cashier preview shows all groups
   }, [currentUser, groups]);
 
   const [activeGroupIdState, setActiveGroupId] = useState<string>('');
@@ -79,7 +86,9 @@ export default function TeacherView() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-7 py-5">
-        {groupStudents.length === 0 ? (
+        {teacherGroups.length === 0 ? (
+          <EmptyState label="Sizga biriktirilgan guruhlar topilmadi." />
+        ) : groupStudents.length === 0 ? (
           <EmptyState label="Bu guruhda hali talabalar yo'q." />
         ) : (
           <TableShell>
