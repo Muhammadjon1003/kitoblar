@@ -78,8 +78,12 @@ export function QabulQilishModali({ order, onClose, onSuccess }: SingleAcceptPro
               <span className="font-bold text-slate-800 truncate max-w-[180px]">{inv?.title ?? '—'}</span>
             </div>
             <div className="flex justify-between items-center pt-1 border-t border-slate-200/60">
-              <span className="text-slate-500 font-semibold">Menejer belgilagan standart narx:</span>
-              <span className="font-mono font-bold text-emerald-600">{uzs(defaultSellingPrice)}</span>
+              <span className="text-slate-500 font-semibold">Sotuv narxi:</span>
+              {isCourseIncluded ? (
+                <span className="inline-flex items-center px-2 py-0.5 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] rounded-md font-sans">To'lov ichida</span>
+              ) : (
+                <span className="font-mono font-bold text-emerald-600">{uzs(defaultSellingPrice)}</span>
+              )}
             </div>
           </div>
 
@@ -100,23 +104,32 @@ export function QabulQilishModali({ order, onClose, onSuccess }: SingleAcceptPro
             />
           </div>
 
-          {/* Selling price input (autofilled from manager setting, editable by logistics) */}
+          {/* Selling price display: purple badge if To'lov ichida, else editable input */}
           <div>
             <label className="block text-[11px] font-bold text-slate-800 mb-1.5 uppercase tracking-wide">
               Sotuv narxi (so'm)
             </label>
-            <input
-              type="number"
-              min="0"
-              step="1"
-              value={sotuvNarxInput}
-              onChange={e => { setSotuvNarxInput(e.target.value); setXato(''); }}
-              placeholder="Menejer tomonidan belgilangan sotuv narxi"
-              className="w-full h-11 px-3 text-base font-bold text-slate-900 bg-white border-2 border-slate-300 focus:border-indigo-500 focus:outline-none rounded-xl transition-colors font-mono"
-            />
-            <p className="text-[10px] text-slate-400 mt-1">
-              * Menejer belgilagan standart sotuv narxi avto-to'ldiriladi. O'zgartirilsa, menejer narxi ham o'zgaradi.
-            </p>
+            {isCourseIncluded ? (
+              <div className="w-full h-11 px-4 bg-purple-50 border-2 border-purple-200 rounded-xl flex items-center justify-between">
+                <span className="text-xs font-bold text-purple-800">Kurs to'loviga kiritilgan (0 so'm)</span>
+                <span className="inline-flex items-center px-2.5 py-0.5 bg-purple-100 border border-purple-300 text-purple-700 font-extrabold text-[10px] rounded-md font-sans">To'lov ichida</span>
+              </div>
+            ) : (
+              <>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={sotuvNarxInput}
+                  onChange={e => { setSotuvNarxInput(e.target.value); setXato(''); }}
+                  placeholder="Menejer tomonidan belgilangan sotuv narxi"
+                  className="w-full h-11 px-3 text-base font-bold text-slate-900 bg-white border-2 border-slate-300 focus:border-indigo-500 focus:outline-none rounded-xl transition-colors font-mono"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  * Menejer belgilagan standart sotuv narxi avto-to'ldiriladi.
+                </p>
+              </>
+            )}
           </div>
 
           {xato && <p className="text-[11px] text-red-600 font-semibold mt-1">{xato}</p>}

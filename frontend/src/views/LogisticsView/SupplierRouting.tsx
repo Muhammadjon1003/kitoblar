@@ -180,7 +180,11 @@ export default function SupplierRouting() {
                     </Td>
                     <Td>{inv?.title ?? '—'}</Td>
                     <Td mono>
-                      <span className="text-emerald-600 font-bold">{uzs(narx)}</span>
+                      {o.sotuvNarxi === 0 ? (
+                        <span className="inline-flex items-center px-2 py-0.5 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] rounded-md font-sans">To'lov ichida</span>
+                      ) : (
+                        <span className="text-emerald-600 font-bold">{uzs(narx)}</span>
+                      )}
                     </Td>
                     <Td><StatusBadge status={o.status} /></Td>
                   </tr>
@@ -272,7 +276,11 @@ export default function SupplierRouting() {
                     </Td>
                     <Td>{inv?.title ?? '—'}</Td>
                     <Td mono>
-                      <span className="text-emerald-600 font-bold">{uzs(narx)}</span>
+                      {o.sotuvNarxi === 0 ? (
+                        <span className="inline-flex items-center px-2 py-0.5 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] rounded-md font-sans">To'lov ichida</span>
+                      ) : (
+                        <span className="text-emerald-600 font-bold">{uzs(narx)}</span>
+                      )}
                     </Td>
                     <Td mono>
                       <span className="inline-flex items-center gap-1 text-[11px] text-slate-600">
