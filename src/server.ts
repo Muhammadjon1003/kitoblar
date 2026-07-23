@@ -458,6 +458,38 @@ app.delete('/backend/users/:id', async (req, res) => {
   }
 });
 
+// PATCH /backend/users/:id — Update password, role, or fullName of a user account
+app.patch('/backend/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { password, role, fullName } = req.body;
+
+    const data: any = {};
+    if (password && String(password).trim()) data.password = String(password).trim();
+    if (role && String(role).trim()) data.role = String(role).trim().toUpperCase();
+    if (fullName && String(fullName).trim()) data.fullName = String(fullName).trim();
+
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ error: "O'zgartirish uchun kamida bitta maydon kiritilishi shart." });
+    }
+
+    const updatedUser = await prisma.erpUser.update({
+      where: { id },
+      data,
+    });
+
+    res.json({
+      id: updatedUser.id,
+      fullName: updatedUser.fullName,
+      username: updatedUser.username,
+      role: updatedUser.role,
+      createdAt: updatedUser.createdAt,
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // PATCH /backend/settings — manager updates the active selling price
 app.patch('/backend/settings', async (req, res) => {
   try {

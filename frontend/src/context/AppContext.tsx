@@ -60,6 +60,7 @@ interface AppContextType {
   logout: () => void;
   createUserAccount: (data: { fullName: string; username: string; password: string; role: UserRole }) => Promise<boolean>;
   deleteUserAccount: (id: string) => Promise<boolean>;
+  updateUserAccount: (userId: string, patch: { password?: string; role?: UserRole; fullName?: string }) => Promise<boolean>;
   refreshUsers: () => Promise<void>;
 
   // ── Data (read-only refs)
@@ -377,6 +378,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return true;
     } catch (err: any) {
       fireToast(`O'chirishda xatolik: ${err.message}`, 'error');
+      return false;
+    }
+  }, [currentUser, checkAuth, refreshUsers, fireToast]);
+
+  const updateUserAccount = useCallback(async (
+    userId: string,
+    patch: { password?: string; role?: UserRole; fullName?: string }
+  ): Promise<boolean> => {
+    if (!checkAuth()) return false;
+    if (currentUser?.role !== 'MANAGER') {
+      fireToast("Faqat Bosh Menejer xodimlarni tahrirlay oladi.", 'error');
+      return false;
+    }
+
+    try {
+      const res = await fetch(`${API}/backend/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Tahrirlashda xatolik.");
+      }
+      await refreshUsers();
+      fireToast("Xodim paroli va ma'lumotlari muvaffaqiyatli yangilandi!", 'success');
+      return true;
+    } catch (err: any) {
+      fireToast(`Xatolik: ${err.message}`, 'error');
       return false;
     }
   }, [currentUser, checkAuth, refreshUsers, fireToast]);
@@ -804,7 +834,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       activeRole, activeSubPage, setActiveRole, setActiveSubPage,
-      currentUser, users, login, logout, createUserAccount, deleteUserAccount, refreshUsers,
+      currentUser, users, login, logout, createUserAccount, deleteUserAccount, updateUserAccount, refreshUsers,
       teachers, groups, students, inventory, orders, notifications, toasts, setOrders,
       sotuvNarxi,
       fireToast,

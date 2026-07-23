@@ -161,9 +161,151 @@ function YangiXodimModali({ onClose }: { onClose: () => void }) {
   );
 }
 
+function ParolTahrirlashModali({ user, onClose }: { user: any; onClose: () => void }) {
+  const { updateUserAccount } = useApp();
+
+  const [fullName, setFullName] = useState(user.fullName);
+  const [password, setPassword] = useState('');
+  const [role, setRole]         = useState<UserRole>(user.role);
+  const [saving, setSaving]     = useState(false);
+  const [xato, setXato]         = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setXato('');
+
+    try {
+      const patch: any = {};
+      if (fullName.trim() !== user.fullName) patch.fullName = fullName.trim();
+      if (password.trim()) patch.password = password.trim();
+      if (role !== user.role) patch.role = role;
+
+      if (Object.keys(patch).length === 0) {
+        setXato("Hech qanday o'zgarish kiritilmadi.");
+        setSaving(false);
+        return;
+      }
+
+      const success = await updateUserAccount(user.id, patch);
+      if (success) {
+        onClose();
+      }
+    } catch (err: any) {
+      setXato(err.message || "Tahrirlashda xatolik yuz berdi.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-2xl z-10 overflow-hidden">
+        
+        {/* Header */}
+        <div className="px-6 py-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Key className="w-5 h-5" />
+            <h3 className="text-base font-bold">Xodim Paroli va Rolini Tahrirlash</h3>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/15 text-white transition-colors">
+            <X className="w-4.5 h-4.5" />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {xato && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-red-600">
+              {xato}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">To'liq Ismi (F.I.SH)</label>
+            <input
+              type="text"
+              value={fullName}
+              onChange={e => { setFullName(e.target.value); setXato(''); }}
+              required
+              className="w-full h-10 px-3 text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-300 rounded-xl focus:border-indigo-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Foydalanuvchi nomi (Login)</label>
+            <input
+              type="text"
+              value={user.username}
+              disabled
+              className="w-full h-10 px-3 text-xs font-bold text-slate-500 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed font-mono"
+            />
+            <p className="text-[10px] text-slate-400 mt-0.5">* Login nomini o'zgartirib bo'lmaydi.</p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Yangi Maxfiy Parol</label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => { setPassword(e.target.value); setXato(''); }}
+              placeholder="O'zgartirmaslik uchun bo'sh qoldiring"
+              className="w-full h-10 px-3 text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-300 rounded-xl focus:border-indigo-500 focus:outline-none font-mono"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Biriktiriluvchi Rol va Huquq</label>
+            <select
+              value={role}
+              onChange={e => setRole(e.target.value as UserRole)}
+              className="w-full h-10 px-3 text-xs font-bold text-slate-800 bg-slate-50 border border-slate-300 rounded-xl focus:border-indigo-500 focus:outline-none"
+            >
+              <option value="TEACHER">O'qituvchi (TEACHER)</option>
+              <option value="CASHIER">Kassir (CASHIER)</option>
+              <option value="LOGISTICS">Logistika Admin (LOGISTICS)</option>
+              <option value="MANAGER">Bosh Menejer (MANAGER)</option>
+            </select>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors"
+            >
+              Bekor qilish
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-colors"
+            >
+              {saving ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Saqlanmoqda...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-3.5 h-3.5" />
+                  O'zgarishlarni Saqlash
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  );
+}
+
 export default function UserManagement() {
   const { users, deleteUserAccount } = useApp();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editUser, setEditUser]         = useState<any | null>(null);
   const [searchQuery, setSearchQuery]   = useState('');
 
   const filteredUsers = users.filter(u => {
@@ -261,17 +403,27 @@ export default function UserManagement() {
                       {user.createdAt ? user.createdAt.slice(0, 10) : '—'}
                     </Td>
                     <Td right>
-                      <button
-                        onClick={() => {
-                          if (window.confirm(`Haqiqatdan ham "${user.fullName}" akkauntini o'chirmoqchimisiz?`)) {
-                            deleteUserAccount(user.id);
-                          }
-                        }}
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Akkauntni o'chirish"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => setEditUser(user)}
+                          className="py-1 px-2.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-lg transition-all flex items-center gap-1 text-[11px] font-bold"
+                          title="Parol va rol tahrirlash"
+                        >
+                          <Key className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>Parolni o'zgartirish</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Haqiqatdan ham "${user.fullName}" akkauntini o'chirmoqchimisiz?`)) {
+                              deleteUserAccount(user.id);
+                            }
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Akkauntni o'chirish"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </Td>
                   </tr>
                 );
@@ -283,7 +435,12 @@ export default function UserManagement() {
 
       {/* Add User Modal */}
       {showAddModal && (
-        <YangiXodimModali onClose={() => setShowAddModal(null as any)} />
+        <YangiXodimModali onClose={() => setShowAddModal(false)} />
+      )}
+
+      {/* Edit User / Password Modal */}
+      {editUser && (
+        <ParolTahrirlashModali user={editUser} onClose={() => setEditUser(null)} />
       )}
 
     </div>
