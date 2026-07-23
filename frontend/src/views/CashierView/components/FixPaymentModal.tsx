@@ -15,20 +15,39 @@ interface FixPaymentModalProps {
 
 export default function FixPaymentModal({ order, onClose }: FixPaymentModalProps) {
   const { updateOrderAdmin, getStudentName, getInventoryItem, fireToast } = useApp();
-  const [amount,  setAmount]  = useState(String(order.amountPaid));
-  const [status,  setStatus]  = useState<OrderStatus>(order.status);
-  const [comment, setComment] = useState(order.comment);
-  const [saving,  setSaving]  = useState(false);
+  const [amount,     setAmount]     = useState(String(order.amountPaid));
+  const [bookCost,   setBookCost]   = useState(String(order.bookCost));
+  const [sotuvNarxi, setSotuvNarxi] = useState(String(order.sotuvNarxi));
+  const [status,     setStatus]     = useState<OrderStatus>(order.status);
+  const [comment,    setComment]    = useState(order.comment);
+  const [saving,     setSaving]     = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount < 0) {
-      fireToast('Iltimos, to\'g\'ri miqdor kiriting.', 'error');
+      fireToast('Iltimos, to\'g\'ri to\'langan miqdor kiriting.', 'error');
       return;
     }
+    const parsedCost = parseFloat(bookCost);
+    if (isNaN(parsedCost) || parsedCost < 0) {
+      fireToast('Iltimos, to\'g\'ri tan narx kiriting.', 'error');
+      return;
+    }
+    const parsedSotuv = parseFloat(sotuvNarxi);
+    if (isNaN(parsedSotuv) || parsedSotuv < 0) {
+      fireToast('Iltimos, to\'g\'ri sotuv narxi kiriting.', 'error');
+      return;
+    }
+
     setSaving(true);
-    await updateOrderAdmin(order.id, { status, amountPaid: parsedAmount, comment });
+    await updateOrderAdmin(order.id, {
+      status,
+      amountPaid: parsedAmount,
+      bookCost: parsedCost,
+      sotuvNarxi: parsedSotuv,
+      comment
+    });
     setSaving(false);
     onClose();
   };
@@ -41,7 +60,7 @@ export default function FixPaymentModal({ order, onClose }: FixPaymentModalProps
       <div className="relative w-full max-w-md bg-white border border-slate-300 rounded-2xl shadow-2xl z-10 overflow-hidden">
         <div className="px-6 py-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-bold">To'lovni tahrirlash (Tuzatish)</h3>
+            <h3 className="text-sm font-bold">To'lov va buyurtmani tahrirlash (Tuzatish)</h3>
             <p className="text-[11px] text-blue-100 mt-0.5">{getStudentName(order.studentId)}</p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-white">
@@ -56,25 +75,51 @@ export default function FixPaymentModal({ order, onClose }: FixPaymentModalProps
               <span className="font-bold text-slate-800">{inv?.title}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-600 font-medium">Chakana narx:</span>
-              <span className="font-bold text-slate-800">{uzs(order.sotuvNarxi)}</span>
+              <span className="text-slate-600 font-medium">Hozirgi chakana narx:</span>
+              <span className="font-bold text-slate-800">{order.sotuvNarxi === 0 ? "To'lov ichida" : uzs(order.sotuvNarxi)}</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="sb-label">To'langan miqdor (so'm)</label>
+              <input
+                type="number" min="0" step="1" className="sb-input font-mono font-bold"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="sb-label">Tan narxi / Xarajat (so'm)</label>
+              <input
+                type="number" min="0" step="1" className="sb-input font-mono font-bold"
+                value={bookCost}
+                onChange={e => setBookCost(e.target.value)}
+                placeholder="Logistika tan narxi"
+                required
+              />
             </div>
           </div>
 
           <div>
-            <label className="sb-label">To'langan miqdor (so'm)</label>
+            <label className="sb-label">Sotuv narxi (so'm)</label>
             <input
-              type="number" min="0" step="0.01" className="sb-input"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
+              type="number" min="0" step="1" className="sb-input font-mono font-bold"
+              value={sotuvNarxi}
+              onChange={e => setSotuvNarxi(e.target.value)}
+              placeholder="0 bo'lsa To'lov ichida"
               required
             />
+            <p className="text-[10px] text-slate-400 mt-1">
+              * 0 ga teng bo'lsa "To'lov ichida" (kurs to'loviga kiritilgan) deb hisoblanadi.
+            </p>
           </div>
 
           <div>
             <label className="sb-label">Buyurtma holati</label>
             <select
-              className="sb-input"
+              className="sb-input font-semibold"
               value={status}
               onChange={e => setStatus(e.target.value as OrderStatus)}
               required

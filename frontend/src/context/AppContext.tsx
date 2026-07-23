@@ -8,7 +8,7 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type {
-  Teacher, Group, Student, InventoryItem, Order,
+  Teacher, Group, Student, InventoryItem, Order, OrderStatus,
   SystemNotification, AppToast, BulkOrderItem,
   UserRole, SubPage, AuthUser,
 } from '../types';
@@ -83,7 +83,7 @@ interface AppContextType {
   decoupleBook: (orderId: string) => Promise<void>;
   allocateFromWarehouse: (invId: string, studentId: string, groupId: string) => void;
   addInventoryItem: (title: string, bookCost: number) => void;
-  updateOrderAdmin: (orderId: string, patch: { status?: string; amountPaid?: number; sotuvNarxi?: number; comment?: string }) => Promise<void>;
+  updateOrderAdmin: (orderId: string, patch: { status?: string; amountPaid?: number; bookCost?: number; sotuvNarxi?: number; comment?: string }) => Promise<void>;
   dismissNotification: (id: string) => void;
   dismissToast: (id: string) => void;
   fireToast: (message: string, variant?: AppToast['variant']) => void;
@@ -443,7 +443,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           title: b.name,
           tgFileId: b.tgFileId,
           isReturned: false,
-          bookCost: 10,
+          bookCost: b.bookCost ?? 0,
           categoryName: b.category ? b.category.name : 'Umumiy',
         }));
         if (mappedBooks.length > 0) setInventory(mappedBooks);
@@ -466,12 +466,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!checkAuth()) return;
     try {
       const payload = items.map(item => {
-        const inv = inventory.find(i => i.id === item.bookId);
         return {
           studentId: item.studentId,
           groupId:   item.groupId,
           bookId:    item.bookId,
-          bookCost:  inv?.bookCost ?? 0,
+          bookCost:  0,
           comment:   item.comment ?? '',
         };
       });
@@ -598,7 +597,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const markArrived = useCallback(async (orderId: string, bookCost: number, newSotuvNarxi?: number) => {
     if (!checkAuth()) return;
     setOrders(prev => prev.map(o =>
-      o.id === orderId && o.status === 'ORDERED'
+      o.id === orderId
         ? {
             ...o,
             status: 'ARRIVED',
@@ -688,18 +687,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [orders, checkAuth, refreshOrders, fireToast]);
 
   /** Warehouse allocation: 0-cost ARRIVED order via POST */
-  const allocateFromWarehouse = useCallback((invId: string, studentId: string, groupId: string) => {
+  const allocateFromWarehouse = useCallback(async (invId: string, studentId: string, groupId: string) => {
     if (!checkAuth()) return;
     const inv = inventory.find(i => i.id === invId);
     if (!inv) return;
-    fetch(`${API}/backend/orders`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify([{
-        studentId, groupId, bookId: invId,
-        bookCost: 0, comment: 'Ombordan bepul biriktirish',
-      }]),
-    }).then(() => refreshOrders()).catch(console.warn);
+    try {
+      const res = await fetch(`${API}/backend/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify([{
+          studentId,
+          groupId,
+          bookId: invId,
+          bookCost: 0,
+          comment: 'Ombordan bepul biriktirish',
+        }]),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const createdList = await res.json();
+      if (createdList && createdList[0]) {
+        await fetch(`${API}/backend/orders/${createdList[0].id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'ARRIVED', amountPaid: 0 }),
+        });
+      }
+      await refreshOrders();
+    } catch (e: any) {
+      fireToast(`Ombordan biriktirishda xatolik: ${e.message}`, 'error');
+      await refreshOrders();
+    }
 
     setInventory(prev => prev.map(i =>
       i.id === invId ? { ...i, isReturned: false } : i
@@ -710,9 +727,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   /** Admin/cashier direct edit of any order field */
   const updateOrderAdmin = useCallback(async (
     orderId: string,
-    patch: { status?: string; amountPaid?: number; sotuvNarxi?: number; comment?: string }
+    patch: { status?: string; amountPaid?: number; bookCost?: number; sotuvNarxi?: number; comment?: string }
   ) => {
     if (!checkAuth()) return;
+    setOrders(prev => prev.map(o =>
+      o.id === orderId
+        ? {
+            ...o,
+            ...patch,
+            status: (patch.status as OrderStatus) ?? o.status,
+            updatedAt: todayISO()
+          }
+        : o
+    ));
     try {
       const res = await fetch(`${API}/backend/orders/${orderId}`, {
         method: 'PATCH',
@@ -721,9 +748,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
       if (!res.ok) throw new Error(await res.text());
       await refreshOrders();
-      fireToast("To'lov ma'lumotlari muvaffaqiyatli tuzatildi.");
+      fireToast("To'lov va buyurtma ma'lumotlari muvaffaqiyatli tuzatildi.");
     } catch (err: any) {
       fireToast(`Tuzatishda xatolik: ${err.message}`, 'error');
+      await refreshOrders();
     }
   }, [checkAuth, refreshOrders, fireToast]);
 

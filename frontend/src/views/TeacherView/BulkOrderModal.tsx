@@ -51,7 +51,7 @@ export default function BulkOrderModal({ selectedIds, activeGroupId, onClose }: 
         title: b.name,
         tgFileId: b.tgFileId,
         isReturned: false,
-        bookCost: 10
+        bookCost: 0
       }));
 
       setCategoryBooks(prev => ({ ...prev, [studentId]: mapped }));
