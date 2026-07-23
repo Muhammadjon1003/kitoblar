@@ -267,6 +267,8 @@ export default function MoliyaviyTahlil() {
             {orders.slice(0, 5).map(o => {
               const inv = getInventoryItem(o.bookId);
               const foyda = o.amountPaid - o.bookCost;
+              const isCourseIncluded = o.sotuvNarxi === 0;
+
               return (
                 <tr key={o.id} className="hover:bg-slate-50 transition-colors">
                   <Td>
@@ -274,12 +276,20 @@ export default function MoliyaviyTahlil() {
                   </Td>
                   <Td>{inv?.title ?? '—'}</Td>
                   <Td mono>
-                    <span className="text-emerald-600 font-bold">{uzs(o.amountPaid)}</span>
+                    {isCourseIncluded ? (
+                      <span className="inline-flex items-center px-2 py-0.5 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] rounded-md font-sans">To'lov ichida</span>
+                    ) : (
+                      <span className="text-emerald-600 font-bold">{uzs(o.amountPaid)}</span>
+                    )}
                   </Td>
                   <Td mono>
-                    <span className={`font-bold ${foyda >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
-                      {foyda >= 0 ? '+' : ''}{uzs(Math.abs(foyda))}
-                    </span>
+                    {isCourseIncluded ? (
+                      <span className="inline-flex items-center px-2 py-0.5 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] rounded-md font-sans">To'lov ichida</span>
+                    ) : (
+                      <span className={`font-bold ${foyda >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
+                        {foyda >= 0 ? '+' : ''}{uzs(Math.abs(foyda))}
+                      </span>
+                    )}
                   </Td>
                   <Td>
                     <StatusBadge status={o.status} />

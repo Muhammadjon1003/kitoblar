@@ -129,6 +129,8 @@ export default function BuyurtmaKarta({ order, onClick, isSelected, onToggleSele
               </span>
             ) : order.status === 'ORDERED' ? (
               <span className="text-[11px] font-bold text-indigo-600">Yo'lda (Yuborilgan)</span>
+            ) : order.sotuvNarxi === 0 ? (
+              <span className="inline-flex items-center px-2 py-0.5 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] rounded-md font-sans">To'lov ichida</span>
             ) : order.status === 'CREATED' ? (
               <span className="text-[11px] font-bold text-slate-800">Kutilmoqda: {uzs(chakana)}</span>
             ) : (

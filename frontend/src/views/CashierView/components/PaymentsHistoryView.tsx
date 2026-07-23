@@ -57,15 +57,27 @@ export default function PaymentsHistoryView() {
             <tbody className="divide-y divide-slate-100">
               {allOrders.map(o => {
                 const inv = getInventoryItem(o.bookId);
+                const isCourseIncluded = o.sotuvNarxi === 0;
+
                 return (
                   <tr key={o.id} className="hover:bg-slate-50 transition-colors">
                     <Td>{getStudentName(o.studentId)}</Td>
                     <Td>{getGroupName(o.groupId)}</Td>
                     <Td>{inv?.title ?? '—'}</Td>
                     <Td mono>
-                      <span className="text-emerald-600 font-bold">{uzs(o.amountPaid)}</span>
+                      {isCourseIncluded ? (
+                        <span className="inline-flex items-center px-2 py-0.5 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] rounded-md font-sans">To'lov ichida</span>
+                      ) : (
+                        <span className="text-emerald-600 font-bold">{uzs(o.amountPaid)}</span>
+                      )}
                     </Td>
-                    <Td mono>{uzs(o.sotuvNarxi)}</Td>
+                    <Td mono>
+                      {isCourseIncluded ? (
+                        <span className="inline-flex items-center px-2 py-0.5 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] rounded-md font-sans">To'lov ichida</span>
+                      ) : (
+                        uzs(o.sotuvNarxi)
+                      )}
+                    </Td>
                     <Td>
                       <StatusBadge status={o.status} />
                     </Td>

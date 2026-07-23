@@ -63,11 +63,19 @@ export default function TafsilotPaneli({ order, onClose }: { order: Order; onClo
             <div className="space-y-2">
               <div className="flex justify-between text-xs">
                 <span className="text-slate-500">Chakana narx (narx × 1.5)</span>
-                <span className="font-mono font-semibold text-slate-800">{uzs(chakana)}</span>
+                {order.sotuvNarxi === 0 ? (
+                  <span className="inline-flex items-center px-2 py-0.5 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] rounded-md font-sans">To'lov ichida</span>
+                ) : (
+                  <span className="font-mono font-semibold text-slate-800">{uzs(chakana)}</span>
+                )}
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-slate-500">To'langan miqdor</span>
-                <span className="font-mono font-semibold text-emerald-600">{uzs(order.amountPaid)}</span>
+                {order.sotuvNarxi === 0 ? (
+                  <span className="inline-flex items-center px-2 py-0.5 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] rounded-md font-sans">To'lov ichida</span>
+                ) : (
+                  <span className="font-mono font-semibold text-emerald-600">{uzs(order.amountPaid)}</span>
+                )}
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-slate-500">Qoldiq qarz</span>

@@ -109,11 +109,19 @@ export default function StudentQarzlarModali({ studentId, onClose }: StudentQarz
                 <div className="grid grid-cols-3 gap-2 py-2 border-y border-slate-100 text-xs font-semibold my-2">
                   <div>
                     <span className="text-slate-400 text-[10px] uppercase block">Chakana Narx</span>
-                    <span className="font-mono text-slate-700">{uzs(o.sotuvNarxi)}</span>
+                    {o.sotuvNarxi === 0 ? (
+                      <span className="inline-flex items-center px-1.5 py-0.5 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] rounded font-sans">To'lov ichida</span>
+                    ) : (
+                      <span className="font-mono text-slate-700">{uzs(o.sotuvNarxi)}</span>
+                    )}
                   </div>
                   <div>
                     <span className="text-slate-400 text-[10px] uppercase block">To'langan</span>
-                    <span className="font-mono text-emerald-600 font-bold">{uzs(o.amountPaid)}</span>
+                    {o.sotuvNarxi === 0 ? (
+                      <span className="inline-flex items-center px-1.5 py-0.5 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] rounded font-sans">To'lov ichida</span>
+                    ) : (
+                      <span className="font-mono text-emerald-600 font-bold">{uzs(o.amountPaid)}</span>
+                    )}
                   </div>
                   <div>
                     <span className="text-slate-400 text-[10px] uppercase block">Qoldiq Qarz</span>
