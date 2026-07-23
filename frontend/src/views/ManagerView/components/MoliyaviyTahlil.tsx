@@ -1,7 +1,4 @@
-/**
- * views/ManagerView/components/MoliyaviyTahlil.tsx — O'zbek tili
- */
-
+import { useMemo } from 'react';
 import {
   TrendingUp, TrendingDown, Activity, Archive, BarChart2,
   PieChart, Award
@@ -11,6 +8,21 @@ import { KpiCard, uzs, TableShell, Th, Td, StatusBadge } from '../../../componen
 
 export default function MoliyaviyTahlil() {
   const { orders, inventory, sotuvNarxi, getStudentName, getInventoryItem } = useApp();
+
+  // Sort orders by most recently updated date for recent activity table
+  const recentSortedOrders = useMemo(() => {
+    return [...orders].sort((a, b) => {
+      const upA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const upB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      if (upB !== upA) return upB - upA;
+
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (dateB !== dateA) return dateB - dateA;
+
+      return b.id.localeCompare(a.id);
+    });
+  }, [orders]);
 
   // 1. Core KPIs
   const jamiBiriktirildi = orders.reduce((s, o) => s + o.amountPaid, 0);
@@ -264,7 +276,7 @@ export default function MoliyaviyTahlil() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {orders.slice(0, 5).map(o => {
+            {recentSortedOrders.slice(0, 5).map(o => {
               const inv = getInventoryItem(o.bookId);
               const foyda = o.amountPaid - o.bookCost;
               const isCourseIncluded = o.sotuvNarxi === 0;

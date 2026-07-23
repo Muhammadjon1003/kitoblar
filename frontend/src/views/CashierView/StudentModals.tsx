@@ -13,7 +13,14 @@ const API = 'https://kitoblar-seven.vercel.app';
 // ─── Create Group Modal ────────────────────────────────────────────────────────
 
 export function CreateGroupModal({ onClose }: { onClose: () => void }) {
-  const { fireToast, refreshGroups } = useApp();
+  const { fireToast, refreshGroups, users, teachers } = useApp();
+
+  const teacherOptions = Array.from(
+    new Set([
+      ...users.filter(u => u.role === 'TEACHER').map(u => u.fullName),
+      ...teachers.map(t => t.name),
+    ])
+  ).filter(Boolean);
 
   const [nom,            setNom]            = useState('');
   const [oqituvchi,     setOqituvchi]       = useState('');
@@ -27,7 +34,7 @@ export function CreateGroupModal({ onClose }: { onClose: () => void }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nom.trim())       { setXato('Guruh nomi majburiy.'); return; }
-    if (!oqituvchi.trim()) { setXato("O'qituvchi ismi majburiy."); return; }
+    if (!oqituvchi.trim()) { setXato("O'qituvchi majburiy."); return; }
 
     setYuklanyapti(true);
     setXato('');
@@ -61,7 +68,7 @@ export function CreateGroupModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <ModalShell title="Yangi guruh yaratish" subtitle="Ma'lumotlarni kiriting va saqalng" icon={FolderPlus} onClose={onClose}>
+    <ModalShell title="Yangi guruh yaratish" subtitle="Ma'lumotlarni kiriting va saqlang" icon={FolderPlus} onClose={onClose}>
       <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
 
         {/* Group Name */}
@@ -74,13 +81,22 @@ export function CreateGroupModal({ onClose }: { onClose: () => void }) {
           />
         </div>
 
-        {/* Teacher Name */}
+        {/* Teacher Selection Dropdown */}
         <div>
-          <label className="sb-label">Mas'ul o'qituvchi ismi</label>
-          <input
-            className="sb-input" placeholder="masalan: Alisher Nazarov"
-            value={oqituvchi} onChange={e => { setOqituvchi(e.target.value); setXato(''); }}
-          />
+          <label className="sb-label">Mas'ul o'qituvchi</label>
+          <div className="relative">
+            <select
+              className="sb-input appearance-none pr-8 font-semibold text-slate-800"
+              value={oqituvchi}
+              onChange={e => { setOqituvchi(e.target.value); setXato(''); }}
+            >
+              <option value="">O'qituvchini tanlang...</option>
+              {teacherOptions.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          </div>
         </div>
 
         {/* Subject Category */}

@@ -2,7 +2,7 @@
  * views/TeacherView.tsx — O'zbek tili
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { BookOpen, CheckSquare, Square, ChevronDown } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { StatusBadge, EmptyState, TableShell, Th, Td } from '../components/ui';
@@ -10,15 +10,24 @@ import BulkOrderModal from './TeacherView/BulkOrderModal';
 
 export default function TeacherView() {
   const {
+    currentUser,
+    groups,
     students,
     getStudentOrders, getInventoryItem,
-    getGroupsByTeacher,
   } = useApp();
 
-  // Teacher view shows ALL groups
-  const teacherGroups = getGroupsByTeacher('Alisher Nazarov');
+  // Filter groups for currently logged-in teacher (if logged in as TEACHER), or show all groups as fallback
+  const teacherGroups = useMemo(() => {
+    if (currentUser?.role === 'TEACHER' && currentUser.fullName) {
+      const matched = groups.filter(g => g.teacherName.toLowerCase().trim() === currentUser.fullName.toLowerCase().trim());
+      if (matched.length > 0) return matched;
+    }
+    return groups;
+  }, [currentUser, groups]);
 
-  const [activeGroupId, setActiveGroupId] = useState<string>(teacherGroups[0]?.id ?? '');
+  const [activeGroupIdState, setActiveGroupId] = useState<string>('');
+  const activeGroupId = teacherGroups.find(g => g.id === activeGroupIdState)?.id ?? teacherGroups[0]?.id ?? '';
+
   const [selectedIds,   setSelectedIds]   = useState<Set<string>>(new Set());
   const [showModal,     setShowModal]     = useState(false);
 
