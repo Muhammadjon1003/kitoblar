@@ -99,7 +99,7 @@ export default function LoginPage() {
                   type="text"
                   value={username}
                   onChange={e => { setUsername(e.target.value); setError(''); }}
-                  placeholder="masalan: admin"
+                  placeholder="Foydalanuvchi nomini kiriting"
                   required
                   autoComplete="username"
                   className="w-full h-11 pl-10 pr-4 text-sm font-semibold text-slate-800 placeholder-slate-400 bg-slate-50 border border-slate-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:outline-none transition-all"
@@ -160,16 +160,6 @@ export default function LoginPage() {
               </div>
             ))}
           </div>
-        </div>
-
-        {/* Setup Hint */}
-        <div className="text-center border border-slate-200 rounded-xl bg-white px-4 py-3">
-          <p className="text-[11px] text-slate-500 font-medium">
-            Boshlang'ich kirish uchun:&nbsp;
-            <code className="bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-mono text-xs font-bold text-blue-700">admin</code>
-            &nbsp;/&nbsp;
-            <code className="bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-mono text-xs font-bold text-blue-700">admin123</code>
-          </p>
         </div>
 
       </div>
