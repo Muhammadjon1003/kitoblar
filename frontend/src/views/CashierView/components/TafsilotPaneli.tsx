@@ -1,15 +1,13 @@
-/**
- * views/CashierView/components/TafsilotPaneli.tsx — O'zbek tili
- */
-
 import { useState } from 'react';
 import {
-  DollarSign, XCircle, RotateCcw, Lock, Unlock, AlertTriangle, X,
+  DollarSign, XCircle, RotateCcw, Lock, X, Package, CheckCircle, Edit3
 } from 'lucide-react';
 import { useApp } from '../../../context/AppContext';
 import { StatusBadge, uzs } from '../../../components/ui';
 import type { Order } from '../../../types';
 import TolovModali from './TolovModali';
+import FixPaymentModal from './FixPaymentModal';
+import { QabulQilishModali } from '../../../components/QabulModallari';
 
 export default function TafsilotPaneli({ order, onClose }: { order: Order; onClose: () => void }) {
   const {
@@ -18,6 +16,8 @@ export default function TafsilotPaneli({ order, onClose }: { order: Order; onClo
     retailPrice, isDeliverable, groups,
   } = useApp();
   const [tolovKorsat, setTolovKorsat] = useState(false);
+  const [fixKorsat, setFixKorsat] = useState(false);
+  const [qabulKorsat, setQabulKorsat] = useState(false);
 
   const inv       = getInventoryItem(order.bookId);
   const chakana   = retailPrice(order);
@@ -117,51 +117,68 @@ export default function TafsilotPaneli({ order, onClose }: { order: Order; onClo
         {/* Amallar paneli */}
         <div className="px-6 py-4 border-t border-slate-100 space-y-2 shrink-0">
           {order.status === 'CREATED' && (
-            <>
-              <button
-                onClick={() => setTolovKorsat(true)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors shadow-sm"
-              >
-                <DollarSign className="w-4 h-4" /> To'lov qabul qilish
-              </button>
-              <button
-                onClick={() => { cancelOrder(order.id); onClose(); }}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 border border-red-100 transition-colors"
-              >
-                <XCircle className="w-4 h-4" /> Buyurtmani bekor qilish
-              </button>
-            </>
+            <button
+              onClick={() => setTolovKorsat(true)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors shadow-sm"
+            >
+              <DollarSign className="w-4 h-4" /> To'lov qabul qilish
+            </button>
           )}
 
+          {/* Deliver button for any active order when paid / course-included */}
+          {order.status !== 'GIVEN' && order.status !== 'CANCELLED' && (
+            <button
+              onClick={() => { if (ochiq) { deliverBook(order.id); onClose(); } }}
+              disabled={!ochiq}
+              className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-sm ${
+                ochiq
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+              }`}
+            >
+              {ochiq
+                ? <><CheckCircle className="w-4 h-4" /> Kitobni topshirish — Berildi</>
+                : <><Lock className="w-4 h-4" /> Topshirish (Qarz mavjud)</>
+              }
+            </button>
+          )}
+
+          {/* Accept book button */}
+          {['PAID', 'ORDERED'].includes(order.status) && (
+            <button
+              onClick={() => setQabulKorsat(true)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm"
+            >
+              <Package className="w-4 h-4" /> Kitobni qabul qilish (Tan narxi)
+            </button>
+          )}
+
+          {/* Fix Payment & Status Modal button */}
+          <button
+            onClick={() => setFixKorsat(true)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 border border-slate-200 transition-colors"
+          >
+            <Edit3 className="w-4 h-4" /> To'lov / Holatni tahrirlash (Tuzatish)
+          </button>
+
+          {/* Decouple to warehouse */}
           {order.status === 'ARRIVED' && (
-            <>
-              {!ochiq && (
-                <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-700">
-                  <AlertTriangle className="w-4 h-4 shrink-0" />
-                  Qoldiq qarz: {uzs(qoldiq)} — to'liq to'languncha topshirish bloklangan.
-                </div>
-              )}
-              <button
-                onClick={() => { if (ochiq) { deliverBook(order.id); onClose(); } }}
-                disabled={!ochiq}
-                className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-sm ${
-                  ochiq
-                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                    : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
-                }`}
-              >
-                {ochiq
-                  ? <><Unlock className="w-4 h-4" /> Kitobni topshirish — Berildi</>
-                  : <><Lock className="w-4 h-4" /> Topshirish bloklangan</>
-                }
-              </button>
-              <button
-                onClick={() => { decoupleBook(order.id); onClose(); }}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-purple-700 hover:bg-purple-50 border border-purple-100 transition-colors"
-              >
-                <RotateCcw className="w-4 h-4" /> Omborga qaytarish
-              </button>
-            </>
+            <button
+              onClick={() => { decoupleBook(order.id); onClose(); }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-purple-700 hover:bg-purple-50 border border-purple-100 transition-colors"
+            >
+              <RotateCcw className="w-4 h-4" /> Omborga qaytarish
+            </button>
+          )}
+
+          {/* Cancel order */}
+          {order.status !== 'GIVEN' && order.status !== 'CANCELLED' && (
+            <button
+              onClick={() => { cancelOrder(order.id); onClose(); }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 border border-red-100 transition-colors"
+            >
+              <XCircle className="w-4 h-4" /> Buyurtmani bekor qilish
+            </button>
           )}
         </div>
       </div>
@@ -174,6 +191,18 @@ export default function TafsilotPaneli({ order, onClose }: { order: Order; onClo
             setTolovKorsat(false);
             onClose();
           }}
+        />
+      )}
+      {fixKorsat && (
+        <FixPaymentModal
+          order={order}
+          onClose={() => setFixKorsat(false)}
+        />
+      )}
+      {qabulKorsat && (
+        <QabulQilishModali
+          order={order}
+          onClose={() => setQabulKorsat(false)}
         />
       )}
     </>

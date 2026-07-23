@@ -139,8 +139,8 @@ export default function BuyurtmaKarta({ order, onClick, isSelected, onToggleSele
             <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-400 transition-colors" />
           </div>
 
-          {/* Accept Books button for ORDERED — opens cost modal */}
-          {order.status === 'ORDERED' && (
+          {/* Accept Books button for PAID or ORDERED — opens cost modal */}
+          {['PAID', 'ORDERED'].includes(order.status) && (
             <button
               onClick={(e) => { e.stopPropagation(); setQabulKorsat(true); }}
               className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-sm transition-all duration-150 flex items-center justify-center gap-1"
@@ -149,13 +149,13 @@ export default function BuyurtmaKarta({ order, onClick, isSelected, onToggleSele
             </button>
           )}
 
-          {/* Hand Over button — only shown when ARRIVED, fully paid, AND no other student debts */}
-          {order.status === 'ARRIVED' && ochiq && !boshqaQarz && (
+          {/* Hand Over button — shown for PAID, ORDERED, or ARRIVED when fully paid / course-included */}
+          {['PAID', 'ORDERED', 'ARRIVED'].includes(order.status) && ochiq && !boshqaQarz && (
             <button
               onClick={(e) => { e.stopPropagation(); deliverBook(order.id); }}
               className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-sm transition-all duration-150 flex items-center justify-center gap-1"
             >
-              <CheckCircle className="w-3 h-3" /> Topshirish
+              <CheckCircle className="w-3 h-3" /> Topshirish — Berildi
             </button>
           )}
 
