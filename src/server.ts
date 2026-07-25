@@ -290,6 +290,70 @@ app.get('/backend/orders', async (req, res) => {
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
+// POST /backend/inventory/manual — Add unassigned physical books manually to warehouse stock
+app.post('/backend/inventory/manual', async (req, res) => {
+  try {
+    const { bookId, quantity, bookCost, comment } = req.body;
+    if (!bookId) {
+      return res.status(400).json({ error: "Darslik (bookId) tanlanishi shart." });
+    }
+
+    const qty = Math.max(1, parseInt(quantity) || 1);
+    const cost = Math.max(0, parseFloat(bookCost) || 0);
+    const today = new Date().toISOString().slice(0, 10);
+
+    // Ensure system group & student exist for unassigned stock
+    let systemGroup = await prisma.erpGroup.findFirst({ where: { groupName: "Ombor Zaxirasi" } });
+    if (!systemGroup) {
+      systemGroup = await prisma.erpGroup.create({
+        data: {
+          groupName: "Ombor Zaxirasi",
+          teacherName: "Omborxona Admin",
+          subjectCategory: "Ombor",
+          startDate: today,
+          endDate: today,
+          orderIntervalDays: 0,
+        }
+      });
+    }
+
+    let systemStudent = await prisma.erpStudent.findFirst({ where: { fullName: "Ombor Inventari" } });
+    if (!systemStudent) {
+      systemStudent = await prisma.erpStudent.create({
+        data: {
+          fullName: "Ombor Inventari",
+          phoneNumber: "",
+          groupId: systemGroup.id,
+        }
+      });
+    }
+
+    const createdOrders = [];
+    for (let i = 0; i < qty; i++) {
+      const order = await prisma.erpOrder.create({
+        data: {
+          studentId: systemStudent.id,
+          groupId: systemGroup.id,
+          bookId: String(bookId),
+          status: 'RETURNED',
+          amountPaid: 0,
+          bookCost: cost,
+          sotuvNarxi: 0,
+          comment: comment ? `Ombor zaxirasi: ${comment}` : "Ombor jismoniy zaxirasi (Qo'lda kiritilgan)",
+          updatedAt: today,
+        }
+      });
+      createdOrders.push(order);
+    }
+
+    res.status(201).json({
+      success: true,
+      count: createdOrders.length,
+      orders: createdOrders,
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // POST /backend/orders — create one or many orders, auto-locks current sotuvNarxi

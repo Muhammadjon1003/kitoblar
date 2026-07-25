@@ -39,6 +39,10 @@ export default function FixPaymentModal({ order, onClose }: FixPaymentModalProps
       fireToast('Iltimos, to\'g\'ri sotuv narxi kiriting.', 'error');
       return;
     }
+    if (status === 'CANCELLED' && !comment.trim()) {
+      fireToast('Buyurtmani bekor qilishda bekor qilish sababini (izoh) kiritish shart.', 'error');
+      return;
+    }
 
     setSaving(true);
     await updateOrderAdmin(order.id, {

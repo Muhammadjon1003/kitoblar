@@ -81,7 +81,8 @@ interface AppContextType {
   createBulkOrders: (items: BulkOrderItem[]) => Promise<void>;
   collectCash: (orderId: string, amount: number) => Promise<void>;
   markCoursePayment: (orderId: string) => Promise<void>;
-  cancelOrder: (orderId: string) => Promise<void>;
+  cancelOrder: (orderId: string, reason?: string) => Promise<void>;
+  addManualInventoryStock: (data: { bookId: string; quantity: number; bookCost: number; comment?: string }) => Promise<boolean>;
   dispatchToSupplier: (orderIds: string[]) => Promise<void>;
   markArrived: (orderId: string, bookCost: number) => Promise<void>;
   deliverBook: (orderId: string) => Promise<void>;
@@ -688,23 +689,54 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [orders, checkAuth, refreshOrders, fireToast]);
 
-  /** CANCELLED: Keep order in DB as CANCELLED inventory stock */
-  const cancelOrder = useCallback(async (orderId: string) => {
+  /** CANCELLED: Keep order in DB as CANCELLED inventory stock with reason comment */
+  const cancelOrder = useCallback(async (orderId: string, reason?: string) => {
     if (!checkAuth()) return;
+    const comment = reason?.trim() ? `Bekor qilish sababi: ${reason.trim()}` : 'Bekor qilingan buyurtma';
+
     setOrders(prev => prev.map(o =>
-      o.id === orderId ? { ...o, status: 'CANCELLED', updatedAt: todayISO() } : o
+      o.id === orderId ? { ...o, status: 'CANCELLED', comment, updatedAt: todayISO() } : o
     ));
     try {
       await fetch(`${API}/backend/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'CANCELLED' }),
+        body: JSON.stringify({ status: 'CANCELLED', comment }),
       });
       await refreshOrders();
-      fireToast("Buyurtma bekor qilindi va ombor zaxirasiga o'tkazildi.", 'info');
+      fireToast("Buyurtma bekor qilindi va sababi bilan ombor zaxirasiga o'tkazildi.", 'info');
     } catch (err: any) {
       fireToast(`Bekor qilishda xatolik: ${err.message}`, 'error');
       await refreshOrders();
+    }
+  }, [checkAuth, refreshOrders, fireToast]);
+
+  /** Manual inventory stock addition by Logistics */
+  const addManualInventoryStock = useCallback(async (data: {
+    bookId: string;
+    quantity: number;
+    bookCost: number;
+    comment?: string;
+  }): Promise<boolean> => {
+    if (!checkAuth()) return false;
+    try {
+      const res = await fetch(`${API}/backend/inventory/manual`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? "Omborga kitob qo'shishda xatolik.");
+      }
+
+      await refreshOrders();
+      fireToast(`${data.quantity} ta darslik jismoniy ombor zaxirasiga muvaffaqiyatli qo'shildi.`);
+      return true;
+    } catch (err: any) {
+      fireToast(`Xatolik: ${err.message}`, 'error');
+      return false;
     }
   }, [checkAuth, refreshOrders, fireToast]);
 
@@ -951,7 +983,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       teachers, groups, students, inventory, orders, notifications, toasts, setOrders,
       sotuvNarxi,
       fireToast,
-      createBulkOrders, collectCash, markCoursePayment, cancelOrder,
+      createBulkOrders, collectCash, markCoursePayment, cancelOrder, addManualInventoryStock,
       dispatchToSupplier, markArrived, deliverBook, decoupleBook,
       allocateFromWarehouse, addInventoryItem, updateOrderAdmin, updateBookPrice,
       markNotificationAsRead, markAllNotificationsAsRead, dismissNotification, dismissToast,
