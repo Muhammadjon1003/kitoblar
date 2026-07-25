@@ -1,9 +1,4 @@
-/**
- * views/CashierView/StudentModals.tsx — O'zbek tili
- * Live API-connected: no mock data. POST to backend → refresh context state.
- */
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FolderPlus, Users, ChevronDown, Loader2, AlertCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ModalShell } from '../../components/ui';
@@ -13,7 +8,7 @@ const API = 'https://kitoblar-seven.vercel.app';
 
 // ─── Create Group Modal ────────────────────────────────────────────────────────
 
-export function CreateGroupModal({ onClose, lockedTeacherName }: { onClose: () => void; lockedTeacherName?: string }) {
+export function CreateGroupModal({ onClose, lockedTeacherName, onSuccess }: { onClose: () => void; lockedTeacherName?: string; onSuccess?: (createdGroup: Group) => void }) {
   const { fireToast, refreshGroups, users, teachers, currentUser } = useApp();
 
   const initialTeacher = lockedTeacherName || (currentUser?.role === 'TEACHER' ? currentUser.fullName : '');
@@ -61,8 +56,10 @@ export function CreateGroupModal({ onClose, lockedTeacherName }: { onClose: () =
         throw new Error(err.error ?? 'Server xatosi yuz berdi.');
       }
 
+      const createdGroup: Group = await res.json();
       await refreshGroups();
       fireToast(`Guruh "${nom.trim()}" muvaffaqiyatli yaratildi.`);
+      if (onSuccess) onSuccess(createdGroup);
       onClose();
     } catch (err: any) {
       setXato(err.message ?? 'Tarmoq xatosi. Qayta urinib ko\'ring.');
@@ -166,8 +163,8 @@ export function CreateGroupModal({ onClose, lockedTeacherName }: { onClose: () =
 
 // ─── Bulk Add Students Modal (Standalone or Tabbed) ───────────────────────────
 
-export function BulkAddStudentModal({ defaultGroupId, allowedGroups, onClose }: { defaultGroupId?: string; allowedGroups?: Group[]; onClose: () => void }) {
-  const { groups, currentUser, fireToast, refreshStudents } = useApp();
+export function BulkAddStudentModal({ defaultGroupId, allowedGroups, onClose, onSuccess }: { defaultGroupId?: string; allowedGroups?: Group[]; onClose: () => void; onSuccess?: (groupId: string) => void }) {
+  const { groups, currentUser, fireToast, refreshStudents, refreshGroups } = useApp();
 
   const availableGroups = allowedGroups ?? (currentUser?.role === 'TEACHER' && currentUser.fullName ? groups.filter(g => {
     const uLower = currentUser.fullName.toLowerCase().trim();
@@ -179,6 +176,15 @@ export function BulkAddStudentModal({ defaultGroupId, allowedGroups, onClose }: 
   const [namesText, setNamesText]   = useState('');
   const [yuklanyapti, setYuklanyapti] = useState(false);
   const [xato, setXato]             = useState('');
+
+  // Sync guruhId when defaultGroupId or availableGroups finishes loading
+  useEffect(() => {
+    if (defaultGroupId && availableGroups.some(g => g.id === defaultGroupId)) {
+      setGuruhId(defaultGroupId);
+    } else if (availableGroups.length > 0 && (!guruhId || !availableGroups.some(g => g.id === guruhId))) {
+      setGuruhId(availableGroups[0].id);
+    }
+  }, [defaultGroupId, availableGroups]);
 
   // Parse lines into clean student names
   const parsedNames = namesText
@@ -216,8 +222,9 @@ export function BulkAddStudentModal({ defaultGroupId, allowedGroups, onClose }: 
       }
 
       const data = await res.json();
-      await refreshStudents();
+      await Promise.all([refreshStudents(), refreshGroups()]);
       fireToast(`${data.count ?? parsedNames.length} ta talaba "${data.groupName || 'guruh'}"ga muvaffaqiyatli qo'shildi.`);
+      if (onSuccess) onSuccess(guruhId);
       onClose();
     } catch (err: any) {
       setXato(err.message ?? "Tarmoq xatosi. Qayta urinib ko'ring.");
@@ -324,8 +331,8 @@ export function BulkAddStudentModal({ defaultGroupId, allowedGroups, onClose }: 
 
 // ─── Add Student Modal (Single & Tabbed) ───────────────────────────────────────
 
-export function AddStudentModal({ defaultGroupId, allowedGroups, onClose }: { defaultGroupId?: string; allowedGroups?: Group[]; onClose: () => void }) {
-  const { groups, currentUser, fireToast, refreshStudents } = useApp();
+export function AddStudentModal({ defaultGroupId, allowedGroups, onClose, onSuccess }: { defaultGroupId?: string; allowedGroups?: Group[]; onClose: () => void; onSuccess?: (groupId: string) => void }) {
+  const { groups, currentUser, fireToast, refreshStudents, refreshGroups } = useApp();
 
   const availableGroups = allowedGroups ?? (currentUser?.role === 'TEACHER' && currentUser.fullName ? groups.filter(g => {
     const uLower = currentUser.fullName.toLowerCase().trim();
@@ -339,6 +346,15 @@ export function AddStudentModal({ defaultGroupId, allowedGroups, onClose }: { de
   const [guruhId,       setGuruhId]       = useState(defaultGroupId ?? availableGroups[0]?.id ?? '');
   const [yuklanyapti,   setYuklanyapti]   = useState(false);
   const [xato,          setXato]          = useState('');
+
+  // Sync guruhId when defaultGroupId or availableGroups finishes loading
+  useEffect(() => {
+    if (defaultGroupId && availableGroups.some(g => g.id === defaultGroupId)) {
+      setGuruhId(defaultGroupId);
+    } else if (availableGroups.length > 0 && (!guruhId || !availableGroups.some(g => g.id === guruhId))) {
+      setGuruhId(availableGroups[0].id);
+    }
+  }, [defaultGroupId, availableGroups]);
 
   // Bulk mode state
   const [namesText, setNamesText]   = useState('');
@@ -374,8 +390,9 @@ export function AddStudentModal({ defaultGroupId, allowedGroups, onClose }: { de
           throw new Error(err.error ?? 'Server xatosi yuz berdi.');
         }
 
-        await refreshStudents();
+        await Promise.all([refreshStudents(), refreshGroups()]);
         fireToast(`"${ism.trim()}" muvaffaqiyatli ro'yxatga olindi.`);
+        if (onSuccess) onSuccess(guruhId);
         onClose();
       } else {
         if (parsedNames.length === 0) {
@@ -399,8 +416,9 @@ export function AddStudentModal({ defaultGroupId, allowedGroups, onClose }: { de
         }
 
         const data = await res.json();
-        await refreshStudents();
+        await Promise.all([refreshStudents(), refreshGroups()]);
         fireToast(`${data.count ?? parsedNames.length} ta talaba "${data.groupName || 'guruh'}"ga muvaffaqiyatli qo'shildi.`);
+        if (onSuccess) onSuccess(guruhId);
         onClose();
       }
     } catch (err: any) {

@@ -186,6 +186,7 @@ export default function TeacherView() {
       {showCreateGroup && (
         <CreateGroupModal
           lockedTeacherName={currentUser?.fullName}
+          onSuccess={(createdGroup) => setActiveGroupId(createdGroup.id)}
           onClose={() => setShowCreateGroup(false)}
         />
       )}
@@ -195,6 +196,7 @@ export default function TeacherView() {
         <AddStudentModal
           defaultGroupId={activeGroupId}
           allowedGroups={teacherGroups}
+          onSuccess={(groupId) => setActiveGroupId(groupId)}
           onClose={() => setShowAddStudent(false)}
         />
       )}
@@ -204,6 +206,7 @@ export default function TeacherView() {
         <BulkAddStudentModal
           defaultGroupId={activeGroupId}
           allowedGroups={teacherGroups}
+          onSuccess={(groupId) => setActiveGroupId(groupId)}
           onClose={() => setShowBulkAddStudent(false)}
         />
       )}
