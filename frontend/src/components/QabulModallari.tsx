@@ -20,10 +20,9 @@ interface SingleAcceptProps {
 export function QabulQilishModali({ order, onClose, onSuccess }: SingleAcceptProps) {
   const { markArrived, getStudentName, getInventoryItem, sotuvNarxi } = useApp();
   const isCourseIncluded = order.sotuvNarxi === 0;
-  const defaultSellingPrice = isCourseIncluded ? 0 : (sotuvNarxi > 0 ? sotuvNarxi : order.sotuvNarxi);
+  const currentSellingPrice = order.sotuvNarxi > 0 ? order.sotuvNarxi : (sotuvNarxi > 0 ? sotuvNarxi : 0);
 
   const [tanNarx, setTanNarx] = useState('');
-  const [sotuvNarxInput, setSotuvNarxInput] = useState(String(defaultSellingPrice));
   const [yuborish, setYuborish] = useState(false);
   const [xato, setXato] = useState('');
   const inv = getInventoryItem(order.bookId);
@@ -35,15 +34,10 @@ export function QabulQilishModali({ order, onClose, onSuccess }: SingleAcceptPro
       setXato("Iltimos, to'g'ri tan narx kiriting.");
       return;
     }
-    const valSell = isCourseIncluded ? 0 : parseFloat(sotuvNarxInput);
-    if (isNaN(valSell) || valSell < 0) {
-      setXato("Iltimos, to'g'ri sotuv narxi kiriting.");
-      return;
-    }
 
     setYuborish(true);
     try {
-      await markArrived(order.id, valCost, valSell);
+      await markArrived(order.id, valCost);
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
@@ -78,11 +72,11 @@ export function QabulQilishModali({ order, onClose, onSuccess }: SingleAcceptPro
               <span className="font-bold text-slate-800 truncate max-w-[180px]">{inv?.title ?? '—'}</span>
             </div>
             <div className="flex justify-between items-center pt-1 border-t border-slate-200/60">
-              <span className="text-slate-500 font-semibold">Sotuv narxi:</span>
+              <span className="text-slate-500 font-semibold">Sotuv narxi (qulflangan):</span>
               {isCourseIncluded ? (
                 <span className="inline-flex items-center px-2 py-0.5 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] rounded-md font-sans">To'lov ichida</span>
               ) : (
-                <span className="font-mono font-bold text-emerald-600">{uzs(defaultSellingPrice)}</span>
+                <span className="font-mono font-bold text-emerald-600">{uzs(currentSellingPrice)}</span>
               )}
             </div>
           </div>
@@ -90,7 +84,7 @@ export function QabulQilishModali({ order, onClose, onSuccess }: SingleAcceptPro
           {/* Cost input */}
           <div>
             <label className="block text-[11px] font-bold text-slate-800 mb-1.5 uppercase tracking-wide">
-              Kitob tan narxi (so'm)
+              Kitob tan narxi (xarajat / so'm)
             </label>
             <input
               type="number"
@@ -102,34 +96,6 @@ export function QabulQilishModali({ order, onClose, onSuccess }: SingleAcceptPro
               className="w-full h-11 px-3 text-base font-bold text-slate-900 bg-white border-2 border-slate-300 focus:border-indigo-500 focus:outline-none rounded-xl transition-colors font-mono"
               autoFocus
             />
-          </div>
-
-          {/* Selling price display: purple badge if To'lov ichida, else editable input */}
-          <div>
-            <label className="block text-[11px] font-bold text-slate-800 mb-1.5 uppercase tracking-wide">
-              Sotuv narxi (so'm)
-            </label>
-            {isCourseIncluded ? (
-              <div className="w-full h-11 px-4 bg-purple-50 border-2 border-purple-200 rounded-xl flex items-center justify-between">
-                <span className="text-xs font-bold text-purple-800">Kurs to'loviga kiritilgan (0 so'm)</span>
-                <span className="inline-flex items-center px-2.5 py-0.5 bg-purple-100 border border-purple-300 text-purple-700 font-extrabold text-[10px] rounded-md font-sans">To'lov ichida</span>
-              </div>
-            ) : (
-              <>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={sotuvNarxInput}
-                  onChange={e => { setSotuvNarxInput(e.target.value); setXato(''); }}
-                  placeholder="Menejer tomonidan belgilangan sotuv narxi"
-                  className="w-full h-11 px-3 text-base font-bold text-slate-900 bg-white border-2 border-slate-300 focus:border-indigo-500 focus:outline-none rounded-xl transition-colors font-mono"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">
-                  * Menejer belgilagan standart sotuv narxi avto-to'ldiriladi.
-                </p>
-              </>
-            )}
           </div>
 
           {xato && <p className="text-[11px] text-red-600 font-semibold mt-1">{xato}</p>}
@@ -167,9 +133,8 @@ interface BulkAcceptProps {
 }
 
 export function OmmaviyQabulModali({ orders, onClose, onSuccess }: BulkAcceptProps) {
-  const { markArrived, getInventoryItem, sotuvNarxi, fireToast } = useApp();
+  const { markArrived, getInventoryItem, fireToast } = useApp();
   const [tanNarx, setTanNarx] = useState('');
-  const [sotuvNarxInput, setSotuvNarxInput] = useState(String(sotuvNarxi || ''));
   const [yuborish, setYuborish] = useState(false);
   const [xato, setXato] = useState('');
 
@@ -185,15 +150,10 @@ export function OmmaviyQabulModali({ orders, onClose, onSuccess }: BulkAcceptPro
       setXato("Iltimos, to'g'ri tan narx kiriting.");
       return;
     }
-    const valSell = parseFloat(sotuvNarxInput);
-    if (isNaN(valSell) || valSell < 0) {
-      setXato("Iltimos, to'g'ri sotuv narxi kiriting.");
-      return;
-    }
 
     setYuborish(true);
     try {
-      await Promise.all(orders.map(o => markArrived(o.id, valCost, valSell)));
+      await Promise.all(orders.map(o => markArrived(o.id, valCost)));
       fireToast(`${orders.length} ta kitob muvaffaqiyatli qabul qilindi!`, 'success');
       if (onSuccess) onSuccess();
       onClose();
@@ -235,7 +195,7 @@ export function OmmaviyQabulModali({ orders, onClose, onSuccess }: BulkAcceptPro
           {/* Cost input */}
           <div>
             <label className="block text-[11px] font-bold text-slate-800 mb-1.5 uppercase tracking-wide">
-              Umumiy tan narxi (har bir kitob uchun so'mda)
+              Umumiy tan narxi (har bir kitob uchun xarajat / so'mda)
             </label>
             <input
               type="number"
@@ -247,25 +207,6 @@ export function OmmaviyQabulModali({ orders, onClose, onSuccess }: BulkAcceptPro
               className="w-full h-11 px-3 text-base font-bold text-slate-900 bg-white border-2 border-slate-300 focus:border-emerald-500 focus:outline-none rounded-xl transition-colors font-mono"
               autoFocus
             />
-          </div>
-
-          {/* Selling price input */}
-          <div>
-            <label className="block text-[11px] font-bold text-slate-800 mb-1.5 uppercase tracking-wide">
-              Sotuv narxi (har bir kitob uchun so'mda)
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="1"
-              value={sotuvNarxInput}
-              onChange={e => { setSotuvNarxInput(e.target.value); setXato(''); }}
-              placeholder="Menejer narxi..."
-              className="w-full h-11 px-3 text-base font-bold text-slate-900 bg-white border-2 border-slate-300 focus:border-emerald-500 focus:outline-none rounded-xl transition-colors font-mono"
-            />
-            <p className="text-[10px] text-slate-400 mt-1">
-              * Menejer belgilagan standart sotuv narxi avto-to'ldiriladi.
-            </p>
           </div>
 
           {xato && <p className="text-[11px] text-red-600 font-semibold mt-1">{xato}</p>}

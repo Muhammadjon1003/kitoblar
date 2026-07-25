@@ -79,7 +79,7 @@ interface AppContextType {
   markCoursePayment: (orderId: string) => Promise<void>;
   cancelOrder: (orderId: string) => Promise<void>;
   dispatchToSupplier: (orderIds: string[]) => Promise<void>;
-  markArrived: (orderId: string, bookCost: number, newSotuvNarxi?: number) => Promise<void>;
+  markArrived: (orderId: string, bookCost: number) => Promise<void>;
   deliverBook: (orderId: string) => Promise<void>;
   decoupleBook: (orderId: string) => Promise<void>;
   allocateFromWarehouse: (invId: string, studentId: string, groupId: string) => void;
@@ -755,12 +755,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [checkAuth, sendToTelegram, refreshOrders, fireToast]);
 
-  /** ORDERED → ARRIVED (cashier/logistics sets bookCost and optional sotuvNarxi at arrival time) */
-  const markArrived = useCallback(async (orderId: string, bookCost: number, newSotuvNarxi?: number) => {
+  /** ORDERED → ARRIVED (logistics sets procurement bookCost at arrival time; original selling price is locked) */
+  const markArrived = useCallback(async (orderId: string, bookCost: number) => {
     if (!checkAuth()) return;
-    const targetOrder = orders.find(o => o.id === orderId);
-    const isCourseIncluded = targetOrder?.sotuvNarxi === 0;
-    const finalSotuvNarxi = isCourseIncluded ? 0 : (newSotuvNarxi !== undefined && newSotuvNarxi >= 0 ? newSotuvNarxi : targetOrder?.sotuvNarxi);
 
     setOrders(prev => prev.map(o =>
       o.id === orderId
@@ -768,20 +765,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
             ...o,
             status: 'ARRIVED',
             bookCost,
-            ...(finalSotuvNarxi !== undefined && { sotuvNarxi: finalSotuvNarxi }),
             updatedAt: todayISO()
           }
         : o
     ));
     try {
-      const payload: any = { status: 'ARRIVED', bookCost };
-      if (finalSotuvNarxi !== undefined) {
-        payload.sotuvNarxi = finalSotuvNarxi;
-      }
       await fetch(`${API}/backend/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ status: 'ARRIVED', bookCost }),
       });
 
       await refreshOrders();
@@ -790,7 +782,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       fireToast(`Xatolik: ${err.message}`, 'error');
       await refreshOrders();
     }
-  }, [orders, checkAuth, refreshOrders, fireToast]);
+  }, [checkAuth, refreshOrders, fireToast]);
 
   /** ARRIVED → GIVEN (guarded: amountPaid >= sotuvNarxi) */
   const deliverBook = useCallback(async (orderId: string) => {
