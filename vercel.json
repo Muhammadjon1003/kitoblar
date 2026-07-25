@@ -1,5 +1,5 @@
 {
-  "buildCommand": "prisma generate && npm run build --prefix frontend",
+  "buildCommand": "prisma generate && cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
   "rewrites": [
     {
