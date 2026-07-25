@@ -3,25 +3,29 @@
  */
 
 import { useState } from 'react';
-import { FolderPlus, Users, CalendarDays, Clock } from 'lucide-react';
+import { FolderPlus, Users, UserPlus, CalendarDays, Clock } from 'lucide-react';
 import { useApp } from '../../../context/AppContext';
 import { TableShell, Th, Td } from '../../../components/ui';
-import { CreateGroupModal, AddStudentModal } from '../StudentModals';
+import { CreateGroupModal, AddStudentModal, BulkAddStudentModal } from '../StudentModals';
 
 export default function BoshqaruvKorinishi() {
   const { groups, students } = useApp();
   const [guruhKorsat,   setGuruhKorsat]   = useState(false);
   const [talabKorsat, setTalabaKorsat] = useState(false);
+  const [bulkTalabaKorsat, setBulkTalabaKorsat] = useState(false);
 
   return (
-    <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6 bg-slate-50">
+    <div className="flex-1 overflow-y-auto px-3.5 sm:px-7 py-4 sm:py-6 space-y-6 bg-slate-50">
       {/* Amallar paneli */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2.5">
         <button onClick={() => setGuruhKorsat(true)} className="sb-btn-secondary flex items-center gap-1.5 text-xs">
           <FolderPlus className="w-3.5 h-3.5 text-slate-800" /> Guruh yaratish
         </button>
         <button onClick={() => setTalabaKorsat(true)} className="sb-btn-primary flex items-center gap-1.5 text-xs">
           <Users className="w-3.5 h-3.5 text-white" /> Talaba qo'shish
+        </button>
+        <button onClick={() => setBulkTalabaKorsat(true)} className="sb-btn-secondary flex items-center gap-1.5 text-xs border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold">
+          <UserPlus className="w-3.5 h-3.5 text-indigo-600" /> Ommaviy talaba qo'shish
         </button>
         <span className="text-[11px] font-bold text-slate-700 bg-slate-200 border border-slate-350 px-2.5 py-1 rounded-lg ml-auto">
           {groups.length} ta guruh · {students.length} ta talaba
@@ -105,6 +109,7 @@ export default function BoshqaruvKorinishi() {
 
       {guruhKorsat   && <CreateGroupModal onClose={() => setGuruhKorsat(false)} />}
       {talabKorsat && <AddStudentModal  onClose={() => setTalabaKorsat(false)} />}
+      {bulkTalabaKorsat && <BulkAddStudentModal onClose={() => setBulkTalabaKorsat(false)} />}
     </div>
   );
 }

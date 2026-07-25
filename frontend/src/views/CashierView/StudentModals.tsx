@@ -152,32 +152,43 @@ export function CreateGroupModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ─── Add Student Modal ─────────────────────────────────────────────────────────
+// ─── Bulk Add Students Modal (Standalone or Tabbed) ───────────────────────────
 
-export function AddStudentModal({ onClose }: { onClose: () => void }) {
+export function BulkAddStudentModal({ defaultGroupId, onClose }: { defaultGroupId?: string; onClose: () => void }) {
   const { groups, fireToast, refreshStudents } = useApp();
 
-  const [ism,           setIsm]           = useState('');
-  const [telefon,       setTelefon]       = useState('');
-  const [guruhId,       setGuruhId]       = useState(groups[0]?.id ?? '');
-  const [yuklanyapti,   setYuklanyapti]   = useState(false);
-  const [xato,          setXato]          = useState('');
+  const [guruhId, setGuruhId]       = useState(defaultGroupId ?? groups[0]?.id ?? '');
+  const [namesText, setNamesText]   = useState('');
+  const [yuklanyapti, setYuklanyapti] = useState(false);
+  const [xato, setXato]             = useState('');
+
+  // Parse lines into clean student names
+  const parsedNames = namesText
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ism.trim())   { setXato("To'liq ism majburiy."); return; }
-    if (!guruhId)      { setXato('Guruh tanlang.'); return; }
+    if (!guruhId) {
+      setXato('Iltimos, guruh tanlang.');
+      return;
+    }
+
+    if (parsedNames.length === 0) {
+      setXato("Kamida bitta talaba ismini kiriting.");
+      return;
+    }
 
     setYuklanyapti(true);
     setXato('');
     try {
-      const res = await fetch(`${API}/backend/students`, {
+      const res = await fetch(`${API}/backend/students/bulk`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fullName: ism.trim(),
-          phoneNumber: telefon.trim(),
           groupId: guruhId,
+          names: parsedNames,
         }),
       });
 
@@ -186,8 +197,9 @@ export function AddStudentModal({ onClose }: { onClose: () => void }) {
         throw new Error(err.error ?? 'Server xatosi yuz berdi.');
       }
 
+      const data = await res.json();
       await refreshStudents();
-      fireToast(`"${ism.trim()}" muvaffaqiyatli ro'yxatga olindi.`);
+      fireToast(`${data.count ?? parsedNames.length} ta talaba "${data.groupName || 'guruh'}"ga muvaffaqiyatli qo'shildi.`);
       onClose();
     } catch (err: any) {
       setXato(err.message ?? "Tarmoq xatosi. Qayta urinib ko'ring.");
@@ -196,30 +208,212 @@ export function AddStudentModal({ onClose }: { onClose: () => void }) {
     }
   };
 
-  return (
-    <ModalShell title="Yangi talaba qo'shish" subtitle="Ro'yxatga olish — ma'lumotlar bazasiga saqlanadi" icon={Users} onClose={onClose}>
-      <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+  const selectedGroup = groups.find(g => g.id === guruhId);
 
-        {/* Full name */}
+  return (
+    <ModalShell
+      title="Guruhga ommaviy talabalar qo'shish"
+      subtitle="Har bir qatorda bittadan talaba ismini kiriting"
+      icon={Users}
+      onClose={onClose}
+    >
+      <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+        {/* Group selection */}
         <div>
-          <label className="sb-label">To'liq ismi</label>
-          <input
-            className="sb-input" placeholder="masalan: Jasur Bek Toshmatov"
-            value={ism} onChange={e => { setIsm(e.target.value); setXato(''); }}
+          <label className="sb-label">Qaysi guruhga qo'shilsin?</label>
+          {groups.length === 0 ? (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[12px] font-semibold text-amber-700">
+              Hech qanday guruh topilmadi. Avval guruh yarating.
+            </div>
+          ) : (
+            <div className="relative">
+              <select
+                className="sb-input appearance-none pr-8 font-bold text-slate-800"
+                value={guruhId}
+                onChange={e => { setGuruhId(e.target.value); setXato(''); }}
+              >
+                {groups.map(g => (
+                  <option key={g.id} value={g.id}>
+                    {g.groupName} ({g.teacherName})
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            </div>
+          )}
+        </div>
+
+        {/* Textarea for bulk names */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="sb-label mb-0">Talabalar ro'yxati (F.I.SH)</label>
+            <span className="text-[11px] font-bold px-2 py-0.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-md">
+              {parsedNames.length} ta aniqlandi
+            </span>
+          </div>
+          <textarea
+            rows={7}
+            className="w-full text-xs font-medium text-slate-800 placeholder-slate-400 bg-slate-50 border border-slate-300 rounded-xl p-3 focus:border-blue-500 focus:outline-none transition-colors font-mono leading-relaxed"
+            placeholder={`Masalan:\nJasur Toshmatov\nAli Valiyev\nFeruza Karimova\nAnvar Nabiyev`}
+            value={namesText}
+            onChange={e => { setNamesText(e.target.value); setXato(''); }}
             autoFocus
           />
+          <p className="text-[10px] text-slate-400 font-semibold mt-1">
+            * Telegram yoki Excel/Word fayllardan ro'yxatni nusxalab (Ctrl+V) joylashtirishingiz mumkin.
+          </p>
         </div>
 
-        {/* Phone number */}
-        <div>
-          <label className="sb-label">Telefon raqami (ixtiyoriy)</label>
-          <input
-            className="sb-input" placeholder="+998 90 123 45 67"
-            value={telefon} onChange={e => setTelefon(e.target.value)}
-            type="tel"
-          />
-        </div>
+        {/* Info summary */}
+        {selectedGroup && parsedNames.length > 0 && (
+          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs space-y-1 text-emerald-800">
+            <p className="font-bold">Tayyor:</p>
+            <p className="text-[11px]">
+              <strong className="font-bold">{parsedNames.length} ta</strong> yangi talaba{' '}
+              <strong className="font-bold">"{selectedGroup.groupName}"</strong> guruhiga qo'shiladi.
+            </p>
+          </div>
+        )}
 
+        {/* Error banner */}
+        {xato && (
+          <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-300 rounded-xl text-[12px] font-semibold text-red-700">
+            <AlertCircle className="w-4 h-4 shrink-0" /> {xato}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onClick={onClose} disabled={yuklanyapti} className="sb-btn-secondary flex-1 text-xs">
+            Bekor qilish
+          </button>
+          <button
+            type="submit"
+            disabled={yuklanyapti || groups.length === 0 || parsedNames.length === 0}
+            className="sb-btn-primary flex-1 flex items-center justify-center gap-1.5 text-xs disabled:opacity-40"
+          >
+            {yuklanyapti ? (
+              <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Qo'shilmoqda...</>
+            ) : (
+              <><Users className="w-3.5 h-3.5" /> {parsedNames.length > 0 ? `${parsedNames.length} ta talabani qo'shish` : 'Ommaviy saqlash'}</>
+            )}
+          </button>
+        </div>
+      </form>
+    </ModalShell>
+  );
+}
+
+// ─── Add Student Modal (Single & Tabbed) ───────────────────────────────────────
+
+export function AddStudentModal({ defaultGroupId, onClose }: { defaultGroupId?: string; onClose: () => void }) {
+  const { groups, fireToast, refreshStudents } = useApp();
+
+  const [mode, setMode]             = useState<'single' | 'bulk'>('single');
+  const [ism,           setIsm]           = useState('');
+  const [telefon,       setTelefon]       = useState('');
+  const [guruhId,       setGuruhId]       = useState(defaultGroupId ?? groups[0]?.id ?? '');
+  const [yuklanyapti,   setYuklanyapti]   = useState(false);
+  const [xato,          setXato]          = useState('');
+
+  // Bulk mode state
+  const [namesText, setNamesText]   = useState('');
+
+  const parsedNames = namesText
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!guruhId) { setXato('Guruh tanlang.'); return; }
+
+    setYuklanyapti(true);
+    setXato('');
+
+    try {
+      if (mode === 'single') {
+        if (!ism.trim()) { setXato("To'liq ism majburiy."); setYuklanyapti(false); return; }
+
+        const res = await fetch(`${API}/backend/students`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fullName: ism.trim(),
+            phoneNumber: telefon.trim(),
+            groupId: guruhId,
+          }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error ?? 'Server xatosi yuz berdi.');
+        }
+
+        await refreshStudents();
+        fireToast(`"${ism.trim()}" muvaffaqiyatli ro'yxatga olindi.`);
+        onClose();
+      } else {
+        if (parsedNames.length === 0) {
+          setXato("Kamida bitta talaba ismini kiriting.");
+          setYuklanyapti(false);
+          return;
+        }
+
+        const res = await fetch(`${API}/backend/students/bulk`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            groupId: guruhId,
+            names: parsedNames,
+          }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error ?? 'Server xatosi yuz berdi.');
+        }
+
+        const data = await res.json();
+        await refreshStudents();
+        fireToast(`${data.count ?? parsedNames.length} ta talaba "${data.groupName || 'guruh'}"ga muvaffaqiyatli qo'shildi.`);
+        onClose();
+      }
+    } catch (err: any) {
+      setXato(err.message ?? "Tarmoq xatosi. Qayta urinib ko'ring.");
+    } finally {
+      setYuklanyapti(false);
+    }
+  };
+
+  return (
+    <ModalShell title="Talabalarni guruhga qo'shish" subtitle="Yakka yoki ommaviy ro'yxat bo'yicha kiritish" icon={Users} onClose={onClose}>
+      <div className="px-6 pt-4 pb-1 flex items-center gap-2 border-b border-slate-100">
+        <button
+          type="button"
+          onClick={() => { setMode('single'); setXato(''); }}
+          className={`flex-1 py-1.5 px-3 text-xs font-bold rounded-lg transition-all ${
+            mode === 'single'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}
+        >
+          Yakka qo'shish
+        </button>
+        <button
+          type="button"
+          onClick={() => { setMode('bulk'); setXato(''); }}
+          className={`flex-1 py-1.5 px-3 text-xs font-bold rounded-lg transition-all ${
+            mode === 'bulk'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}
+        >
+          Ommaviy qo'shish (Ko'p talaba)
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
         {/* Group assignment */}
         <div>
           <label className="sb-label">Guruhga biriktirish</label>
@@ -229,25 +423,58 @@ export function AddStudentModal({ onClose }: { onClose: () => void }) {
             </div>
           ) : (
             <div className="relative">
-              <select className="sb-input appearance-none pr-8" value={guruhId} onChange={e => setGuruhId(e.target.value)}>
-                {groups.map(g => <option key={g.id} value={g.id}>{g.groupName}</option>)}
+              <select className="sb-input appearance-none pr-8 font-bold text-slate-800" value={guruhId} onChange={e => setGuruhId(e.target.value)}>
+                {groups.map(g => <option key={g.id} value={g.id}>{g.groupName} ({g.teacherName})</option>)}
               </select>
               <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
           )}
         </div>
 
-        {/* Info box */}
-        <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl text-[11px] space-y-1 text-slate-500">
-          <p className="font-semibold text-blue-700 text-[10px] uppercase tracking-wider mb-1.5">Avtomatik belgilanadi</p>
-          <div className="flex justify-between">
-            <span className="font-mono text-slate-600">joined_at</span>
-            <span>{new Date().toISOString().slice(0, 10)}</span>
+        {mode === 'single' ? (
+          <>
+            {/* Full name */}
+            <div>
+              <label className="sb-label">To'liq ismi</label>
+              <input
+                className="sb-input" placeholder="masalan: Jasur Bek Toshmatov"
+                value={ism} onChange={e => { setIsm(e.target.value); setXato(''); }}
+                autoFocus
+              />
+            </div>
+
+            {/* Phone number */}
+            <div>
+              <label className="sb-label">Telefon raqami (ixtiyoriy)</label>
+              <input
+                className="sb-input" placeholder="+998 90 123 45 67"
+                value={telefon} onChange={e => setTelefon(e.target.value)}
+                type="tel"
+              />
+            </div>
+          </>
+        ) : (
+          /* Bulk Mode */
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="sb-label mb-0">Talabalar ro'yxati (Har bir qatorda bitta)</label>
+              <span className="text-[11px] font-bold px-2 py-0.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-md">
+                {parsedNames.length} ta aniqlandi
+              </span>
+            </div>
+            <textarea
+              rows={6}
+              className="w-full text-xs font-medium text-slate-800 placeholder-slate-400 bg-slate-50 border border-slate-300 rounded-xl p-3 focus:border-blue-500 focus:outline-none transition-colors font-mono leading-relaxed"
+              placeholder={`Masalan:\nJasur Toshmatov\nAli Valiyev\nFeruza Karimova\nAnvar Nabiyev`}
+              value={namesText}
+              onChange={e => { setNamesText(e.target.value); setXato(''); }}
+              autoFocus
+            />
+            <p className="text-[10px] text-slate-400 font-semibold mt-1">
+              * Telegram yoki Excel'dan talabalar ro'yxatini ko'chirib (Ctrl+V) pastga joylashtiring.
+            </p>
           </div>
-          <p className="text-[10px] text-blue-600 pt-2 border-t border-blue-100 mt-1 leading-relaxed">
-            Ma'lumotlar Neon PostgreSQL bazasiga darhol saqlanadi.
-          </p>
-        </div>
+        )}
 
         {/* Error banner */}
         {xato && (
@@ -261,13 +488,17 @@ export function AddStudentModal({ onClose }: { onClose: () => void }) {
             Bekor qilish
           </button>
           <button type="submit" disabled={yuklanyapti || groups.length === 0} className="sb-btn-primary flex-1 flex items-center justify-center gap-1.5 text-xs">
-            {yuklanyapti
-              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saqlanmoqda...</>
-              : <><Users className="w-3.5 h-3.5" /> Talabani ro'yxatga olish</>
-            }
+            {yuklanyapti ? (
+              <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saqlanmoqda...</>
+            ) : mode === 'single' ? (
+              <><Users className="w-3.5 h-3.5" /> Talabani ro'yxatga olish</>
+            ) : (
+              <><Users className="w-3.5 h-3.5" /> {parsedNames.length > 0 ? `${parsedNames.length} ta talabani saqlash` : 'Ommaviy saqlash'}</>
+            )}
           </button>
         </div>
       </form>
     </ModalShell>
   );
 }
+

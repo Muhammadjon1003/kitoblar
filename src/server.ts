@@ -217,6 +217,53 @@ app.post('/backend/students', async (req, res) => {
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
+// POST /backend/students/bulk — bulk enroll multiple students into a group at once
+app.post('/backend/students/bulk', async (req, res) => {
+  try {
+    const { groupId, names, students } = req.body;
+    if (!groupId) {
+      return res.status(400).json({ error: 'Guruh tanlanishi shart (groupId).' });
+    }
+
+    // Verify group exists
+    const group = await prisma.erpGroup.findUnique({ where: { id: groupId } });
+    if (!group) return res.status(404).json({ error: 'Guruh topilmadi.' });
+
+    let studentList: Array<{ fullName: string; phoneNumber?: string }> = [];
+
+    if (Array.isArray(students) && students.length > 0) {
+      studentList = students.map((s: any) =>
+        typeof s === 'string'
+          ? { fullName: s.trim() }
+          : { fullName: (s.fullName || '').trim(), phoneNumber: (s.phoneNumber || '').trim() }
+      );
+    } else if (Array.isArray(names) && names.length > 0) {
+      studentList = names.map((n: any) => ({ fullName: String(n).trim() }));
+    }
+
+    studentList = studentList.filter(s => s.fullName.length > 0);
+
+    if (studentList.length === 0) {
+      return res.status(400).json({ error: "Kamida bitta o'quvchi ismi kiritilishi shart." });
+    }
+
+    const created = await prisma.erpStudent.createMany({
+      data: studentList.map(s => ({
+        fullName: s.fullName,
+        phoneNumber: s.phoneNumber || '',
+        groupId,
+      }))
+    });
+
+    res.status(201).json({
+      success: true,
+      count: created.count,
+      groupId,
+      groupName: group.groupName,
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 

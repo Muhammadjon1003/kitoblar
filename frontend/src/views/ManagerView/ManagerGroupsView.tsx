@@ -4,9 +4,10 @@
  */
 
 import { useState } from 'react';
-import { Users, BookOpen, Calendar, Search, X, ChevronRight, UserCheck, Clock } from 'lucide-react';
+import { Users, UserPlus, BookOpen, Calendar, Search, X, ChevronRight, UserCheck } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { TableShell, Th, Td, StatusBadge, EmptyState } from '../../components/ui';
+import { BulkAddStudentModal } from '../CashierView/StudentModals';
 import type { Group } from '../../types';
 
 interface GroupModalProps {
@@ -28,92 +29,73 @@ function GuruhTalabalariModali({ group, onClose }: GroupModalProps) {
         <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex items-center justify-between shrink-0">
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold">{group.groupName}</h3>
-              <span className="px-2 py-0.5 bg-white/20 rounded-md text-[10px] font-bold text-white uppercase tracking-wider">
-                {group.subjectCategory || 'Umumiy'}
-              </span>
+              <BookOpen className="w-5 h-5" />
+              <h3 className="text-base font-bold">{group.groupName} — Talabalar Ro'yxati</h3>
             </div>
-            <p className="text-[11px] text-blue-100 mt-0.5 font-medium flex items-center gap-3">
-              <span>O'qituvchi: <strong className="text-white">{group.teacherName}</strong></span>
-              <span>•</span>
-              <span>Guruh a'zolari: <strong className="text-white">{groupStudents.length} ta talaba</strong></span>
+            <p className="text-xs text-blue-100 mt-0.5 font-medium">
+              O'qituvchi: {group.teacherName} · Jami: {groupStudents.length} ta talaba
             </p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/15 text-white transition-colors">
-            <X className="w-4.5 h-4.5" />
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/15 text-white transition-colors">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Modal Body Table */}
-        <div className="p-6 overflow-y-auto space-y-4">
+        {/* Modal Body: Table */}
+        <div className="p-6 overflow-y-auto flex-1">
           {groupStudents.length === 0 ? (
-            <EmptyState label="Ushbu guruhda hozircha birorta ham talaba ro'yxatdan o'tmagan." />
+            <EmptyState label="Bu guruhda hali birorta ham talaba mavjud emas." />
           ) : (
-            <TableShell>
-              <thead>
-                <tr>
-                  <Th>#</Th>
-                  <Th>Talaba ismi</Th>
-                  <Th>Telefon raqami</Th>
-                  <Th>A'zo bo'lgan sana</Th>
-                  <Th>Yaqinda olgan kitobi</Th>
-                  <Th>Olingan sana</Th>
-                  <Th>Holati</Th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {groupStudents.map((student, idx) => {
-                  const studentOrders = getStudentOrders(student.id);
-                  const latestOrder   = studentOrders[0];
-                  const bookInv       = latestOrder ? getInventoryItem(latestOrder.bookId) : null;
-                  const joinedDateFormatted = student.joinedAt
-                    ? student.joinedAt.slice(0, 10)
-                    : (student as any).createdAt ? String((student as any).createdAt).slice(0, 10) : '—';
+            <div className="w-full overflow-x-auto">
+              <TableShell>
+                <thead>
+                  <tr>
+                    <Th>#</Th>
+                    <Th>Talaba ismi</Th>
+                    <Th>Telefon</Th>
+                    <Th>A'zo bo'lgan sana</Th>
+                    <Th>So'nggi buyurtma kitobi</Th>
+                    <Th>Holat</Th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {groupStudents.map((s, idx) => {
+                    const latestOrder = getStudentOrders(s.id)[0];
+                    const bookItem    = latestOrder ? getInventoryItem(latestOrder.bookId) : undefined;
 
-                  return (
-                    <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
-                      <Td mono>{idx + 1}</Td>
-                      <Td>
-                        <span className="font-bold text-slate-800">{student.fullName || student.name}</span>
-                      </Td>
-                      <Td mono muted>{student.phoneNumber || '—'}</Td>
-                      <Td mono>
-                        <span className="inline-flex items-center gap-1 text-slate-600 font-semibold">
-                          <UserCheck className="w-3 h-3 text-blue-500" />
-                          {joinedDateFormatted}
-                        </span>
-                      </Td>
-                      <Td>
-                        {bookInv ? (
-                          <span className="font-bold text-slate-800">{bookInv.title}</span>
-                        ) : (
-                          <span className="text-slate-400 font-medium italic">Hali kitob berilmagan</span>
-                        )}
-                      </Td>
-                      <Td mono muted>
-                        {latestOrder ? (
-                          <span className="inline-flex items-center gap-1 text-slate-600">
-                            <Clock className="w-3 h-3 text-slate-400" />
-                            {latestOrder.updatedAt}
-                          </span>
-                        ) : (
-                          '—'
-                        )}
-                      </Td>
-                      <Td>
-                        {latestOrder ? (
-                          <StatusBadge status={latestOrder.status} />
-                        ) : (
-                          <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-semibold">
-                            Yo'q
-                          </span>
-                        )}
-                      </Td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </TableShell>
+                    return (
+                      <tr key={s.id} className="hover:bg-slate-50 transition-colors">
+                        <Td mono>{idx + 1}</Td>
+                        <Td>
+                          <div className="flex items-center gap-2">
+                            <UserCheck className="w-4 h-4 text-blue-600 shrink-0" />
+                            <span className="font-bold text-slate-800">{s.fullName || s.name}</span>
+                          </div>
+                        </Td>
+                        <Td mono muted>{s.phoneNumber || '—'}</Td>
+                        <Td mono muted>{(s as any).createdAt?.slice(0, 10) || '—'}</Td>
+                        <Td>
+                          {bookItem ? (
+                            <span className="font-semibold text-slate-700">{bookItem.title}</span>
+                          ) : (
+                            <span className="text-slate-400 italic">Kitob yo'q</span>
+                          )}
+                        </Td>
+                        <Td>
+                          {latestOrder ? (
+                            <StatusBadge status={latestOrder.status} />
+                          ) : (
+                            <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-semibold">
+                              Yo'q
+                            </span>
+                          )}
+                        </Td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </TableShell>
+            </div>
           )}
         </div>
 
@@ -135,6 +117,7 @@ function GuruhTalabalariModali({ group, onClose }: GroupModalProps) {
 export default function ManagerGroupsView() {
   const { groups, students } = useApp();
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+  const [showBulkAddModal, setShowBulkAddModal] = useState(false);
   const [searchQuery, setSearchQuery]     = useState('');
 
   const filteredGroups = groups.filter(g => {
@@ -148,10 +131,10 @@ export default function ManagerGroupsView() {
   });
 
   return (
-    <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6 bg-slate-50">
+    <div className="flex-1 overflow-y-auto px-3.5 sm:px-7 py-4 sm:py-6 space-y-6 bg-slate-50">
       
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
             <Users className="w-5 h-5 text-blue-600" />
@@ -162,11 +145,19 @@ export default function ManagerGroupsView() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3 text-xs shrink-0">
-          <span className="px-3.5 py-1.5 bg-white border border-slate-250 rounded-xl shadow-sm font-bold text-slate-700">
+        <div className="flex items-center gap-3 shrink-0 flex-wrap">
+          <button
+            onClick={() => setShowBulkAddModal(true)}
+            className="py-2 px-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5 transition-all"
+          >
+            <UserPlus className="w-4 h-4" />
+            Ommaviy talaba qo'shish
+          </button>
+
+          <span className="px-3.5 py-1.5 bg-white border border-slate-250 rounded-xl shadow-sm font-bold text-slate-700 text-xs">
             Jami guruhlar: <strong className="text-blue-600 font-mono">{groups.length} ta</strong>
           </span>
-          <span className="px-3.5 py-1.5 bg-blue-50 border border-blue-200 rounded-xl shadow-sm font-bold text-blue-800">
+          <span className="px-3.5 py-1.5 bg-blue-50 border border-blue-200 rounded-xl shadow-sm font-bold text-blue-800 text-xs">
             Jami talabalar: <strong className="text-indigo-600 font-mono">{students.length} ta</strong>
           </span>
         </div>
@@ -255,6 +246,13 @@ export default function ManagerGroupsView() {
         <GuruhTalabalariModali
           group={selectedGroup}
           onClose={() => setSelectedGroup(null)}
+        />
+      )}
+
+      {/* Bulk Add Student Modal */}
+      {showBulkAddModal && (
+        <BulkAddStudentModal
+          onClose={() => setShowBulkAddModal(false)}
         />
       )}
 
