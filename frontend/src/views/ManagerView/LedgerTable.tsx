@@ -86,10 +86,10 @@ export default function LedgerTable() {
   const endItem   = Math.min(validPage * pageSize, sortedOrders.length);
 
   return (
-    <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6 bg-slate-50">
+    <div className="flex-1 overflow-y-auto px-3.5 sm:px-7 py-4 sm:py-6 space-y-6 bg-slate-50">
       
       {/* ── Header & Totals ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-slate-800">To'lovlar Daftari — Buyurtmalar Hisoboti</h2>
           <p className="text-xs font-semibold text-slate-600 mt-0.5">
@@ -97,11 +97,11 @@ export default function LedgerTable() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3 text-xs shrink-0">
-          <div className="px-3.5 py-1.5 bg-white border border-slate-250 rounded-xl shadow-sm text-slate-600 font-medium">
+        <div className="flex items-center gap-2 text-xs shrink-0 flex-wrap">
+          <div className="px-3 py-1.5 bg-white border border-slate-250 rounded-xl shadow-sm text-slate-600 font-medium">
             Jami tushum: <span className="text-emerald-600 font-mono font-bold">{uzs(jami_tolov)}</span>
           </div>
-          <div className="px-3.5 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl shadow-sm text-emerald-800 font-medium">
+          <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl shadow-sm text-emerald-800 font-medium">
             Sof foyda: <span className={`font-mono font-bold ${jami_foyda >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
               {jami_foyda >= 0 ? '+' : ''}{uzs(Math.abs(jami_foyda))}
             </span>
@@ -110,7 +110,7 @@ export default function LedgerTable() {
       </div>
 
       {/* ── Filter Bar & Controls ── */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-3.5 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
         {/* Status Dropdown */}
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-slate-400 shrink-0" />
@@ -118,7 +118,7 @@ export default function LedgerTable() {
           <select
             value={selectedStatus}
             onChange={e => handleStatusChange(e.target.value)}
-            className="sb-input appearance-none text-xs bg-slate-50 border-slate-300 rounded-xl font-semibold py-1.5 pr-8 min-w-[200px]"
+            className="sb-input appearance-none text-xs bg-slate-50 border-slate-300 rounded-xl font-semibold py-1.5 pr-8 w-full sm:w-auto sm:min-w-[200px]"
           >
             {STATUS_OPTIONS.map(opt => (
               <option key={opt.value} value={opt.value}>
@@ -164,7 +164,8 @@ export default function LedgerTable() {
             <EmptyState label={searchQuery || selectedStatus !== 'ALL' ? "Tanlangan filtr bo'yicha buyurtmalar topilmadi." : "Hozircha hech qanday buyurtma mavjud emas."} />
           </div>
         ) : (
-          <TableShell>
+          <div className="w-full overflow-x-auto">
+            <TableShell>
             <thead>
               <tr>
                 <Th>Talaba</Th>
@@ -243,6 +244,7 @@ export default function LedgerTable() {
               </tr>
             </tfoot>
           </TableShell>
+          </div>
         )}
 
         {/* ── Pagination Bar ── */}

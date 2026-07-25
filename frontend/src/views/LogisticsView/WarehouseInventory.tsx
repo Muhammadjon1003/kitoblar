@@ -132,10 +132,10 @@ export default function WarehouseInventory() {
   ];
 
   return (
-    <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6 bg-slate-50">
+    <div className="flex-1 overflow-y-auto px-3.5 sm:px-7 py-4 sm:py-6 space-y-6 bg-slate-50">
       
       {/* Page Title Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
             <Archive className="w-5 h-5 text-indigo-600" />
@@ -145,7 +145,7 @@ export default function WarehouseInventory() {
             Kompaniyadagi barcha jismoniy kitoblar: kelgan (topshirilmagan), bekor qilingan va ombordagi darsliklar.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[11px] font-bold px-3 py-1 bg-white border border-slate-300 rounded-lg text-slate-700 shadow-sm">
             Biriktiriladigan: {allocatableItems.length} ta
           </span>
@@ -252,59 +252,61 @@ export default function WarehouseInventory() {
             <EmptyState label="Hozircha kompaniya qo'lida hech qanday kitob mavjud emas." />
           </div>
         ) : (
-          <TableShell>
-            <thead>
-              <tr>
-                <Th>#</Th>
-                <Th>Kitob nomi</Th>
-                <Th>Talaba / Guruh</Th>
-                <Th>Kategoriya</Th>
-                <Th>Sotuv Narxi</Th>
-                <Th>Holati</Th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {companyBooksList.map((item, idx) => (
-                <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                  <Td mono>{idx + 1}</Td>
-                  <Td><span className="font-bold text-slate-800">{item.title}</span></Td>
-                  <Td>
-                    {item.studentName !== '—' ? (
-                      <div>
-                        <p className="font-bold text-slate-800 text-xs">{item.studentName}</p>
-                        <p className="text-[10px] text-slate-500 font-semibold">{item.groupName}</p>
-                      </div>
-                    ) : (
-                      <span className="text-slate-400 font-medium">—</span>
-                    )}
-                  </Td>
-                  <Td muted>{item.categoryName}</Td>
-                  <Td mono>
-                    <span className="text-emerald-600 font-bold">{uzs(item.price)}</span>
-                  </Td>
-                  <Td>
-                    {item.statusType === 'ARRIVED' ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-100 border border-amber-200 text-amber-800 rounded-full text-[10px] font-bold">
-                        <Package className="w-3 h-3" /> Kelgan (Topshirilmagan)
-                      </span>
-                    ) : item.statusType === 'CANCELLED' ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-rose-100 border border-rose-200 text-rose-700 rounded-full text-[10px] font-bold">
-                        <XCircle className="w-3 h-3" /> Bekor qilingan (Omborda)
-                      </span>
-                    ) : item.statusType === 'RETURNED' ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-purple-100 border border-purple-200 text-purple-700 rounded-full text-[10px] font-bold">
-                        <RotateCcw className="w-3 h-3" /> Qaytarilgan (Omborda)
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 rounded-full text-[10px] font-bold">
-                        <CheckCircle2 className="w-3 h-3 text-slate-500" /> Ombor Inventari
-                      </span>
-                    )}
-                  </Td>
+          <div className="w-full overflow-x-auto">
+            <TableShell>
+              <thead>
+                <tr>
+                  <Th>#</Th>
+                  <Th>Kitob nomi</Th>
+                  <Th>Talaba / Guruh</Th>
+                  <Th>Kategoriya</Th>
+                  <Th>Sotuv Narxi</Th>
+                  <Th>Holati</Th>
                 </tr>
-              ))}
-            </tbody>
-          </TableShell>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {companyBooksList.map((item, idx) => (
+                  <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
+                    <Td mono>{idx + 1}</Td>
+                    <Td><span className="font-bold text-slate-800">{item.title}</span></Td>
+                    <Td>
+                      {item.studentName !== '—' ? (
+                        <div>
+                          <p className="font-bold text-slate-800 text-xs">{item.studentName}</p>
+                          <p className="text-[10px] text-slate-500 font-semibold">{item.groupName}</p>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 font-medium">—</span>
+                      )}
+                    </Td>
+                    <Td muted>{item.categoryName}</Td>
+                    <Td mono>
+                      <span className="text-emerald-600 font-bold">{uzs(item.price)}</span>
+                    </Td>
+                    <Td>
+                      {item.statusType === 'ARRIVED' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-100 border border-amber-200 text-amber-800 rounded-full text-[10px] font-bold">
+                          <Package className="w-3 h-3" /> Kelgan (Topshirilmagan)
+                        </span>
+                      ) : item.statusType === 'CANCELLED' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-rose-100 border border-rose-200 text-rose-700 rounded-full text-[10px] font-bold">
+                          <XCircle className="w-3 h-3" /> Bekor qilingan (Omborda)
+                        </span>
+                      ) : item.statusType === 'RETURNED' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-purple-100 border border-purple-200 text-purple-700 rounded-full text-[10px] font-bold">
+                          <RotateCcw className="w-3 h-3" /> Qaytarilgan (Omborda)
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 rounded-full text-[10px] font-bold">
+                          <CheckCircle2 className="w-3 h-3 text-slate-500" /> Ombor Inventari
+                        </span>
+                      )}
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </TableShell>
+          </div>
         )}
       </div>
 

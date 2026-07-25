@@ -119,14 +119,14 @@ export default function MoliyaviyTahlil() {
   })).sort((a, b) => b.revenue - a.revenue);
 
   return (
-    <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6 bg-slate-50">
+    <div className="flex-1 overflow-y-auto px-3.5 sm:px-7 py-4 sm:py-6 space-y-6 bg-slate-50">
       
       {/* ── 1. KPI Cards (4 Key Metrics) ── */}
       <div>
         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
           <BarChart2 className="w-3.5 h-3.5 text-blue-600" /> Moliyaviy ko'rsatkichlar va Ombor potentsiali
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5">
           {kpilar.map(kpi => (
             <KpiCard key={kpi.label} {...kpi} />
           ))}
@@ -270,54 +270,56 @@ export default function MoliyaviyTahlil() {
           </div>
         </div>
 
-        <TableShell>
-          <thead>
-            <tr>
-              <Th>Talaba</Th>
-              <Th>Kitob</Th>
-              <Th>To'langan</Th>
-              <Th>Sof foyda</Th>
-              <Th>Holati</Th>
-              <Th>Vaqt</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {recentSortedOrders.slice(0, 5).map(o => {
-              const inv = getInventoryItem(o.bookId);
-              const foyda = o.amountPaid - o.bookCost;
-              const isCourseIncluded = o.sotuvNarxi === 0;
+        <div className="w-full overflow-x-auto">
+          <TableShell>
+            <thead>
+              <tr>
+                <Th>Talaba</Th>
+                <Th>Kitob</Th>
+                <Th>To'langan</Th>
+                <Th>Sof foyda</Th>
+                <Th>Holati</Th>
+                <Th>Vaqt</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {recentSortedOrders.slice(0, 5).map(o => {
+                const inv = getInventoryItem(o.bookId);
+                const foyda = o.amountPaid - o.bookCost;
+                const isCourseIncluded = o.sotuvNarxi === 0;
 
-              return (
-                <tr key={o.id} className="hover:bg-slate-50 transition-colors">
-                  <Td>
-                    <span className="font-bold text-slate-800">{getStudentName(o.studentId)}</span>
-                  </Td>
-                  <Td>{inv?.title ?? '—'}</Td>
-                  <Td mono>
-                    {isCourseIncluded ? (
-                      <span className="inline-flex items-center px-2 py-0.5 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] rounded-md font-sans">To'lov ichida</span>
-                    ) : (
-                      <span className="text-emerald-600 font-bold">{uzs(o.amountPaid)}</span>
-                    )}
-                  </Td>
-                  <Td mono>
-                    {isCourseIncluded ? (
-                      <span className="inline-flex items-center px-2 py-0.5 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] rounded-md font-sans">To'lov ichida</span>
-                    ) : (
-                      <span className={`font-bold ${foyda >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
-                        {foyda >= 0 ? '+' : ''}{uzs(Math.abs(foyda))}
-                      </span>
-                    )}
-                  </Td>
-                  <Td>
-                    <StatusBadge status={o.status} />
-                  </Td>
-                  <Td mono muted>{o.updatedAt}</Td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </TableShell>
+                return (
+                  <tr key={o.id} className="hover:bg-slate-50 transition-colors">
+                    <Td>
+                      <span className="font-bold text-slate-800">{getStudentName(o.studentId)}</span>
+                    </Td>
+                    <Td>{inv?.title ?? '—'}</Td>
+                    <Td mono>
+                      {isCourseIncluded ? (
+                        <span className="inline-flex items-center px-2 py-0.5 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] rounded-md font-sans">To'lov ichida</span>
+                      ) : (
+                        <span className="text-emerald-600 font-bold">{uzs(o.amountPaid)}</span>
+                      )}
+                    </Td>
+                    <Td mono>
+                      {isCourseIncluded ? (
+                        <span className="inline-flex items-center px-2 py-0.5 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] rounded-md font-sans">To'lov ichida</span>
+                      ) : (
+                        <span className={`font-bold ${foyda >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
+                          {foyda >= 0 ? '+' : ''}{uzs(Math.abs(foyda))}
+                        </span>
+                      )}
+                    </Td>
+                    <Td>
+                      <StatusBadge status={o.status} />
+                    </Td>
+                    <Td mono muted>{o.updatedAt}</Td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </TableShell>
+        </div>
       </div>
 
     </div>

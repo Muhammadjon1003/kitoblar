@@ -142,7 +142,7 @@ export default function LogisticsBooksCatalog() {
   });
 
   return (
-    <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6 bg-slate-50">
+    <div className="flex-1 overflow-y-auto px-3.5 sm:px-7 py-4 sm:py-6 space-y-6 bg-slate-50">
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -158,7 +158,7 @@ export default function LogisticsBooksCatalog() {
       </div>
 
       {/* Filter / Search Bar */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex items-center justify-between gap-4">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
           <input
@@ -183,7 +183,8 @@ export default function LogisticsBooksCatalog() {
             <EmptyState label={searchQuery ? `"${searchQuery}" bo'yicha darslik topilmadi.` : "Hozircha darsliklar ro'yxati bo'sh."} />
           </div>
         ) : (
-          <TableShell>
+          <div className="w-full overflow-x-auto">
+            <TableShell>
             <thead>
               <tr>
                 <Th>#</Th>
@@ -238,6 +239,7 @@ export default function LogisticsBooksCatalog() {
               })}
             </tbody>
           </TableShell>
+          </div>
         )}
       </div>
 

@@ -57,21 +57,23 @@ export default function TeacherView() {
   return (
     <div className="flex flex-col h-full bg-slate-50">
       {/* Asboblar paneli */}
-      <div className="flex items-center gap-4 px-7 py-4 border-b border-slate-200 bg-white shrink-0">
-        <div className="relative">
-          <select className="sb-input appearance-none pr-8 text-sm font-medium"
-            value={activeGroupId}
-            onChange={e => { setActiveGroupId(e.target.value); setSelectedIds(new Set()); }}>
-            {teacherGroups.map(g => <option key={g.id} value={g.id}>{g.groupName}</option>)}
-          </select>
-          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3.5 sm:px-7 py-3 sm:py-4 border-b border-slate-200 bg-white shrink-0">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="relative flex-1 sm:flex-none min-w-[160px]">
+            <select className="sb-input appearance-none pr-8 text-sm font-medium w-full"
+              value={activeGroupId}
+              onChange={e => { setActiveGroupId(e.target.value); setSelectedIds(new Set()); }}>
+              {teacherGroups.map(g => <option key={g.id} value={g.id}>{g.groupName}</option>)}
+            </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          </div>
+
+          <span className="text-[11px] text-slate-600 font-semibold border border-slate-200 rounded-lg px-2.5 py-1.5 bg-slate-50 shrink-0">
+            {groupStudents.length} ta talaba
+          </span>
         </div>
 
-        <span className="text-[11px] text-slate-600 font-semibold border border-slate-200 rounded-lg px-2.5 py-1.5 bg-slate-50">
-          {groupStudents.length} ta talaba
-        </span>
-
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 pt-1 sm:pt-0">
           {selectedIds.size > 0 && (
             <span className="text-[11px] text-blue-600 bg-blue-50 border border-blue-100 rounded-lg px-2 py-1 font-semibold">
               {selectedIds.size} ta tanlandi
@@ -79,19 +81,20 @@ export default function TeacherView() {
           )}
           <button onClick={() => selectedIds.size > 0 && setShowModal(true)}
             disabled={selectedIds.size === 0}
-            className="sb-btn-primary flex items-center gap-1.5 text-xs py-1.5 px-3 disabled:opacity-40">
+            className="sb-btn-primary flex items-center gap-1.5 text-xs py-1.5 px-3 disabled:opacity-40 ml-auto sm:ml-0">
             <BookOpen className="w-3.5 h-3.5" /> Buyurtma yaratish
           </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-7 py-5">
+      <div className="flex-1 overflow-y-auto px-3.5 sm:px-7 py-4 sm:py-5">
         {teacherGroups.length === 0 ? (
           <EmptyState label="Sizga biriktirilgan guruhlar topilmadi." />
         ) : groupStudents.length === 0 ? (
           <EmptyState label="Bu guruhda hali talabalar yo'q." />
         ) : (
-          <TableShell>
+          <div className="w-full overflow-x-auto bg-white border border-slate-200 rounded-2xl shadow-sm">
+            <TableShell>
             <thead>
               <tr>
                 <Th>
@@ -145,6 +148,7 @@ export default function TeacherView() {
               })}
             </tbody>
           </TableShell>
+          </div>
         )}
       </div>
 

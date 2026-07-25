@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react';
-import { Bell, LogOut } from 'lucide-react';
+import { Bell, LogOut, Menu } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import NotificationsModal from './NotificationsModal';
 import type { UserRole } from '../types';
@@ -16,7 +16,7 @@ const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
 };
 
 export default function Topbar() {
-  const { activeRole, notifications, currentUser, logout } = useApp();
+  const { activeRole, notifications, currentUser, logout, toggleMobileMenu } = useApp();
   const [showNotifications, setShowNotifications] = useState(false);
 
   const userNotifications = notifications.filter(n => {
@@ -29,11 +29,23 @@ export default function Topbar() {
   const unread = userNotifications.filter(n => !n.isRead).length;
 
   return (
-    <header className="flex items-center justify-between px-6 py-3 border-b border-slate-200 bg-white shrink-0 shadow-sm relative">
+    <header className="flex items-center justify-between px-3.5 sm:px-6 py-2.5 sm:py-3 border-b border-slate-200 bg-white shrink-0 shadow-sm relative">
       {/* Chap tomon */}
-      <div>
-        <h1 className="text-[14px] font-bold text-slate-800 tracking-tight">SmartBook ERP</h1>
-        <p className="text-[11px] text-slate-400 mt-0.5">{ROLE_DESCRIPTIONS[activeRole]}</p>
+      <div className="flex items-center gap-2.5">
+        <button
+          onClick={toggleMobileMenu}
+          className="md:hidden p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors"
+          title="Menyu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
+        <div>
+          <h1 className="text-xs sm:text-[14px] font-bold text-slate-800 tracking-tight flex items-center gap-1.5">
+            SmartBook ERP
+          </h1>
+          <p className="text-[10px] text-slate-400 mt-0.5 hidden sm:block">{ROLE_DESCRIPTIONS[activeRole]}</p>
+        </div>
       </div>
 
       {/* O'ng tomon */}

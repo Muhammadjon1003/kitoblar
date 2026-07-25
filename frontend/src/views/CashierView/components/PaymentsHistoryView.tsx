@@ -26,13 +26,13 @@ export default function PaymentsHistoryView() {
   });
 
   return (
-    <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6 bg-slate-50">
-      <div className="flex items-center justify-between">
+    <div className="flex-1 overflow-y-auto px-3.5 sm:px-7 py-4 sm:py-6 space-y-6 bg-slate-50">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-slate-800">To'lovlar Tarixi</h2>
           <p className="text-xs text-slate-700 font-semibold mt-0.5">Tizimdagi barcha to'lov operatsiyalari va ularni tahrirlash</p>
         </div>
-        <span className="text-[11px] font-bold text-slate-700 bg-slate-200 border border-slate-350 px-2.5 py-1 rounded-lg">
+        <span className="text-[11px] font-bold text-slate-700 bg-slate-200 border border-slate-350 px-2.5 py-1 rounded-lg self-start sm:self-auto">
           Jami: {allOrders.length} ta buyurtma
         </span>
       </div>
@@ -41,7 +41,8 @@ export default function PaymentsHistoryView() {
         {allOrders.length === 0 ? (
           <EmptyState label="Hozircha hech qanday buyurtma mavjud emas." />
         ) : (
-          <TableShell>
+          <div className="w-full overflow-x-auto">
+            <TableShell>
             <thead>
               <tr>
                 <Th>Talaba</Th>
@@ -95,6 +96,7 @@ export default function PaymentsHistoryView() {
               })}
             </tbody>
           </TableShell>
+          </div>
         )}
       </div>
 

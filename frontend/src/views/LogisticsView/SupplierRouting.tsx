@@ -91,18 +91,18 @@ export default function SupplierRouting() {
   const bulkYoldaOrdersToAccept = yoldaBuyurtmalar.filter(o => selectedYoldaIds.has(o.id));
 
   return (
-    <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6 bg-slate-50">
+    <div className="flex-1 overflow-y-auto px-3.5 sm:px-7 py-4 sm:py-6 space-y-6 bg-slate-50">
 
       {/* ── To'langan buyurtmalar: tanlash va yetkazib berish ── */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 bg-slate-100/60 border-b border-slate-200 gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-4 bg-slate-100/60 border-b border-slate-200 gap-3">
           <div>
             <p className="text-sm font-bold text-slate-800">To'langan buyurtmalar — Ta'minotchiga yo'naltirish</p>
             <p className="text-[11px] font-semibold text-slate-600 mt-0.5">
               Buyurtmalarni tanlang va ta'minotchiga yuboring. Holat: To'langan → Yo'lda.
             </p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             <button
               onClick={handleSendTelegram}
               disabled={yuborilmoqda || tolovBuyurtmalar.length === 0}
@@ -133,7 +133,8 @@ export default function SupplierRouting() {
             <EmptyState label="Hozircha to'langan va yuborilish kutilayotgan buyurtmalar yo'q." />
           </div>
         ) : (
-          <TableShell>
+          <div className="w-full overflow-x-auto">
+            <TableShell>
             <thead>
               <tr>
                 <Th>
@@ -192,12 +193,13 @@ export default function SupplierRouting() {
               })}
             </tbody>
           </TableShell>
+          </div>
         )}
       </div>
 
       {/* ── Yo'lda buyurtmalar — Keldi deb belgilash ── */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 bg-slate-100/60 border-b border-slate-200 gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-4 bg-slate-100/60 border-b border-slate-200 gap-3">
           <div>
             <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
               <Truck className="w-4.5 h-4.5 text-amber-500" />
@@ -228,7 +230,8 @@ export default function SupplierRouting() {
             <EmptyState label="Hozircha yo'lda bo'lgan kutilayotgan kitoblar yo'q." />
           </div>
         ) : (
-          <TableShell>
+          <div className="w-full overflow-x-auto">
+            <TableShell>
             <thead>
               <tr>
                 <Th>
@@ -301,6 +304,7 @@ export default function SupplierRouting() {
               })}
             </tbody>
           </TableShell>
+          </div>
         )}
       </div>
 

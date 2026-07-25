@@ -52,6 +52,10 @@ interface AppContextType {
   activeSubPage: SubPage;
   setActiveRole: (r: UserRole) => void;
   setActiveSubPage: (p: SubPage) => void;
+  isMobileMenuOpen: boolean;
+  setIsMobileMenuOpen: (open: boolean) => void;
+  toggleMobileMenu: () => void;
+  closeMobileMenu: () => void;
 
   // ── Authentication & User Accounts
   currentUser: AuthUser | null;
@@ -188,6 +192,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Active role is strictly bound to currentUser's role
   const activeRole: UserRole = currentUser ? currentUser.role : 'CASHIER';
   const [activeSubPage, setActiveSubPageState] = useState<SubPage>(() => getInitialSubPage(currentUser));
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const toggleMobileMenu = useCallback(() => setIsMobileMenuOpen(prev => !prev), []);
+  const closeMobileMenu  = useCallback(() => setIsMobileMenuOpen(false), []);
 
   const [users,      setUsers]          = useState<AuthUser[]>([]);
   const [teachers]  = useState<Teacher[]>(SEED_TEACHERS);
@@ -230,6 +238,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const validSubs = VALID_SUBPAGES[currentUser.role];
     if (validSubs.includes(sp)) {
       setActiveSubPageState(sp);
+      setIsMobileMenuOpen(false);
       updateHashRoute(currentUser.role, sp);
     }
   }, [currentUser]);
@@ -240,6 +249,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     const defaultSub = DEFAULT_SUBPAGE[r];
     setActiveSubPageState(defaultSub);
+    setIsMobileMenuOpen(false);
     updateHashRoute(r, defaultSub);
   }, [currentUser]);
 
@@ -936,6 +946,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       activeRole, activeSubPage, setActiveRole, setActiveSubPage,
+      isMobileMenuOpen, setIsMobileMenuOpen, toggleMobileMenu, closeMobileMenu,
       currentUser, users, login, logout, createUserAccount, deleteUserAccount, updateUserAccount, refreshUsers,
       teachers, groups, students, inventory, orders, notifications, toasts, setOrders,
       sotuvNarxi,

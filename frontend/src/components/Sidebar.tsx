@@ -2,7 +2,7 @@
  * components/Sidebar.tsx — O'zbek tili
  */
 
-import { Package, ChevronRight, LogOut } from 'lucide-react';
+import { Package, ChevronRight, LogOut, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import type { UserRole, SubPage } from '../types';
 
@@ -29,21 +29,28 @@ const ROLE_LABEL: Record<UserRole, string> = {
   MANAGER:   'Menejer',
 };
 
-export default function Sidebar() {
+function SidebarContent({ onCloseMobile }: { onCloseMobile?: () => void }) {
   const { activeRole, activeSubPage, setActiveSubPage, currentUser, logout } = useApp();
   const navItems = ROLE_NAV[activeRole];
 
   return (
-    <aside className="flex flex-col w-52 min-h-screen bg-white border-r border-slate-200 shrink-0">
-      {/* Brend */}
-      <div className="flex items-center gap-2.5 px-5 py-5 border-b border-slate-100">
-        <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
-          <Package className="w-4 h-4 text-white" />
+    <div className="flex flex-col h-full bg-white border-r border-slate-200">
+      {/* Brend Header */}
+      <div className="flex items-center justify-between px-5 py-5 border-b border-slate-100">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
+            <Package className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-800 tracking-tight">SmartBook</p>
+            <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">ERP Tizim</p>
+          </div>
         </div>
-        <div>
-          <p className="text-sm font-bold text-slate-800 tracking-tight">SmartBook</p>
-          <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">ERP Tizim</p>
-        </div>
+        {onCloseMobile && (
+          <button onClick={onCloseMobile} className="p-1 rounded-lg hover:bg-slate-100 text-slate-400">
+            <X className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
       {/* Faol rol belgisi */}
@@ -55,14 +62,17 @@ export default function Sidebar() {
       </div>
 
       {/* Navigatsiya */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5">
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest px-2 mb-2">Ish maydoni</p>
         {navItems.map(({ key, label }) => {
           const active = activeSubPage === key;
           return (
             <button
               key={key}
-              onClick={() => setActiveSubPage(key)}
+              onClick={() => {
+                setActiveSubPage(key);
+                if (onCloseMobile) onCloseMobile();
+              }}
               className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-[13px] font-medium transition-all duration-100 ${
                 active
                   ? 'bg-blue-50 text-blue-700 border border-blue-100 font-bold'
@@ -98,6 +108,34 @@ export default function Sidebar() {
           Tizimdan Chiqish
         </button>
       </div>
-    </aside>
+    </div>
+  );
+}
+
+export default function Sidebar() {
+  const { isMobileMenuOpen, closeMobileMenu } = useApp();
+
+  return (
+    <>
+      {/* 1. Desktop Sidebar (hidden on mobile, visible on md+) */}
+      <aside className="hidden md:flex flex-col w-56 shrink-0 h-full">
+        <SidebarContent />
+      </aside>
+
+      {/* 2. Mobile Drawer (visible when isMobileMenuOpen is true) */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden flex">
+          {/* Overlay backdrop */}
+          <div
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
+            onClick={closeMobileMenu}
+          />
+          {/* Drawer container */}
+          <div className="relative w-64 max-w-[80vw] h-full z-10 shadow-2xl animate-in slide-in-from-left duration-200">
+            <SidebarContent onCloseMobile={closeMobileMenu} />
+          </div>
+        </div>
+      )}
+    </>
   );
 }

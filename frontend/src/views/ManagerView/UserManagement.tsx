@@ -315,10 +315,10 @@ export default function UserManagement() {
   });
 
   return (
-    <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6 bg-slate-50">
+    <div className="flex-1 overflow-y-auto px-3.5 sm:px-7 py-4 sm:py-6 space-y-6 bg-slate-50">
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
             <Shield className="w-5 h-5 text-indigo-600" />
@@ -331,7 +331,7 @@ export default function UserManagement() {
 
         <button
           onClick={() => setShowAddModal(true)}
-          className="py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 transition-all shrink-0"
+          className="py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition-all shrink-0 self-start sm:self-auto"
         >
           <UserPlus className="w-4 h-4" />
           Yangi Xodim Qo'shish
@@ -339,7 +339,7 @@ export default function UserManagement() {
       </div>
 
       {/* Filter / Search Bar */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex items-center justify-between gap-4">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
           <input
@@ -364,7 +364,8 @@ export default function UserManagement() {
             <EmptyState label={searchQuery ? `"${searchQuery}" bo'yicha xodim topilmadi.` : "Hozircha xodimlar ro'yxati bo'sh."} />
           </div>
         ) : (
-          <TableShell>
+          <div className="w-full overflow-x-auto">
+            <TableShell>
             <thead>
               <tr>
                 <Th>#</Th>
@@ -430,6 +431,7 @@ export default function UserManagement() {
               })}
             </tbody>
           </TableShell>
+          </div>
         )}
       </div>
 
