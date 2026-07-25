@@ -897,6 +897,22 @@ app.post('/api/orders/smart-create', upload.single('bookFile'), async (req, res)
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }
+// POST /backend/wipe-orders-groups-students — delete orders, groups, and students (preserve books and users)
+app.post('/backend/wipe-orders-groups-students', async (req, res) => {
+  try {
+    const deletedOrders = await prisma.erpOrder.deleteMany({});
+    const deletedStudents = await prisma.erpStudent.deleteMany({});
+    const deletedGroups = await prisma.erpGroup.deleteMany({});
+    res.json({
+      success: true,
+      message: 'Orders, students, and groups deleted successfully.',
+      deletedOrders: deletedOrders.count,
+      deletedStudents: deletedStudents.count,
+      deletedGroups: deletedGroups.count,
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Setup Telegram Webhook or Polling
