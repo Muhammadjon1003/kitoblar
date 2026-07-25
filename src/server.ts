@@ -792,8 +792,22 @@ app.post('/backend/orders/send-telegram', async (req, res) => {
 });
 
 const lastRequests: any[] = [];
+const recentBotChats = new Map<number | string, { id: number | string; title: string; type: string; lastSeen: string }>();
 
 app.all('/telegram-webhook', (req, res, next) => {
+  try {
+    const update = req.body;
+    const chat = update?.message?.chat || update?.my_chat_member?.chat || update?.channel_post?.chat || update?.edited_message?.chat;
+    if (chat && chat.id) {
+      recentBotChats.set(chat.id, {
+        id: chat.id,
+        title: chat.title || chat.username || chat.first_name || 'Chat',
+        type: chat.type || 'unknown',
+        lastSeen: new Date().toISOString(),
+      });
+    }
+  } catch (_) {}
+
   lastRequests.push({
     timestamp: new Date().toISOString(),
     path: req.path,
@@ -808,6 +822,11 @@ app.all('/telegram-webhook', (req, res, next) => {
 
 app.get('/webhook-debug', (req, res) => {
   res.json(lastRequests);
+});
+
+// GET /backend/bot-chats — Returns all Telegram groups/chats captured by webhook
+app.get('/backend/bot-chats', (req, res) => {
+  res.json(Array.from(recentBotChats.values()));
 });
 
 // Live Telegram Webhook Diagnostic Route
