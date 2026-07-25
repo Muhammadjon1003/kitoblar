@@ -3,7 +3,8 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 const BOT_TOKEN = process.env.BOT_TOKEN || 'YOUR_TELEGRAM_BOT_TOKEN';
-export const STORAGE_CHANNEL_ID = process.env.STORAGE_CHANNEL_ID || '@your_storage_channel';
+export const STORAGE_CHANNEL_ID = process.env.STORAGE_CHANNEL_ID || '-1002130662251';
+export const STAFF_GROUP_ID = process.env.STAFF_GROUP_ID || '-1002130662251';
 
 // Initialize the Telegram Bot
 export const bot = new Telegraf(BOT_TOKEN);

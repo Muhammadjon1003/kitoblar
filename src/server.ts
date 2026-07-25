@@ -753,7 +753,7 @@ app.post('/backend/orders/send-telegram', async (req, res) => {
       groups[o.bookId].students.push(o.student.fullName);
     }
 
-    let targetChatId = process.env.STAFF_GROUP_ID || process.env.STORAGE_CHANNEL_ID || '';
+    let targetChatId = process.env.STAFF_GROUP_ID || process.env.STORAGE_CHANNEL_ID || '-1002130662251';
     if (targetChatId && !targetChatId.startsWith('@') && !targetChatId.startsWith('-')) {
       if (targetChatId.length >= 10) {
         targetChatId = `-100${targetChatId}`;
