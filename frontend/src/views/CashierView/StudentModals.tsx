@@ -7,13 +7,17 @@ import { useState } from 'react';
 import { FolderPlus, Users, ChevronDown, Loader2, AlertCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ModalShell } from '../../components/ui';
+import type { Group } from '../../types';
 
 const API = 'https://kitoblar-seven.vercel.app';
 
 // ─── Create Group Modal ────────────────────────────────────────────────────────
 
-export function CreateGroupModal({ onClose }: { onClose: () => void }) {
-  const { fireToast, refreshGroups, users, teachers } = useApp();
+export function CreateGroupModal({ onClose, lockedTeacherName }: { onClose: () => void; lockedTeacherName?: string }) {
+  const { fireToast, refreshGroups, users, teachers, currentUser } = useApp();
+
+  const initialTeacher = lockedTeacherName || (currentUser?.role === 'TEACHER' ? currentUser.fullName : '');
+  const isTeacherLocked = !!initialTeacher;
 
   const teacherOptions = Array.from(
     new Set([
@@ -23,7 +27,7 @@ export function CreateGroupModal({ onClose }: { onClose: () => void }) {
   ).filter(Boolean);
 
   const [nom,            setNom]            = useState('');
-  const [oqituvchi,     setOqituvchi]       = useState('');
+  const [oqituvchi,     setOqituvchi]       = useState(initialTeacher);
   const [kategoriya,     setKategoriya]     = useState('');
   const [boshlanish,    setBoshlanish]      = useState('');
   const [tugash,        setTugash]          = useState('');
@@ -81,22 +85,30 @@ export function CreateGroupModal({ onClose }: { onClose: () => void }) {
           />
         </div>
 
-        {/* Teacher Selection Dropdown */}
+        {/* Teacher Selection Dropdown / Locked Field */}
         <div>
           <label className="sb-label">Mas'ul o'qituvchi</label>
-          <div className="relative">
-            <select
-              className="sb-input appearance-none pr-8 font-semibold text-slate-800"
+          {isTeacherLocked ? (
+            <input
+              className="sb-input bg-slate-100 font-bold text-slate-800 border-slate-300 cursor-not-allowed"
               value={oqituvchi}
-              onChange={e => { setOqituvchi(e.target.value); setXato(''); }}
-            >
-              <option value="">O'qituvchini tanlang...</option>
-              {teacherOptions.map(name => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-          </div>
+              disabled
+            />
+          ) : (
+            <div className="relative">
+              <select
+                className="sb-input appearance-none pr-8 font-semibold text-slate-800"
+                value={oqituvchi}
+                onChange={e => { setOqituvchi(e.target.value); setXato(''); }}
+              >
+                <option value="">O'qituvchini tanlang...</option>
+                {teacherOptions.map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            </div>
+          )}
         </div>
 
         {/* Subject Category */}
@@ -154,10 +166,16 @@ export function CreateGroupModal({ onClose }: { onClose: () => void }) {
 
 // ─── Bulk Add Students Modal (Standalone or Tabbed) ───────────────────────────
 
-export function BulkAddStudentModal({ defaultGroupId, onClose }: { defaultGroupId?: string; onClose: () => void }) {
-  const { groups, fireToast, refreshStudents } = useApp();
+export function BulkAddStudentModal({ defaultGroupId, allowedGroups, onClose }: { defaultGroupId?: string; allowedGroups?: Group[]; onClose: () => void }) {
+  const { groups, currentUser, fireToast, refreshStudents } = useApp();
 
-  const [guruhId, setGuruhId]       = useState(defaultGroupId ?? groups[0]?.id ?? '');
+  const availableGroups = allowedGroups ?? (currentUser?.role === 'TEACHER' && currentUser.fullName ? groups.filter(g => {
+    const uLower = currentUser.fullName.toLowerCase().trim();
+    const gLower = g.teacherName.toLowerCase().trim();
+    return gLower === uLower || (uLower.length > 2 && gLower.includes(uLower)) || (gLower.length > 2 && uLower.includes(gLower));
+  }) : groups);
+
+  const [guruhId, setGuruhId]       = useState(defaultGroupId ?? availableGroups[0]?.id ?? '');
   const [namesText, setNamesText]   = useState('');
   const [yuklanyapti, setYuklanyapti] = useState(false);
   const [xato, setXato]             = useState('');
@@ -208,7 +226,7 @@ export function BulkAddStudentModal({ defaultGroupId, onClose }: { defaultGroupI
     }
   };
 
-  const selectedGroup = groups.find(g => g.id === guruhId);
+  const selectedGroup = availableGroups.find(g => g.id === guruhId);
 
   return (
     <ModalShell
@@ -221,7 +239,7 @@ export function BulkAddStudentModal({ defaultGroupId, onClose }: { defaultGroupI
         {/* Group selection */}
         <div>
           <label className="sb-label">Qaysi guruhga qo'shilsin?</label>
-          {groups.length === 0 ? (
+          {availableGroups.length === 0 ? (
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[12px] font-semibold text-amber-700">
               Hech qanday guruh topilmadi. Avval guruh yarating.
             </div>
@@ -232,7 +250,7 @@ export function BulkAddStudentModal({ defaultGroupId, onClose }: { defaultGroupI
                 value={guruhId}
                 onChange={e => { setGuruhId(e.target.value); setXato(''); }}
               >
-                {groups.map(g => (
+                {availableGroups.map(g => (
                   <option key={g.id} value={g.id}>
                     {g.groupName} ({g.teacherName})
                   </option>
@@ -289,7 +307,7 @@ export function BulkAddStudentModal({ defaultGroupId, onClose }: { defaultGroupI
           </button>
           <button
             type="submit"
-            disabled={yuklanyapti || groups.length === 0 || parsedNames.length === 0}
+            disabled={yuklanyapti || availableGroups.length === 0 || parsedNames.length === 0}
             className="sb-btn-primary flex-1 flex items-center justify-center gap-1.5 text-xs disabled:opacity-40"
           >
             {yuklanyapti ? (
@@ -306,13 +324,19 @@ export function BulkAddStudentModal({ defaultGroupId, onClose }: { defaultGroupI
 
 // ─── Add Student Modal (Single & Tabbed) ───────────────────────────────────────
 
-export function AddStudentModal({ defaultGroupId, onClose }: { defaultGroupId?: string; onClose: () => void }) {
-  const { groups, fireToast, refreshStudents } = useApp();
+export function AddStudentModal({ defaultGroupId, allowedGroups, onClose }: { defaultGroupId?: string; allowedGroups?: Group[]; onClose: () => void }) {
+  const { groups, currentUser, fireToast, refreshStudents } = useApp();
+
+  const availableGroups = allowedGroups ?? (currentUser?.role === 'TEACHER' && currentUser.fullName ? groups.filter(g => {
+    const uLower = currentUser.fullName.toLowerCase().trim();
+    const gLower = g.teacherName.toLowerCase().trim();
+    return gLower === uLower || (uLower.length > 2 && gLower.includes(uLower)) || (gLower.length > 2 && uLower.includes(gLower));
+  }) : groups);
 
   const [mode, setMode]             = useState<'single' | 'bulk'>('single');
   const [ism,           setIsm]           = useState('');
   const [telefon,       setTelefon]       = useState('');
-  const [guruhId,       setGuruhId]       = useState(defaultGroupId ?? groups[0]?.id ?? '');
+  const [guruhId,       setGuruhId]       = useState(defaultGroupId ?? availableGroups[0]?.id ?? '');
   const [yuklanyapti,   setYuklanyapti]   = useState(false);
   const [xato,          setXato]          = useState('');
 
@@ -417,14 +441,14 @@ export function AddStudentModal({ defaultGroupId, onClose }: { defaultGroupId?: 
         {/* Group assignment */}
         <div>
           <label className="sb-label">Guruhga biriktirish</label>
-          {groups.length === 0 ? (
+          {availableGroups.length === 0 ? (
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[12px] font-semibold text-amber-700">
               Hech qanday guruh topilmadi. Avval guruh yarating.
             </div>
           ) : (
             <div className="relative">
               <select className="sb-input appearance-none pr-8 font-bold text-slate-800" value={guruhId} onChange={e => setGuruhId(e.target.value)}>
-                {groups.map(g => <option key={g.id} value={g.id}>{g.groupName} ({g.teacherName})</option>)}
+                {availableGroups.map(g => <option key={g.id} value={g.id}>{g.groupName} ({g.teacherName})</option>)}
               </select>
               <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>

@@ -1,12 +1,9 @@
-/**
- * views/TeacherView.tsx — O'zbek tili
- */
-
 import { useState, useMemo } from 'react';
-import { BookOpen, CheckSquare, Square, ChevronDown } from 'lucide-react';
+import { BookOpen, CheckSquare, Square, ChevronDown, FolderPlus, Users, UserPlus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { StatusBadge, EmptyState, TableShell, Th, Td } from '../components/ui';
 import BulkOrderModal from './TeacherView/BulkOrderModal';
+import { CreateGroupModal, AddStudentModal, BulkAddStudentModal } from './CashierView/StudentModals';
 
 export default function TeacherView() {
   const {
@@ -35,8 +32,11 @@ export default function TeacherView() {
   const [activeGroupIdState, setActiveGroupId] = useState<string>('');
   const activeGroupId = teacherGroups.find(g => g.id === activeGroupIdState)?.id ?? teacherGroups[0]?.id ?? '';
 
-  const [selectedIds,   setSelectedIds]   = useState<Set<string>>(new Set());
-  const [showModal,     setShowModal]     = useState(false);
+  const [selectedIds,         setSelectedIds]         = useState<Set<string>>(new Set());
+  const [showModal,           setShowModal]           = useState(false);
+  const [showCreateGroup,     setShowCreateGroup]     = useState(false);
+  const [showAddStudent,     setShowAddStudent]     = useState(false);
+  const [showBulkAddStudent, setShowBulkAddStudent] = useState(false);
 
   const groupStudents = students.filter(s => s.groupId === activeGroupId);
 
@@ -58,9 +58,9 @@ export default function TeacherView() {
     <div className="flex flex-col h-full bg-slate-50">
       {/* Asboblar paneli */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3.5 sm:px-7 py-3 sm:py-4 border-b border-slate-200 bg-white shrink-0">
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="relative flex-1 sm:flex-none min-w-[160px]">
-            <select className="sb-input appearance-none pr-8 text-sm font-medium w-full"
+            <select className="sb-input appearance-none pr-8 text-sm font-semibold w-full"
               value={activeGroupId}
               onChange={e => { setActiveGroupId(e.target.value); setSelectedIds(new Set()); }}>
               {teacherGroups.map(g => <option key={g.id} value={g.id}>{g.groupName}</option>)}
@@ -71,6 +71,31 @@ export default function TeacherView() {
           <span className="text-[11px] text-slate-600 font-semibold border border-slate-200 rounded-lg px-2.5 py-1.5 bg-slate-50 shrink-0">
             {groupStudents.length} ta talaba
           </span>
+
+          <div className="h-4 w-px bg-slate-200 hidden sm:block mx-1" />
+
+          {/* Teacher Group & Student Add Buttons */}
+          <button
+            onClick={() => setShowCreateGroup(true)}
+            className="sb-btn-secondary flex items-center gap-1.5 text-xs py-1.5 px-3"
+            title="Faqat o'zingiz uchun yangi guruh yaratish"
+          >
+            <FolderPlus className="w-3.5 h-3.5 text-slate-700" /> Guruh yaratish
+          </button>
+          <button
+            onClick={() => setShowAddStudent(true)}
+            className="sb-btn-secondary flex items-center gap-1.5 text-xs py-1.5 px-3"
+            title="Guruhingizga talaba qo'shish"
+          >
+            <Users className="w-3.5 h-3.5 text-slate-700" /> Talaba qo'shish
+          </button>
+          <button
+            onClick={() => setShowBulkAddStudent(true)}
+            className="sb-btn-secondary flex items-center gap-1.5 text-xs py-1.5 px-3 border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold"
+            title="Guruhingizga ko'plab talabalarni birvarakay qo'shish"
+          >
+            <UserPlus className="w-3.5 h-3.5 text-indigo-600" /> Ommaviy talaba qo'shish
+          </button>
         </div>
 
         <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 pt-1 sm:pt-0">
@@ -155,6 +180,32 @@ export default function TeacherView() {
       {showModal && (
         <BulkOrderModal selectedIds={[...selectedIds]} activeGroupId={activeGroupId}
           onClose={() => { setShowModal(false); setSelectedIds(new Set()); }} />
+      )}
+
+      {/* Teacher Group Creation Modal — locked to current teacher */}
+      {showCreateGroup && (
+        <CreateGroupModal
+          lockedTeacherName={currentUser?.fullName}
+          onClose={() => setShowCreateGroup(false)}
+        />
+      )}
+
+      {/* Teacher Single Student Add Modal — filtered to teacher's groups */}
+      {showAddStudent && (
+        <AddStudentModal
+          defaultGroupId={activeGroupId}
+          allowedGroups={teacherGroups}
+          onClose={() => setShowAddStudent(false)}
+        />
+      )}
+
+      {/* Teacher Bulk Student Add Modal — filtered to teacher's groups */}
+      {showBulkAddStudent && (
+        <BulkAddStudentModal
+          defaultGroupId={activeGroupId}
+          allowedGroups={teacherGroups}
+          onClose={() => setShowBulkAddStudent(false)}
+        />
       )}
     </div>
   );
