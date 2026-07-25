@@ -40,7 +40,7 @@ const DEFAULT_SUBPAGE: Record<UserRole, SubPage> = {
 const VALID_SUBPAGES: Record<UserRole, SubPage[]> = {
   TEACHER:   ['orders'],
   CASHIER:   ['pipeline', 'management', 'payments'],
-  LOGISTICS: ['supplier', 'warehouse'],
+  LOGISTICS: ['supplier', 'warehouse', 'books'],
   MANAGER:   ['analytics', 'ledger', 'groups', 'users', 'narxsozlama'],
 };
 
@@ -85,6 +85,9 @@ interface AppContextType {
   allocateFromWarehouse: (invId: string, studentId: string, groupId: string) => void;
   addInventoryItem: (title: string, bookCost: number) => void;
   updateOrderAdmin: (orderId: string, patch: { status?: string; amountPaid?: number; bookCost?: number; sotuvNarxi?: number; comment?: string }) => Promise<void>;
+  updateBookPrice: (bookId: string, price: number) => Promise<boolean>;
+  markNotificationAsRead: (id: string) => void;
+  markAllNotificationsAsRead: () => void;
   dismissNotification: (id: string) => void;
   dismissToast: (id: string) => void;
   fireToast: (message: string, variant?: AppToast['variant']) => void;
@@ -474,6 +477,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           tgFileId: b.tgFileId,
           isReturned: false,
           bookCost: b.bookCost ?? 0,
+          price: b.price ?? 0,
           categoryName: b.category ? b.category.name : 'Umumiy',
         }));
         if (mappedBooks.length > 0) setInventory(mappedBooks);
@@ -488,6 +492,112 @@ export function AppProvider({ children }: { children: ReactNode }) {
     refreshSettings();
     refreshUsers();
   }, [refreshGroups, refreshStudents, refreshOrders, refreshSettings, refreshUsers]);
+
+  /** Logistics/Manager updates a book's custom selling price → PATCH /backend/books/:id */
+  const updateBookPrice = useCallback(async (bookId: string, price: number): Promise<boolean> => {
+    if (!checkAuth()) return false;
+    try {
+      const res = await fetch(`${API}/backend/books/${bookId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ price }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const updatedBook = await res.json();
+
+      setInventory(prev => prev.map(inv =>
+        inv.id === String(updatedBook.id) ? { ...inv, price: updatedBook.price ?? 0 } : inv
+      ));
+
+      fireToast("Darslik sotuv narxi muvaffaqiyatli saqlandi!", 'success');
+      return true;
+    } catch (err: any) {
+      fireToast(`Narx saqlashda xatolik: ${err.message}`, 'error');
+      return false;
+    }
+  }, [checkAuth, fireToast]);
+
+  const markNotificationAsRead = useCallback((id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+  }, []);
+
+  const markAllNotificationsAsRead = useCallback(() => {
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+  }, []);
+
+  // Generate real-time system notifications for teachers based on student join dates (1 week) and group interval dates
+  useEffect(() => {
+    if (students.length === 0 || groups.length === 0) return;
+
+    const generated: SystemNotification[] = [];
+    const now = new Date();
+
+    // 1. Student 1-Week Join Follow-Up Notifications
+    students.forEach(s => {
+      const group = groups.find(g => g.id === s.groupId);
+      if (!group) return;
+
+      const joinedDate = s.joinedAt ? new Date(s.joinedAt) : null;
+      if (!joinedDate || isNaN(joinedDate.getTime())) return;
+
+      const diffDays = Math.floor((now.getTime() - joinedDate.getTime()) / (1000 * 60 * 60 * 24));
+      // Check if student has no active non-cancelled order
+      const hasOrder = orders.some(o => o.studentId === s.id && o.status !== 'CANCELLED');
+
+      if (diffDays >= 7 && !hasOrder) {
+        generated.push({
+          id: `notif-join-${s.id}`,
+          userId: group.teacherName,
+          teacherName: group.teacherName,
+          title: "Talaba bo'yicha buyurtma eslatmasi",
+          message: `"${s.fullName || s.name}" guruhga (${group.groupName}) qo'shilganiga ${diffDays} kun bo'ldi. Darslik buyurtma berish vaqti kelgan.`,
+          type: 'STUDENT_JOIN_FOLLOWUP',
+          isRead: false,
+          time: `${diffDays} kun oldin qo'shilgan`,
+          variant: 'warning',
+          createdAt: s.joinedAt,
+        });
+      }
+    });
+
+    // 2. Group Recurring Interval Notifications
+    groups.forEach(g => {
+      if (!g.startDate || !g.orderIntervalDays || g.orderIntervalDays <= 0) return;
+
+      const startDate = new Date(g.startDate);
+      if (isNaN(startDate.getTime())) return;
+
+      const diffDays = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays <= 0) return;
+
+      const currentCycle = Math.floor(diffDays / g.orderIntervalDays);
+      const nextDueDate = new Date(startDate.getTime() + (currentCycle + 1) * g.orderIntervalDays * 24 * 60 * 60 * 1000);
+      const daysUntilNext = Math.ceil((nextDueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (daysUntilNext <= 3) {
+        generated.push({
+          id: `notif-group-${g.id}-cycle-${currentCycle}`,
+          userId: g.teacherName,
+          teacherName: g.teacherName,
+          title: "Guruh interval buyurtma vaqti",
+          message: `"${g.groupName}" guruhi uchun navbatdagi darslik buyurtmasi vaqti (${g.orderIntervalDays} kunlik interval). Buyurtmalarni rasmiylashtiring.`,
+          type: 'GROUP_INTERVAL_DUE',
+          isRead: false,
+          time: daysUntilNext === 0 ? "Bugun interval kuni" : `${daysUntilNext} kun qoldi`,
+          variant: 'info',
+          createdAt: g.startDate,
+        });
+      }
+    });
+
+    setNotifications(prev => {
+      const readMap = new Map(prev.map(n => [n.id, n.isRead]));
+      return generated.map(g => ({
+        ...g,
+        isRead: readMap.get(g.id) ?? false
+      }));
+    });
+  }, [students, groups, orders]);
 
   // ── Mutations (all guarded by checkAuth) ───────────────────────────────────
 
@@ -840,8 +950,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       fireToast,
       createBulkOrders, collectCash, markCoursePayment, cancelOrder,
       dispatchToSupplier, markArrived, deliverBook, decoupleBook,
-      allocateFromWarehouse, addInventoryItem, updateOrderAdmin,
-      dismissNotification, dismissToast,
+      allocateFromWarehouse, addInventoryItem, updateOrderAdmin, updateBookPrice,
+      markNotificationAsRead, markAllNotificationsAsRead, dismissNotification, dismissToast,
       refreshGroups, refreshStudents, refreshOrders, refreshSettings,
       sendToTelegram,
       getTeacherName, getStudentName, getGroupName, getInventoryItem,

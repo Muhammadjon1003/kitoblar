@@ -2,8 +2,10 @@
  * components/Topbar.tsx — O'zbek tili
  */
 
+import { useState } from 'react';
 import { Bell, LogOut } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import NotificationsModal from './NotificationsModal';
 import type { UserRole } from '../types';
 
 const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
@@ -15,10 +17,19 @@ const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
 
 export default function Topbar() {
   const { activeRole, notifications, currentUser, logout } = useApp();
-  const unread = notifications.filter(n => !n.isRead).length;
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  const userNotifications = notifications.filter(n => {
+    if (currentUser?.role === 'TEACHER') {
+      return !n.teacherName || n.teacherName === currentUser.fullName || n.userId === currentUser.username;
+    }
+    return true;
+  });
+
+  const unread = userNotifications.filter(n => !n.isRead).length;
 
   return (
-    <header className="flex items-center justify-between px-6 py-3 border-b border-slate-200 bg-white shrink-0 shadow-sm">
+    <header className="flex items-center justify-between px-6 py-3 border-b border-slate-200 bg-white shrink-0 shadow-sm relative">
       {/* Chap tomon */}
       <div>
         <h1 className="text-[14px] font-bold text-slate-800 tracking-tight">SmartBook ERP</h1>
@@ -27,10 +38,14 @@ export default function Topbar() {
 
       {/* O'ng tomon */}
       <div className="flex items-center gap-3">
-        <button className="relative p-2 rounded-lg hover:bg-slate-100 transition-colors">
-          <Bell className="w-4 h-4 text-slate-500" />
+        <button
+          onClick={() => setShowNotifications(prev => !prev)}
+          className="relative p-2 rounded-lg hover:bg-slate-100 transition-colors"
+          title="Bildirishnomalar"
+        >
+          <Bell className="w-4 h-4 text-slate-600" />
           {unread > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-[9px] font-bold text-white flex items-center justify-center">
+            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-[9px] font-bold text-white flex items-center justify-center animate-pulse">
               {unread}
             </span>
           )}
@@ -46,6 +61,11 @@ export default function Topbar() {
           </button>
         )}
       </div>
+
+      {/* Notifications Modal / Popover */}
+      {showNotifications && (
+        <NotificationsModal onClose={() => setShowNotifications(false)} />
+      )}
     </header>
   );
 }

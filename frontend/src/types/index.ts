@@ -61,6 +61,7 @@ export interface InventoryItem {
   tgFileId: string;   // Telegram cloud storage reference (binary never hits server)
   isReturned: boolean; // true = available as reusable warehouse stock
   bookCost: number;   // Wholesale procurement cost (TR § 6: Σ book_cost)
+  price?: number;     // Custom logistics/manager selling price (so'm)
   categoryName?: string;
 }
 
@@ -82,10 +83,14 @@ export interface Order {
 // ─── TR § 5: system_notifications table ───────────────────────────────────────
 export interface SystemNotification {
   id: string;
-  userId: string;     // Teacher's user ID
-  message: string;
-  type: 'IMMEDIATE_ORDER_REQUIRED' | 'ORDER_WINDOW_APPROACHING';
+  userId?: string;     // Target user ID or teacher username/name
+  teacherName?: string;// Associated teacher name
+  title?: string;      // Short notification title
+  message: string;     // Main notification body
+  type: 'IMMEDIATE_ORDER_REQUIRED' | 'ORDER_WINDOW_APPROACHING' | 'STUDENT_JOIN_FOLLOWUP' | 'GROUP_INTERVAL_DUE';
   isRead: boolean;
+  time?: string;       // Human readable date/time (e.g. bugun 14:20)
+  variant?: 'info' | 'warning' | 'success';
   createdAt: string;
 }
 
@@ -121,6 +126,7 @@ export type SubPage =
   | 'payments'      // CASHIER
   | 'warehouse'     // LOGISTICS
   | 'supplier'      // LOGISTICS
+  | 'books'         // LOGISTICS — darsliklar katalogi & narx sozlamasi
   | 'inbound'       // LOGISTICS
   | 'analytics'     // MANAGER
   | 'ledger'        // MANAGER

@@ -8,6 +8,7 @@
 import { useApp } from '../../context/AppContext';
 import WarehouseInventory from './WarehouseInventory';
 import SupplierRouting from './SupplierRouting';
+import LogisticsBooksCatalog from './LogisticsBooksCatalog';
 
 // ─── Logistics Dashboard Router ────────────────────────────────────────────────
 
@@ -16,5 +17,6 @@ export default function LogisticsDashboard() {
 
   if (activeSubPage === 'warehouse') return <WarehouseInventory />;
   if (activeSubPage === 'supplier')  return <SupplierRouting />;
+  if (activeSubPage === 'books')     return <LogisticsBooksCatalog />;
   return null;
 }

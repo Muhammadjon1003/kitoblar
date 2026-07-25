@@ -75,6 +75,27 @@ app.get('/backend/books', async (req, res) => {
   }
 });
 
+// PATCH /backend/books/:id — Update book custom price
+app.patch('/backend/books/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { price } = req.body;
+    if (price === undefined || isNaN(Number(price))) {
+      return res.status(400).json({ error: "Sotuv narxi (price) raqam shaklida bo'lishi shart." });
+    }
+
+    const updated = await prisma.telegramBook.update({
+      where: { id },
+      data: { price: Number(price) },
+      include: { category: true }
+    });
+
+    res.json(updated);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Fetch all categories from Neon PostgreSQL
 app.get('/backend/categories', async (req, res) => {
   try {
@@ -241,11 +262,23 @@ app.post('/backend/orders', async (req, res) => {
       currentSotuvNarxi = settings.sotuvNarxi;
     } catch (_) { /* keep 0 if settings table not ready */ }
 
+    // Pre-fetch books to get custom prices if configured
+    const bookIds = Array.from(new Set(body.map((item: any) => parseInt(item.bookId)).filter((id: number) => !isNaN(id))));
+    const dbBooks = await prisma.telegramBook.findMany({
+      where: { id: { in: bookIds } },
+      select: { id: true, price: true }
+    });
+    const bookPriceMap = new Map(dbBooks.map(b => [String(b.id), b.price ?? 0]));
+
     const created = await Promise.all(body.map((item: any) => {
       const { studentId, groupId, bookId, bookCost, comment } = item;
       if (!studentId || !groupId || !bookId) {
         throw new Error('studentId, groupId, and bookId are required per item.');
       }
+
+      const customPrice = bookPriceMap.get(String(bookId));
+      const finalSotuvNarxi = (customPrice && customPrice > 0) ? customPrice : currentSotuvNarxi;
+
       return prisma.erpOrder.create({
         data: {
           studentId,
@@ -254,7 +287,7 @@ app.post('/backend/orders', async (req, res) => {
           status: 'CREATED',
           amountPaid: 0,
           bookCost: bookCost ?? 0,
-          sotuvNarxi: currentSotuvNarxi,   // locked at creation time
+          sotuvNarxi: finalSotuvNarxi,   // locked at creation time from book custom price or manager settings
           comment: comment ?? '',
           updatedAt: today,
         },
