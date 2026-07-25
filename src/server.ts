@@ -897,6 +897,8 @@ app.post('/api/orders/smart-create', upload.single('bookFile'), async (req, res)
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }
+});
+
 // POST /backend/wipe-orders-groups-students — delete orders, groups, and students (preserve books and users)
 app.post('/backend/wipe-orders-groups-students', async (req, res) => {
   try {
