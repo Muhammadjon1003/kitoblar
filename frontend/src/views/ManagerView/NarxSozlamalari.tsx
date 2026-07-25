@@ -9,7 +9,7 @@ import { Settings, Save, TrendingUp, Clock, Info, CheckCircle2 } from 'lucide-re
 import { useApp } from '../../context/AppContext';
 import { uzs } from '../../components/ui';
 
-const API = 'https://kitoblar-seven.vercel.app';
+const API = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
 
 export default function NarxSozlamalari() {
   const { sotuvNarxi, refreshSettings, fireToast } = useApp();

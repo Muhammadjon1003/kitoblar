@@ -13,7 +13,7 @@ import type {
   UserRole, SubPage, AuthUser,
 } from '../types';
 
-const API = 'https://kitoblar-seven.vercel.app';
+const API = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
 
 // ─── Static seed data (non-persisted) ─────────────────────────────────────────
 

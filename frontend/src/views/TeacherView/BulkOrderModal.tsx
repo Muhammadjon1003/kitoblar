@@ -8,6 +8,8 @@ import { useApp } from '../../context/AppContext';
 import { ModalShell } from '../../components/ui';
 import type { BulkOrderItem } from '../../types';
 
+const API = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
+
 interface Category {
   id: number;
   name: string;
@@ -42,7 +44,7 @@ export default function BulkOrderModal({ selectedIds, activeGroupId, onClose }: 
   const fetchBooksForStudent = async (studentId: string, catId: string) => {
     setLoadingStates(prev => ({ ...prev, [studentId]: true }));
     try {
-      const res = await fetch(`https://kitoblar-seven.vercel.app/backend/books?categoryId=${catId}`);
+      const res = await fetch(`${API}/backend/books?categoryId=${catId}`);
       if (!res.ok) throw new Error("Kitoblarni yuklab bo'lmadi");
       const data = await res.json();
 
@@ -75,7 +77,7 @@ export default function BulkOrderModal({ selectedIds, activeGroupId, onClose }: 
       try {
         setGlobalLoading(true);
         setError(null);
-        const res = await fetch('https://kitoblar-seven.vercel.app/backend/categories');
+        const res = await fetch(`${API}/backend/categories`);
         if (!res.ok) throw new Error("Kategoriyalarni yuklab bo'lmadi");
         const data = await res.json();
 

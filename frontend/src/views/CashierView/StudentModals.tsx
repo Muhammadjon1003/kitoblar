@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { ModalShell } from '../../components/ui';
 import type { Group } from '../../types';
 
-const API = 'https://kitoblar-seven.vercel.app';
+const API = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
 
 // ─── Create Group Modal ────────────────────────────────────────────────────────
 
