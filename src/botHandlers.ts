@@ -49,6 +49,27 @@ function buildMainMenu() {
 
 export function registerBotHandlers() {
   
+  // 0. /id Command to get Chat / Group ID
+  bot.command('id', async (ctx) => {
+    const chatId = ctx.chat.id;
+    const chatTitle = ctx.chat.type !== 'private' ? (ctx.chat as any).title : 'Shaxsiy chat';
+    await ctx.reply(
+      `📌 <b>Chat Ma'lumotlari:</b>\n\n` +
+      `<b>Nomi:</b> ${chatTitle}\n` +
+      `<b>Chat / Group ID:</b> <code>${chatId}</code>`,
+      { parse_mode: 'HTML' }
+    );
+  });
+
+  // Automatically log when bot is added to a Telegram group or channel
+  bot.on('my_chat_member', async (ctx) => {
+    const chat = ctx.chat;
+    const status = ctx.myChatMember.new_chat_member.status;
+    if (status === 'member' || status === 'administrator') {
+      console.log(`[TELEGRAM BOT] Bot yangi guruhga qo'shildi! Nomi: "${(chat as any).title}", Group ID: ${chat.id}`);
+    }
+  });
+
   // 0. /start Command
   bot.start(async (ctx) => {
     await clearSession(ctx.from.id);
@@ -56,6 +77,7 @@ export function registerBotHandlers() {
       "👋 <b>Assalomu alaykum! SmartBook tizimiga xush kelibsiz!</b>\n\n" +
       "Ushbu bot orqali kitoblarni guruhlash, saqlash va kategoriyalarni boshqarishingiz mumkin.\n\n" +
       "ℹ️ <b>Mavjud buyruqlar:</b>\n" +
+      "/id - Ushbu chat yoki guruhning ID raqamini ko'rish\n" +
       "/categories - Kategoriyalarni boshqarish (Qo'shish, Tahrirlash, O'chirish)\n\n" +
       "📥 <b>Kitob yuklash:</b>\n" +
       "Menga har qanday kitob faylini (PDF, EPUB, DOCX va hk) yuboring, men uni kerakli kategoriyaga biriktirib saqlayman.",

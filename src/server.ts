@@ -217,6 +217,8 @@ app.post('/backend/students', async (req, res) => {
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
+});
+
 // POST /backend/students/bulk — bulk enroll multiple students into a group at once
 app.post('/backend/students/bulk', async (req, res) => {
   try {
@@ -290,6 +292,8 @@ app.get('/backend/orders', async (req, res) => {
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
+});
+
 // POST /backend/inventory/manual — Add unassigned physical books manually to warehouse stock
 app.post('/backend/inventory/manual', async (req, res) => {
   try {
