@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import {
-  DollarSign, XCircle, RotateCcw, Lock, X, Package, CheckCircle, Edit3
+  DollarSign, XCircle, RotateCcw, Lock, X, CheckCircle, Edit3
 } from 'lucide-react';
 import { useApp } from '../../../context/AppContext';
 import { StatusBadge, uzs } from '../../../components/ui';
 import type { Order } from '../../../types';
 import TolovModali from './TolovModali';
 import FixPaymentModal from './FixPaymentModal';
-import { QabulQilishModali } from '../../../components/QabulModallari';
 
 export default function TafsilotPaneli({ order, onClose }: { order: Order; onClose: () => void }) {
   const {
@@ -17,7 +16,6 @@ export default function TafsilotPaneli({ order, onClose }: { order: Order; onClo
   } = useApp();
   const [tolovKorsat, setTolovKorsat] = useState(false);
   const [fixKorsat, setFixKorsat] = useState(false);
-  const [qabulKorsat, setQabulKorsat] = useState(false);
 
   const inv       = getInventoryItem(order.bookId);
   const chakana   = retailPrice(order);
@@ -125,8 +123,8 @@ export default function TafsilotPaneli({ order, onClose }: { order: Order; onClo
             </button>
           )}
 
-          {/* Deliver button for any active order when paid / course-included */}
-          {order.status !== 'GIVEN' && order.status !== 'CANCELLED' && (
+          {/* Deliver button — shown ONLY when physical book HAS ARRIVED or allocated from warehouse */}
+          {['ARRIVED', 'Ombordan biriktirildi'].includes(order.status) && (
             <button
               onClick={() => { if (ochiq) { deliverBook(order.id); onClose(); } }}
               disabled={!ochiq}
@@ -140,16 +138,6 @@ export default function TafsilotPaneli({ order, onClose }: { order: Order; onClo
                 ? <><CheckCircle className="w-4 h-4" /> Kitobni topshirish — Berildi</>
                 : <><Lock className="w-4 h-4" /> Topshirish (Qarz mavjud)</>
               }
-            </button>
-          )}
-
-          {/* Accept book button */}
-          {['PAID', 'ORDERED'].includes(order.status) && (
-            <button
-              onClick={() => setQabulKorsat(true)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm"
-            >
-              <Package className="w-4 h-4" /> Kitobni qabul qilish (Tan narxi)
             </button>
           )}
 
@@ -197,12 +185,6 @@ export default function TafsilotPaneli({ order, onClose }: { order: Order; onClo
         <FixPaymentModal
           order={order}
           onClose={() => setFixKorsat(false)}
-        />
-      )}
-      {qabulKorsat && (
-        <QabulQilishModali
-          order={order}
-          onClose={() => setQabulKorsat(false)}
         />
       )}
     </>

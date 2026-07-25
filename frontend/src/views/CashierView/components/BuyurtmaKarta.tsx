@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import {
-  DollarSign, CheckCircle, Lock, Unlock, AlertTriangle, ChevronRight, Package, CheckSquare, Square,
+  DollarSign, CheckCircle, Lock, Unlock, AlertTriangle, ChevronRight, CheckSquare, Square,
 } from 'lucide-react';
 import { useApp } from '../../../context/AppContext';
 import { StatusBadge, uzs } from '../../../components/ui';
@@ -12,7 +12,6 @@ import type { Order } from '../../../types';
 
 import QarzTolovModali from './QarzTolovModali';
 import StudentQarzlarModali from './StudentQarzlarModali';
-import { QabulQilishModali } from '../../../components/QabulModallari';
 
 interface BuyurtmaKartaProps {
   order: Order;
@@ -28,7 +27,6 @@ export default function BuyurtmaKarta({ order, onClick, isSelected, onToggleSele
     orders, groups,
   } = useApp();
   const [tolovKorsat,  setTolovKorsat]  = useState(false);
-  const [qabulKorsat,  setQabulKorsat]  = useState(false);
   const [studentQarzlarKorsat, setStudentQarzlarKorsat] = useState(false);
 
   const inv     = getInventoryItem(order.bookId);
@@ -139,18 +137,8 @@ export default function BuyurtmaKarta({ order, onClick, isSelected, onToggleSele
             <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-400 transition-colors" />
           </div>
 
-          {/* Accept Books button for PAID or ORDERED — opens cost modal */}
-          {['PAID', 'ORDERED'].includes(order.status) && (
-            <button
-              onClick={(e) => { e.stopPropagation(); setQabulKorsat(true); }}
-              className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-sm transition-all duration-150 flex items-center justify-center gap-1"
-            >
-              <Package className="w-3 h-3" /> Kitobni qabul qilish
-            </button>
-          )}
-
-          {/* Hand Over button — shown for PAID, ORDERED, or ARRIVED when fully paid / course-included */}
-          {['PAID', 'ORDERED', 'ARRIVED'].includes(order.status) && ochiq && (order.sotuvNarxi === 0 || !boshqaQarz) && (
+          {/* Hand Over button — shown ONLY when physical book has ARRIVED (or allocated from warehouse) */}
+          {['ARRIVED', 'Ombordan biriktirildi'].includes(order.status) && ochiq && (order.sotuvNarxi === 0 || !boshqaQarz) && (
             <button
               onClick={(e) => { e.stopPropagation(); deliverBook(order.id); }}
               className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-sm transition-all duration-150 flex items-center justify-center gap-1"
@@ -160,7 +148,7 @@ export default function BuyurtmaKarta({ order, onClick, isSelected, onToggleSele
           )}
 
           {/* Blocked: student has other unpaid books. Interactive button opens StudentQarzlarModali */}
-          {['PAID', 'ORDERED', 'ARRIVED'].includes(order.status) && ochiq && order.sotuvNarxi > 0 && boshqaQarz && (
+          {['ARRIVED', 'Ombordan biriktirildi'].includes(order.status) && ochiq && order.sotuvNarxi > 0 && boshqaQarz && (
             <button
               onClick={(e) => { e.stopPropagation(); setStudentQarzlarKorsat(true); }}
               className="w-full py-2 bg-orange-50 border border-orange-200 hover:bg-orange-100/80 text-orange-850 text-[10px] font-bold rounded-lg text-left px-3 transition-all duration-150 space-y-1"
@@ -178,7 +166,7 @@ export default function BuyurtmaKarta({ order, onClick, isSelected, onToggleSele
           )}
 
           {/* Debt prompt — shown when ARRIVED and has outstanding balance */}
-          {order.status === 'ARRIVED' && qoldiq > 0 && (
+          {['ARRIVED', 'Ombordan biriktirildi'].includes(order.status) && qoldiq > 0 && (
             <button
               onClick={(e) => { e.stopPropagation(); setTolovKorsat(true); }}
               className="w-full py-1.5 bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-sm transition-all duration-150 flex items-center justify-center gap-1"
@@ -191,9 +179,6 @@ export default function BuyurtmaKarta({ order, onClick, isSelected, onToggleSele
 
       {tolovKorsat && (
         <QarzTolovModali order={order} onClose={() => setTolovKorsat(false)} />
-      )}
-      {qabulKorsat && (
-        <QabulQilishModali order={order} onClose={() => setQabulKorsat(false)} />
       )}
       {studentQarzlarKorsat && (
         <StudentQarzlarModali studentId={order.studentId} onClose={() => setStudentQarzlarKorsat(false)} />
