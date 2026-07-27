@@ -223,7 +223,17 @@ export default function LedgerTable() {
                       )}
                     </Td>
                     <Td>
-                      <StatusBadge status={o.status} />
+                      <div className="relative group flex flex-col items-start gap-1" title={o.comment ? o.comment : undefined}>
+                        <StatusBadge status={o.status} />
+                        {o.comment && (
+                          <span
+                            className="text-[10px] text-amber-800 font-bold bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded max-w-[180px] truncate cursor-help shadow-2xs"
+                            title={o.comment}
+                          >
+                            💬 {o.comment}
+                          </span>
+                        )}
+                      </div>
                     </Td>
                     <Td mono muted>{o.updatedAt}</Td>
                   </tr>
