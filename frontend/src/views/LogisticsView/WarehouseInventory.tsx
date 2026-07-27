@@ -389,25 +389,24 @@ export default function WarehouseInventory() {
             <PlusCircle className="w-4 h-4 text-white" />
             Omborga kitob qo'shish (Zaxira)
           </button>
-          <span className="text-[11px] font-bold px-3 py-1 bg-white border border-slate-300 rounded-lg text-slate-700 shadow-sm">
-            Biriktiriladigan: {allocatableItems.length} ta
-          </span>
-          <span className="text-[11px] font-bold px-3 py-1 bg-indigo-50 border border-indigo-200 rounded-lg text-indigo-700 shadow-sm">
-            Jami qo'ldagi: {companyBooksList.length} ta
-          </span>
         </div>
       </div>
 
       {/* ── Section 1: Biriktiriladigan kitoblar (Returned, Cancelled, Free Stock) ── */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        <div className="px-6 py-4 bg-slate-100/60 border-b border-slate-200">
-          <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
-            <Package className="w-4 h-4 text-emerald-600" />
-            Talabalarga Biriktirilishi Mumkin Bo'lgan Kitoblar
-          </p>
-          <p className="text-[11px] font-semibold text-slate-600 mt-0.5">
-            Bekor qilingan buyurtmalar va omborga qaytarilgan darsliklar — yangi talabaga biriktirilsa, darhol Keldi holatiga o'tadi.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 bg-slate-100/60 border-b border-slate-200 gap-2">
+          <div>
+            <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <Package className="w-4 h-4 text-emerald-600" />
+              Talabalarga Biriktirilishi Mumkin Bo'lgan Kitoblar
+            </p>
+            <p className="text-[11px] font-semibold text-slate-600 mt-0.5">
+              Bekor qilingan buyurtmalar va omborga qaytarilgan darsliklar — yangi talabaga biriktirilsa, darhol Keldi holatiga o'tadi.
+            </p>
+          </div>
+          <span className="text-xs font-bold px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl shadow-2xs self-start sm:self-auto shrink-0">
+            Biriktiriladigan: {allocatableItems.length} ta
+          </span>
         </div>
 
         {allocatableItems.length === 0 ? (
@@ -483,11 +482,16 @@ export default function WarehouseInventory() {
 
       {/* ── Section 2: Kompaniya Qo'lidagi Barcha Jismoniy Kitoblar va Inventar Jadvali ── */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        <div className="px-6 py-4 bg-slate-100/60 border-b border-slate-200">
-          <p className="text-sm font-bold text-slate-800">Kompaniya Qo'lidagi Barcha Jismoniy Kitoblar Ro'yxati</p>
-          <p className="text-[11px] font-semibold text-slate-600 mt-0.5">
-            Markazga kelgan, hali topshirilmagan, bekor qilingan va omborda turgan barcha kitoblar statistikasi.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 bg-slate-100/60 border-b border-slate-200 gap-2">
+          <div>
+            <p className="text-sm font-bold text-slate-800">Kompaniya Qo'lidagi Barcha Jismoniy Kitoblar Ro'yxati</p>
+            <p className="text-[11px] font-semibold text-slate-600 mt-0.5">
+              Markazga kelgan, hali topshirilmagan, bekor qilingan va omborda turgan barcha kitoblar statistikasi.
+            </p>
+          </div>
+          <span className="text-xs font-bold px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-800 rounded-xl shadow-2xs self-start sm:self-auto shrink-0">
+            Jami qo'ldagi: {companyBooksList.length} ta
+          </span>
         </div>
         
         {companyBooksList.length === 0 ? (
