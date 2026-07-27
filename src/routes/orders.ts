@@ -376,4 +376,16 @@ router.post('/api/orders/smart-create', upload.single('bookFile'), async (req, r
   }
 });
 
+// DELETE /backend/orders/cancelled — Delete all cancelled test orders and test warehouse stock
+router.delete('/backend/orders/cancelled', async (req, res) => {
+  try {
+    const deletedCancelled = await prisma.erpOrder.deleteMany({
+      where: { status: { in: ['CANCELLED', 'RETURNED'] } }
+    });
+    res.json({ message: 'Cancelled and test returned orders deleted successfully', count: deletedCancelled.count });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;
