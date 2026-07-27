@@ -10,7 +10,12 @@ interface NavItem { key: SubPage; label: string; }
 
 const ROLE_NAV: Record<UserRole, NavItem[]> = {
   TEACHER:   [{ key: 'orders',    label: 'Buyurtmalar' }],
-  CASHIER:   [{ key: 'pipeline',  label: 'CRM Yo\'nalishi' }, { key: 'management', label: 'Guruhlar boshqaruvi' }, { key: 'payments', label: 'To\'lovlar tarixi' }],
+  CASHIER:   [
+    { key: 'pipeline',   label: 'CRM Yo\'nalishi' },
+    { key: 'warehouse',  label: 'Ombor zaxirasi' },
+    { key: 'management', label: 'Guruhlar boshqaruvi' },
+    { key: 'payments',   label: 'To\'lovlar tarixi' },
+  ],
   LOGISTICS: [
     { key: 'pipeline',   label: 'CRM Yo\'nalishi' },
     { key: 'supplier',   label: 'Ta\'minotchi stoli' },

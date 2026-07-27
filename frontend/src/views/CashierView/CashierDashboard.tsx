@@ -6,6 +6,7 @@ import { useApp } from '../../context/AppContext';
 import PipelineColumn from './PipelineColumn';
 import PaymentsHistoryView from './components/PaymentsHistoryView';
 import BoshqaruvKorinishi from './components/BoshqaruvKorinishi';
+import WarehouseInventory from '../LogisticsView/WarehouseInventory';
 import type { OrderStatus } from '../../types';
 
 function PipelineView() {
@@ -46,7 +47,8 @@ function PipelineView() {
 
 export default function CashierDashboard() {
   const { activeSubPage } = useApp();
-  if (activeSubPage === 'pipeline') return <PipelineView />;
-  if (activeSubPage === 'payments') return <PaymentsHistoryView />;
+  if (activeSubPage === 'pipeline')  return <PipelineView />;
+  if (activeSubPage === 'warehouse') return <WarehouseInventory />;
+  if (activeSubPage === 'payments')  return <PaymentsHistoryView />;
   return <BoshqaruvKorinishi />;
 }

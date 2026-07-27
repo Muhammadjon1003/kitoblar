@@ -39,7 +39,7 @@ const DEFAULT_SUBPAGE: Record<UserRole, SubPage> = {
 // Valid sub-pages per role
 const VALID_SUBPAGES: Record<UserRole, SubPage[]> = {
   TEACHER:   ['orders'],
-  CASHIER:   ['pipeline', 'management', 'payments'],
+  CASHIER:   ['pipeline', 'warehouse', 'management', 'payments'],
   LOGISTICS: ['supplier', 'warehouse', 'books', 'pipeline', 'management', 'payments'],
   MANAGER:   ['analytics', 'ledger', 'groups', 'users', 'narxsozlama'],
 };
