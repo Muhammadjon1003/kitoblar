@@ -53,9 +53,36 @@ export default function TafsilotPaneli({ order, onClose }: { order: Order; onClo
           </div>
 
           {/* Darslik */}
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Darslik</p>
-            <p className="text-sm font-semibold text-slate-800 leading-snug">{inv?.title ?? '—'}</p>
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+            <div>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Darslik</p>
+              <p className="text-sm font-semibold text-slate-800 leading-snug">{inv?.title ?? '—'}</p>
+            </div>
+
+            {/* Origin indicator for cashier handover */}
+            {['ARRIVED', 'Ombordan biriktirildi'].includes(order.status) && (
+              <div className={`p-2.5 rounded-xl border flex items-start gap-2.5 text-xs ${
+                order.status === 'Ombordan biriktirildi' || (order.comment || '').toLowerCase().includes('ombor')
+                  ? 'bg-purple-50 border-purple-200 text-purple-900'
+                  : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+              }`}>
+                <span className="text-lg leading-none">
+                  {order.status === 'Ombordan biriktirildi' || (order.comment || '').toLowerCase().includes('ombor') ? '📦' : '🚚'}
+                </span>
+                <div className="space-y-0.5">
+                  <p className="font-extrabold uppercase tracking-wide text-[11px]">
+                    {order.status === 'Ombordan biriktirildi' || (order.comment || '').toLowerCase().includes('ombor')
+                      ? "Ombor Zaxirasidan Oling"
+                      : "Yangi Kelgan Partiyadan Oling"}
+                  </p>
+                  <p className="text-[10px] font-medium leading-tight opacity-90">
+                    {order.status === 'Ombordan biriktirildi' || (order.comment || '').toLowerCase().includes('ombor')
+                      ? "Ushbu kitob ombordagi bo'sh/qaytarilgan zaxiradan biriktirilgan. Kitobni ombor zaxira tokchasidan oling."
+                      : "Ushbu kitob ta'minotchidan kelgan yangi partiyadan biriktirilgan. Yangi partiya tokchasidan oling."}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Moliyaviy ma'lumot */}

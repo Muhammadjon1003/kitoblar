@@ -137,6 +137,33 @@ export default function BuyurtmaKarta({ order, onClick, isSelected, onToggleSele
             <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-400 transition-colors" />
           </div>
 
+          {/* Book Origin Badge — tells cashier where to take physical book from */}
+          {['ARRIVED', 'Ombordan biriktirildi'].includes(order.status) && (
+            <div className={`p-2 rounded-lg text-[10px] flex items-center gap-2 border ${
+              order.status === 'Ombordan biriktirildi' || (order.comment || '').toLowerCase().includes('ombor')
+                ? 'bg-purple-50 border-purple-200 text-purple-900 font-bold'
+                : 'bg-emerald-50 border-emerald-200 text-emerald-900 font-bold'
+            }`}>
+              {order.status === 'Ombordan biriktirildi' || (order.comment || '').toLowerCase().includes('ombor') ? (
+                <>
+                  <span className="shrink-0 text-base">📦</span>
+                  <div className="leading-tight">
+                    <p className="font-extrabold uppercase tracking-wide text-purple-900">Ombor zaxirasidan oling</p>
+                    <p className="text-[9px] text-purple-700 font-semibold mt-0.5">Eski qaytarilgan/bo'sh zaxiradan</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span className="shrink-0 text-base">🚚</span>
+                  <div className="leading-tight">
+                    <p className="font-extrabold uppercase tracking-wide text-emerald-900">Yangi partiyadan oling</p>
+                    <p className="text-[9px] text-emerald-700 font-semibold mt-0.5">Ta'minotchidan yangi kelgan partiyadan</p>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           {/* Hand Over button — shown ONLY when physical book has ARRIVED (or allocated from warehouse) */}
           {['ARRIVED', 'Ombordan biriktirildi'].includes(order.status) && ochiq && (order.sotuvNarxi === 0 || !boshqaQarz) && (
             <button
