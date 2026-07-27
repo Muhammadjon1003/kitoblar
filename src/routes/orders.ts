@@ -162,11 +162,11 @@ router.post('/backend/orders', async (req, res) => {
   }
 });
 
-// PATCH /backend/orders/:id — partial update: status, amountPaid, bookCost, sotuvNarxi, comment
+// PATCH /backend/orders/:id — partial update: status, amountPaid, bookCost, sotuvNarxi, comment, bookId
 router.patch('/backend/orders/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, amountPaid, bookCost, sotuvNarxi, comment } = req.body;
+    const { status, amountPaid, bookCost, sotuvNarxi, comment, bookId } = req.body;
     const today = new Date().toISOString().slice(0, 10);
 
     const updated = await prisma.erpOrder.update({
@@ -177,6 +177,7 @@ router.patch('/backend/orders/:id', async (req, res) => {
         ...(bookCost   !== undefined && { bookCost }),
         ...(sotuvNarxi !== undefined && { sotuvNarxi }),
         ...(comment    !== undefined && { comment }),
+        ...(bookId     !== undefined && { bookId }),
         updatedAt: today,
       },
     });

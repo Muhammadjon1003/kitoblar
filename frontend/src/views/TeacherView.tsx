@@ -3,6 +3,7 @@ import { BookOpen, CheckSquare, Square, ChevronDown, FolderPlus, Users, UserPlus
 import { useApp } from '../context/AppContext';
 import { StatusBadge, EmptyState, TableShell, Th, Td } from '../components/ui';
 import BulkOrderModal from './TeacherView/BulkOrderModal';
+import EditOrderBookModal from './TeacherView/EditOrderBookModal';
 import { CreateGroupModal, AddStudentModal, BulkAddStudentModal } from './CashierView/StudentModals';
 
 export default function TeacherView() {
@@ -37,6 +38,7 @@ export default function TeacherView() {
   const [showCreateGroup,     setShowCreateGroup]     = useState(false);
   const [showAddStudent,     setShowAddStudent]     = useState(false);
   const [showBulkAddStudent, setShowBulkAddStudent] = useState(false);
+  const [editingOrder,       setEditingOrder]       = useState<{ orderId: string; currentBookId: string; studentName: string } | null>(null);
 
   const groupStudents = students.filter(s => s.groupId === activeGroupId);
 
@@ -133,6 +135,7 @@ export default function TeacherView() {
                 <Th>Oxirgi kitob</Th>
                 <Th>Buyurtma sanasi</Th>
                 <Th>Holati</Th>
+                <Th>Amallar / Tahrirlash</Th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -167,6 +170,34 @@ export default function TeacherView() {
                       {latestOrder
                         ? <StatusBadge status={latestOrder.status} />
                         : <span className="text-[11px] text-slate-500 font-semibold">Faol buyurtma yo'q</span>}
+                    </Td>
+                    <Td>
+                      {latestOrder ? (
+                        latestOrder.status === 'CREATED' ? (
+                          <button
+                            onClick={e => {
+                              e.stopPropagation();
+                              setEditingOrder({
+                                orderId: latestOrder.id,
+                                currentBookId: latestOrder.bookId,
+                                studentName: student.name
+                              });
+                            }}
+                            className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 font-bold text-[11px] rounded-lg flex items-center gap-1 transition-colors"
+                          >
+                            ✏️ Tahrirlash
+                          </button>
+                        ) : (
+                          <span
+                            title="Buyurtma ta'minotchiga yuborilgan. O'zgartirish uchun yangi buyurtma berib, eskisini omborda qaytarishni so'rang."
+                            className="px-2.5 py-1 bg-slate-100 border border-slate-200 text-slate-500 font-semibold text-[10px] rounded-lg cursor-help inline-flex items-center gap-1"
+                          >
+                            🔒 Yuborilgan (Nodovom)
+                          </span>
+                        )
+                      ) : (
+                        <span className="text-slate-400 text-[11px]">—</span>
+                      )}
                     </Td>
                   </tr>
                 );
@@ -208,6 +239,16 @@ export default function TeacherView() {
           allowedGroups={teacherGroups}
           onSuccess={(groupId) => setActiveGroupId(groupId)}
           onClose={() => setShowBulkAddStudent(false)}
+        />
+      )}
+
+      {/* Edit Order Book Modal (for CREATED orders) */}
+      {editingOrder && (
+        <EditOrderBookModal
+          orderId={editingOrder.orderId}
+          currentBookId={editingOrder.currentBookId}
+          studentName={editingOrder.studentName}
+          onClose={() => setEditingOrder(null)}
         />
       )}
     </div>

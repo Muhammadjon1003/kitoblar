@@ -131,6 +131,7 @@ export default function WarehouseInventory() {
     getGroupName,
     getInventoryItem,
     sotuvNarxi,
+    cancelOrder,
   } = useApp();
 
   const [allocations, setAllocations] = useState<Record<string, string>>({});
@@ -390,6 +391,7 @@ export default function WarehouseInventory() {
                   <Th>Kategoriya</Th>
                   <Th>Sotuv Narxi</Th>
                   <Th>Holati</Th>
+                  <Th>Ombor Amali</Th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -427,6 +429,20 @@ export default function WarehouseInventory() {
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 rounded-full text-[10px] font-bold">
                           <CheckCircle2 className="w-3 h-3 text-slate-500" /> Ombor Inventari
+                        </span>
+                      )}
+                    </Td>
+                    <Td>
+                      {item.statusType === 'ARRIVED' ? (
+                        <button
+                          onClick={() => cancelOrder(item.id, 'O\'qituvchi xato buyurtmani ombor zaxirasiga qaytardi')}
+                          className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 font-bold text-[10px] rounded-lg flex items-center gap-1 transition-colors"
+                        >
+                          <RotateCcw className="w-3 h-3" /> Ombor zaxirasiga o'tkazish
+                        </button>
+                      ) : (
+                        <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Bo'sh zaxirada
                         </span>
                       )}
                     </Td>

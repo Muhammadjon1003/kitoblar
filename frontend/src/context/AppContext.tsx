@@ -90,6 +90,7 @@ interface AppContextType {
   allocateFromWarehouse: (invId: string, studentId: string, groupId: string) => void;
   addInventoryItem: (title: string, bookCost: number) => void;
   updateOrderAdmin: (orderId: string, patch: { status?: string; amountPaid?: number; bookCost?: number; sotuvNarxi?: number; comment?: string }) => Promise<void>;
+  updateOrderBook: (orderId: string, payload: { bookId: string; bookCost?: number; sotuvNarxi?: number }) => Promise<boolean>;
   updateBookPrice: (bookId: string, price: number) => Promise<boolean>;
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
@@ -527,6 +528,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return false;
     }
   }, [checkAuth, fireToast]);
+
+  const updateOrderBook = useCallback(async (orderId: string, payload: { bookId: string; bookCost?: number; sotuvNarxi?: number }): Promise<boolean> => {
+    if (!checkAuth()) return false;
+    try {
+      const res = await fetch(`${API}/backend/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      await refreshOrders();
+      return true;
+    } catch (err: any) {
+      fireToast(`Darslikni o'zgartirishda xatolik: ${err.message}`, 'error');
+      return false;
+    }
+  }, [checkAuth, refreshOrders, fireToast]);
 
   const markNotificationAsRead = useCallback((id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
@@ -985,7 +1003,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       fireToast,
       createBulkOrders, collectCash, markCoursePayment, cancelOrder, addManualInventoryStock,
       dispatchToSupplier, markArrived, deliverBook, decoupleBook,
-      allocateFromWarehouse, addInventoryItem, updateOrderAdmin, updateBookPrice,
+      allocateFromWarehouse, addInventoryItem, updateOrderAdmin, updateOrderBook, updateBookPrice,
       markNotificationAsRead, markAllNotificationsAsRead, dismissNotification, dismissToast,
       refreshGroups, refreshStudents, refreshOrders, refreshSettings,
       sendToTelegram,
