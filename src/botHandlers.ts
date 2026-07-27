@@ -37,9 +37,17 @@ async function clearSession(userId: number) {
 
 // ─── Keyboard Builders ────────────────────────────────────────────────────────
 
-function buildMainMenu() {
+function buildPersistentKeyboard() {
+  return Markup.keyboard([
+    ["📚 Barcha kitoblar (PDF)", "📂 Kategoriyalar"],
+    ["📥 Kitob yuklash bo'yicha", "📌 Chat ID (Ma'lumot)"]
+  ]).resize();
+}
+
+function buildCategoriesMenu() {
   return Markup.inlineKeyboard([
-    [Markup.button.callback("➕ Kategoriya qo'shish", 'cat_action:add')],
+    [Markup.button.callback("📂 Kategoriyalardagi kitoblar", 'cat_action:browse')],
+    [Markup.button.callback("➕ Yangi kategoriya qo'shish", 'cat_action:add')],
     [Markup.button.callback("✏️ Kategoriya tahrirlash", 'cat_action:edit')],
     [Markup.button.callback("🗑 Kategoriya o'chirish", 'cat_action:delete')]
   ]);
@@ -57,7 +65,7 @@ export function registerBotHandlers() {
       `📌 <b>Chat Ma'lumotlari:</b>\n\n` +
       `<b>Nomi:</b> ${chatTitle}\n` +
       `<b>Chat / Group ID:</b> <code>${chatId}</code>`,
-      { parse_mode: 'HTML' }
+      { parse_mode: 'HTML', ...buildPersistentKeyboard() }
     );
   });
 
@@ -70,31 +78,147 @@ export function registerBotHandlers() {
     }
   });
 
-  // 0. /start Command
+  // /start & /menu Commands
   bot.start(async (ctx) => {
     await clearSession(ctx.from.id);
     await ctx.reply(
       "👋 <b>Assalomu alaykum! SmartBook tizimiga xush kelibsiz!</b>\n\n" +
-      "Ushbu bot orqali kitoblarni guruhlash, saqlash va kategoriyalarni boshqarishingiz mumkin.\n\n" +
-      "ℹ️ <b>Mavjud buyruqlar:</b>\n" +
-      "/id - Ushbu chat yoki guruhning ID raqamini ko'rish\n" +
-      "/categories - Kategoriyalarni boshqarish (Qo'shish, Tahrirlash, O'chirish)\n\n" +
-      "📥 <b>Kitob yuklash:</b>\n" +
-      "Menga har qanday kitob faylini (PDF, EPUB, DOCX va hk) yuboring, men uni kerakli kategoriyaga biriktirib saqlayman.",
-      { parse_mode: 'HTML' }
+      "Ushbu bot orqali kitoblarni guruhlash, saqlash va PDF darsliklarni yuklab olishingiz mumkin.\n\n" +
+      "👇 <b>Kerakli bo'limni tanlang:</b>",
+      { parse_mode: 'HTML', ...buildPersistentKeyboard() }
     );
   });
-  
-  // 1. /categories Command
+
+  bot.command('menu', async (ctx) => {
+    await clearSession(ctx.from.id);
+    await ctx.reply(
+      "📱 <b>Asosiy Menyu</b>",
+      { parse_mode: 'HTML', ...buildPersistentKeyboard() }
+    );
+  });
+
+  // List all available PDF books
+  bot.command(['books', 'pdf'], async (ctx) => {
+    await sendAllBooksList(ctx);
+  });
+
+  // Listen to persistent keyboard button clicks
+  bot.hears("📚 Barcha kitoblar (PDF)", async (ctx) => {
+    await sendAllBooksList(ctx);
+  });
+
+  bot.hears("📂 Kategoriyalar", async (ctx) => {
+    await clearSession(ctx.from.id);
+    await ctx.reply(
+      "📂 <b>Kategoriyalar boshqaruvi va ko'rish</b>\n\nAmalni tanlang:",
+      { parse_mode: 'HTML', ...buildCategoriesMenu() }
+    );
+  });
+
+  bot.hears("📥 Kitob yuklash bo'yicha", async (ctx) => {
+    await ctx.reply(
+      "📥 <b>Kitob yuklash tartibi:</b>\n\n" +
+      "Botga har qanday <b>PDF, EPUB, DOCX</b> kitob faylini yuboring.\n" +
+      "Bot sizdan kategoriyani va kitob nomini so'raydi va bazaga avtomatik saqlaydi.",
+      { parse_mode: 'HTML', ...buildPersistentKeyboard() }
+    );
+  });
+
+  bot.hears("📌 Chat ID (Ma'lumot)", async (ctx) => {
+    const chatId = ctx.chat.id;
+    const chatTitle = ctx.chat.type !== 'private' ? (ctx.chat as any).title : 'Shaxsiy chat';
+    await ctx.reply(
+      `📌 <b>Chat Ma'lumotlari:</b>\n\n` +
+      `<b>Nomi:</b> ${chatTitle}\n` +
+      `<b>Chat / Group ID:</b> <code>${chatId}</code>`,
+      { parse_mode: 'HTML', ...buildPersistentKeyboard() }
+    );
+  });
+
+  // /categories Command
   bot.command('categories', async (ctx) => {
     await clearSession(ctx.from.id);
     await ctx.reply(
       "📂 <b>Kategoriyalar boshqaruvi</b>\n\nAmalni tanlang:",
-      { parse_mode: 'HTML', ...buildMainMenu() }
+      { parse_mode: 'HTML', ...buildCategoriesMenu() }
     );
   });
 
-  // 2. Add Category Callback
+  // Browse Books per Category
+  bot.action('cat_action:browse', async (ctx) => {
+    const categories = await prisma.category.findMany({
+      orderBy: { name: 'asc' },
+      include: { _count: { select: { books: true } } }
+    });
+
+    if (categories.length === 0) {
+      await ctx.answerCbQuery("Hali kategoriyalar mavjud emas.", { show_alert: true });
+      return;
+    }
+
+    const buttons = categories.map(c => [
+      Markup.button.callback(`📁 ${c.name} (${c._count.books} ta kitob)`, `cat_books:${c.id}`)
+    ]);
+    buttons.push([Markup.button.callback("⬅️ Orqaga", "cat_action:back")]);
+
+    await ctx.editMessageText(
+      "📂 <b>Kitoblarni ko'rish uchun kategoriyani tanlang:</b>",
+      { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) }
+    );
+    await ctx.answerCbQuery();
+  });
+
+  // Show books inside a specific category
+  bot.action(/^cat_books:(\d+)$/, async (ctx) => {
+    const categoryId = parseInt(ctx.match[1]);
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      include: { books: { orderBy: { name: 'asc' } } }
+    });
+
+    if (!category || category.books.length === 0) {
+      await ctx.answerCbQuery("Ushbu kategoriyada hali kitoblar yo'q.", { show_alert: true });
+      return;
+    }
+
+    const buttons = category.books.map(b => [
+      Markup.button.callback(`📥 ${b.name}`, `send_pdf:${b.id}`)
+    ]);
+    buttons.push([Markup.button.callback("⬅️ Kategoriyalarga qaytish", "cat_action:browse")]);
+
+    await ctx.editMessageText(
+      `📚 <b>${category.name}</b> kategoriyasidagi kitoblar:\n<i>(Yuklab olish uchun kitob ustiga bosing)</i>`,
+      { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) }
+    );
+    await ctx.answerCbQuery();
+  });
+
+  // Send PDF Callback handler
+  bot.action(/^send_pdf:(\d+)$/, async (ctx) => {
+    const bookId = parseInt(ctx.match[1]);
+    const book = await prisma.telegramBook.findUnique({
+      where: { id: bookId },
+      include: { category: true }
+    });
+
+    if (!book || !book.tgFileId) {
+      await ctx.answerCbQuery("Kitob topilmadi yoki fayl mavjud emas.", { show_alert: true });
+      return;
+    }
+
+    await ctx.answerCbQuery("Fayl yuborilmoqda...");
+    try {
+      await ctx.replyWithDocument(book.tgFileId, {
+        caption: `📖 <b>${book.name}</b>\n📂 Kategoriya: ${book.category ? book.category.name : 'Umumiy'}`,
+        parse_mode: 'HTML'
+      });
+    } catch (err: any) {
+      console.error(`Failed to send PDF for book ${book.name}:`, err);
+      await ctx.reply(`❌ Fayl yuborishda xatolik yuz berdi: ${err.message}`);
+    }
+  });
+
+  // Add Category Callback
   bot.action('cat_action:add', async (ctx) => {
     await setSession(ctx.from!.id, 'WAITING_FOR_ADD_CATEGORY_NAME', {});
     await ctx.editMessageText(
@@ -104,7 +228,7 @@ export function registerBotHandlers() {
     await ctx.answerCbQuery();
   });
 
-  // 3. Edit Category List Callback
+  // Edit Category List Callback
   bot.action('cat_action:edit', async (ctx) => {
     const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } });
     if (categories.length === 0) {
@@ -122,7 +246,7 @@ export function registerBotHandlers() {
     await ctx.answerCbQuery();
   });
 
-  // 4. Edit Selected Category callback
+  // Edit Selected Category callback
   bot.action(/^cat_edit:(\d+)$/, async (ctx) => {
     const categoryId = parseInt(ctx.match[1]);
     const category = await prisma.category.findUnique({ where: { id: categoryId } });
@@ -139,7 +263,7 @@ export function registerBotHandlers() {
     await ctx.answerCbQuery();
   });
 
-  // 5. Delete Category List Callback
+  // Delete Category List Callback
   bot.action('cat_action:delete', async (ctx) => {
     const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } });
     if (categories.length === 0) {
@@ -157,14 +281,13 @@ export function registerBotHandlers() {
     await ctx.answerCbQuery();
   });
 
-  // 6. Delete Selected Category callback
+  // Delete Selected Category callback
   bot.action(/^cat_delete:(\d+)$/, async (ctx) => {
     const categoryId = parseInt(ctx.match[1]);
     try {
       const deleted = await prisma.category.delete({ where: { id: categoryId } });
       await ctx.answerCbQuery(`'${deleted.name}' o'chirildi.`);
       
-      // Refresh the delete list
       const remaining = await prisma.category.findMany({ orderBy: { name: 'asc' } });
       if (remaining.length > 0) {
         const buttons = remaining.map(c => [Markup.button.callback(`[X] ${c.name}`, `cat_delete:${c.id}`)]);
@@ -176,7 +299,7 @@ export function registerBotHandlers() {
       } else {
         await ctx.editMessageText(
           "✅ Barcha kategoriyalar o'chirildi.",
-          buildMainMenu()
+          buildCategoriesMenu()
         );
       }
     } catch (e) {
@@ -184,17 +307,17 @@ export function registerBotHandlers() {
     }
   });
 
-  // 7. Back to Menu Callback
+  // Back to Menu Callback
   bot.action('cat_action:back', async (ctx) => {
     await clearSession(ctx.from!.id);
     await ctx.editMessageText(
       "📂 <b>Kategoriyalar boshqaruvi</b>\n\nAmalni tanlang:",
-      { parse_mode: 'HTML', ...buildMainMenu() }
+      { parse_mode: 'HTML', ...buildCategoriesMenu() }
     );
     await ctx.answerCbQuery();
   });
 
-  // 8. Document Handler (Book upload triggers FSM)
+  // Document Handler (Book upload triggers FSM)
   bot.on('document', async (ctx) => {
     const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } });
     if (categories.length === 0) {
@@ -214,7 +337,7 @@ export function registerBotHandlers() {
     );
   });
 
-  // 9. Book Category selected callback
+  // Book Category selected callback
   bot.action(/^book_cat:(\d+)$/, async (ctx) => {
     const categoryId = parseInt(ctx.match[1]);
     const session = await getSession(ctx.from!.id);
@@ -243,7 +366,7 @@ export function registerBotHandlers() {
     await ctx.answerCbQuery();
   });
 
-  // 10. General text messages (Handles text FSM responses)
+  // General text messages
   bot.on('text', async (ctx, next) => {
     const text = ctx.message.text.trim();
     const session = await getSession(ctx.from.id);
@@ -254,7 +377,7 @@ export function registerBotHandlers() {
         await clearSession(ctx.from.id);
         await ctx.reply(
           `✅ <b>Kategoriya qo'shildi!</b>\n🆔 ID: <code>${record.id}</code>\n📂 Nomi: ${record.name}`,
-          { parse_mode: 'HTML', ...buildMainMenu() }
+          { parse_mode: 'HTML', ...buildCategoriesMenu() }
         );
       } catch (e: any) {
         if (e.code === 'P2002') {
@@ -278,7 +401,7 @@ export function registerBotHandlers() {
         await clearSession(ctx.from.id);
         await ctx.reply(
           `✅ <b>Kategoriya yangilandi!</b>\n📂 Yangi nom: ${record.name}`,
-          { parse_mode: 'HTML', ...buildMainMenu() }
+          { parse_mode: 'HTML', ...buildCategoriesMenu() }
         );
       } catch (e: any) {
         if (e.code === 'P2002') {
@@ -296,27 +419,22 @@ export function registerBotHandlers() {
       const { fileId, categoryId, categoryName } = session.data;
       
       try {
-        // 1. Create a placeholder row to get the autoincrement ID
         const bookRecord = await prisma.telegramBook.create({
           data: {
             tgFileId: fileId,
-            tgMessageId: 0, // Placeholder
+            tgMessageId: 0,
             name: text,
             categoryId: categoryId
           }
         });
 
         const bookId = bookRecord.id;
-
-        // 2. Prepare the caption format
         const caption = `ID: ${bookId}\nName: ${text}\nSubject: ${categoryName}`;
 
-        // 3. Send file to Telegram Channel
         const channelMsg = await bot.telegram.sendDocument(STORAGE_CHANNEL_ID, fileId, {
           caption: caption
         });
 
-        // 4. Update the DB row with the real message id
         await prisma.telegramBook.update({
           where: { id: bookId },
           data: { tgMessageId: channelMsg.message_id }
@@ -325,7 +443,7 @@ export function registerBotHandlers() {
         await clearSession(ctx.from.id);
         await ctx.reply(
           `✅ <b>Kitob muvaffaqiyatli saqlandi!</b>\n\n🆔 ID: <code>${bookId}</code>\n📖 Nomi: ${text}\n📂 Kategoriya: ${categoryName}`,
-          { parse_mode: 'HTML' }
+          { parse_mode: 'HTML', ...buildPersistentKeyboard() }
         );
 
       } catch (e: any) {
@@ -334,8 +452,36 @@ export function registerBotHandlers() {
       }
     } 
     else {
-      // Pass execution to next middleware if not in FSM state
       return next();
     }
   });
+}
+
+// Helper: Send All Books List
+async function sendAllBooksList(ctx: any) {
+  try {
+    const books = await prisma.telegramBook.findMany({
+      orderBy: { id: 'asc' },
+      include: { category: true }
+    });
+
+    if (books.length === 0) {
+      await ctx.reply(
+        "📚 <b>Hali hech qanday kitob mavjud emas.</b>\n\nKitob yuklash uchun PDF faylingizni botga yuboring.",
+        { parse_mode: 'HTML', ...buildPersistentKeyboard() }
+      );
+      return;
+    }
+
+    const buttons = books.map(b => [
+      Markup.button.callback(`📥 ${b.name} (${b.category ? b.category.name : 'Umumiy'})`, `send_pdf:${b.id}`)
+    ]);
+
+    await ctx.reply(
+      "📚 <b>Mavjud kitoblar ro'yxati (PDF):</b>\n<i>(Faylni yuklab olish uchun kerakli kitob ustiga bosing)</i>",
+      { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) }
+    );
+  } catch (err: any) {
+    await ctx.reply(`❌ Kitoblarni yuklashda xatolik: ${err.message}`);
+  }
 }

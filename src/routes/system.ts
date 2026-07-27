@@ -34,6 +34,17 @@ export const webhookLogger = (req: any, res: any, next: any) => {
   next();
 };
 
+// POST /telegram-webhook — Direct Telegraf update handler for Vercel & Express
+router.post('/telegram-webhook', async (req, res) => {
+  try {
+    webhookLogger(req, res, () => {});
+    await bot.handleUpdate(req.body, res);
+  } catch (err: any) {
+    console.error('[Telegram Webhook Handle Error]:', err.message);
+    if (!res.headersSent) res.sendStatus(200);
+  }
+});
+
 // GET /webhook-debug
 router.get('/webhook-debug', (req, res) => {
   res.json(lastRequests);

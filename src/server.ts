@@ -44,9 +44,6 @@ app.get('/', (req, res) => {
   });
 });
 
-// Telegram Webhook logger
-app.all('/telegram-webhook', webhookLogger);
-
 // Mount Modular Express Routers
 app.use(booksRouter);
 app.use(groupsRouter);
@@ -62,12 +59,13 @@ const WEBHOOK_DOMAIN = process.env.WEBHOOK_DOMAIN;
 
 if (WEBHOOK_DOMAIN) {
   const cleanDomain = WEBHOOK_DOMAIN.replace(/\/$/, '');
-  app.use(bot.webhookCallback('/telegram-webhook'));
-  bot.telegram.setWebhook(`${cleanDomain}/telegram-webhook`);
-  console.log(`Webhook set to ${cleanDomain}/telegram-webhook`);
+  bot.telegram.setWebhook(`${cleanDomain}/telegram-webhook`).catch(err => {
+    console.warn('[Webhook Set Warning]:', err.message);
+  });
+  console.log(`Webhook target: ${cleanDomain}/telegram-webhook`);
 } else {
   // Polling for local development
-  bot.launch();
+  bot.launch().catch(err => console.warn('[Bot Launch Warning]:', err.message));
   console.log('Telegram bot started in polling mode.');
 }
 
