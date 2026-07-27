@@ -15,6 +15,7 @@ export default function SupplierRouting() {
     getInventoryItem,
     sendToTelegram,
     sotuvNarxi,
+    cancelOrder,
   } = useApp();
 
   const [selectedPaidIds, setSelectedPaidIds] = useState<Set<string>>(new Set());
@@ -149,6 +150,7 @@ export default function SupplierRouting() {
                 <Th>Kitob nomi</Th>
                 <Th>Sotuv Narxi</Th>
                 <Th>Holati</Th>
+                <Th right>Amal</Th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -188,6 +190,19 @@ export default function SupplierRouting() {
                       )}
                     </Td>
                     <Td><StatusBadge status={o.status} /></Td>
+                    <Td right>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`${getStudentName(o.studentId)} buyurtmasini ta'minotchiga yubormay bekor qilasizmi?`)) {
+                            cancelOrder(o.id, "Kassir xatosi sababli ta'minotchi buyurtmasi bekor qilindi");
+                          }
+                        }}
+                        className="py-1 px-2.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-[11px] font-bold rounded-lg transition-colors inline-flex items-center gap-1"
+                      >
+                        Bekor qilish
+                      </button>
+                    </Td>
                   </tr>
                 );
               })}
@@ -292,12 +307,25 @@ export default function SupplierRouting() {
                       </span>
                     </Td>
                     <Td right>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setSingleOrderToAccept(o); }}
-                        className="py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all duration-150 inline-flex items-center gap-1.5"
-                      >
-                        <Package className="w-3.5 h-3.5" /> Qabul qilish
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setSingleOrderToAccept(o); }}
+                          className="py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all duration-150 inline-flex items-center gap-1.5"
+                        >
+                          <Package className="w-3.5 h-3.5" /> Qabul qilish
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm(`${getStudentName(o.studentId)} buyurtmasini ta'minotdan bekor qilasizmi?`)) {
+                              cancelOrder(o.id, "Kassir xatosi sababli ta'minotchi buyurtmasi bekor qilindi");
+                            }
+                          }}
+                          className="py-1.5 px-2.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-xs font-bold rounded-lg transition-colors inline-flex items-center gap-1"
+                        >
+                          Bekor qilish
+                        </button>
+                      </div>
                     </Td>
                   </tr>
                 );
