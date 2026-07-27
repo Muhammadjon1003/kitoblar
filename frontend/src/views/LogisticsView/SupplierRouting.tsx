@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckSquare, Square, Send, Package, Check, Clock, Truck, CheckCircle2 } from 'lucide-react';
+import { CheckSquare, Square, Send, Package, Check, Clock, Truck, CheckCircle2, XCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { StatusBadge, EmptyState, uzs, TableShell, Th, Td } from '../../components/ui';
 import { QabulQilishModali, OmmaviyQabulModali } from '../../components/QabulModallari';
@@ -9,7 +9,6 @@ export default function SupplierRouting() {
   const {
     orders,
     groups,
-    dispatchToSupplier,
     getStudentName,
     getGroupName,
     getInventoryItem,
@@ -65,12 +64,6 @@ export default function SupplierRouting() {
     );
   };
 
-  const handleDispatch = () => {
-    if (selectedPaidIds.size === 0) return;
-    dispatchToSupplier([...selectedPaidIds]);
-    setSelectedPaidIds(new Set());
-  };
-
   /** Group selected or all paid orders by book and send to Telegram */
   const handleSendTelegram = async () => {
     const targetIds = selectedPaidIds.size > 0 
@@ -107,24 +100,30 @@ export default function SupplierRouting() {
             <button
               onClick={handleSendTelegram}
               disabled={yuborilmoqda || tolovBuyurtmalar.length === 0}
-              className="flex items-center gap-1.5 text-xs sb-btn-secondary py-2 px-3.5 disabled:opacity-40 font-bold"
+              className="flex items-center gap-1.5 text-xs sb-btn-primary py-2 px-3.5 disabled:opacity-40 font-bold"
             >
               {yuborilmoqda ? (
-                <Clock className="w-3.5 h-3.5 animate-spin text-slate-500" />
+                <Clock className="w-3.5 h-3.5 animate-spin text-white" />
               ) : yuborildi ? (
-                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <Check className="w-3.5 h-3.5 text-white" />
               ) : (
-                <Send className="w-3.5 h-3.5 text-indigo-600" />
+                <Send className="w-3.5 h-3.5 text-white" />
               )}
               {yuborilmoqda ? 'Yuborilmoqda...' : yuborildi ? 'Yuborildi!' : 'Telegramga yuborish'}
             </button>
             <button
-              onClick={handleDispatch}
+              onClick={() => {
+                if (selectedPaidIds.size === 0) return;
+                if (confirm(`Tanlangan ${selectedPaidIds.size} ta buyurtmani bekor qilasizmi?`)) {
+                  [...selectedPaidIds].forEach(id => cancelOrder(id, "Kassir/O'qituvchi xatosi sababli bekor qilindi"));
+                  setSelectedPaidIds(new Set());
+                }
+              }}
               disabled={selectedPaidIds.size === 0}
-              className="flex items-center gap-1.5 text-xs sb-btn-primary py-2 px-3.5 disabled:opacity-40 font-bold"
+              className="flex items-center gap-1.5 text-xs py-2 px-3.5 rounded-xl font-bold bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 disabled:opacity-40 transition-colors"
             >
-              <Send className="w-3.5 h-3.5 text-white" />
-              {selectedPaidIds.size > 0 ? `${selectedPaidIds.size} tasini yuborish` : 'Tanlanganlarini yuborish'}
+              <XCircle className="w-3.5 h-3.5" />
+              {selectedPaidIds.size > 0 ? `${selectedPaidIds.size} tasini bekor qilish` : 'Tanlanganlarini bekor qilish'}
             </button>
           </div>
         </div>
