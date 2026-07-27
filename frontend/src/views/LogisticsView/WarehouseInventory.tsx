@@ -190,8 +190,8 @@ export default function WarehouseInventory() {
     });
   });
 
-  // Cancelled orders (Books returned to company hands — displays cancellation reason)
-  orders.filter(o => o.status === 'CANCELLED').forEach(o => {
+  // Cancelled orders where a physical book actually arrived or was in transit
+  orders.filter(o => o.status === 'CANCELLED' && !o.comment?.includes("hali buyurtma qilinmagan")).forEach(o => {
     const inv = getInventoryItem(o.bookId);
     const studentName = getStudentName(o.studentId);
     const displayReason = o.comment
@@ -241,7 +241,7 @@ export default function WarehouseInventory() {
       statusType: 'RETURNED' as const,
       price: o.sotuvNarxi > 0 ? o.sotuvNarxi : sotuvNarxi,
     })),
-    ...orders.filter(o => o.status === 'CANCELLED').map(o => ({
+    ...orders.filter(o => o.status === 'CANCELLED' && !o.comment?.includes("hali buyurtma qilinmagan")).map(o => ({
       id: o.id,
       title: getInventoryItem(o.bookId)?.title ?? 'Kitob',
       categoryName: getInventoryItem(o.bookId)?.categoryName ?? '—',

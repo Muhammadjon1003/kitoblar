@@ -707,10 +707,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [orders, checkAuth, refreshOrders, fireToast]);
 
-  /** CANCELLED: Keep order in DB as CANCELLED inventory stock with reason comment */
+  /** CANCELLED: Keep order in DB as CANCELLED with reason comment. Physical book moves to warehouse only if ORDERED/ARRIVED/GIVEN */
   const cancelOrder = useCallback(async (orderId: string, reason?: string) => {
     if (!checkAuth()) return;
-    const comment = reason?.trim() ? `Bekor qilish sababi: ${reason.trim()}` : 'Bekor qilingan buyurtma';
+    const targetOrder = orders.find(o => o.id === orderId);
+    const hadPhysicalBook = targetOrder ? ['ORDERED', 'ARRIVED', 'GIVEN'].includes(targetOrder.status) : false;
+
+    const prefix = hadPhysicalBook 
+      ? "Jismoniy darslik omborda."
+      : "Buyurtma bekor qilindi (Darslik hali buyurtma qilinmagan edi).";
+    
+    const comment = reason?.trim() 
+      ? `${prefix} Sababi: ${reason.trim()}` 
+      : prefix;
 
     setOrders(prev => prev.map(o =>
       o.id === orderId ? { ...o, status: 'CANCELLED', comment, updatedAt: todayISO() } : o
@@ -722,12 +731,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ status: 'CANCELLED', comment }),
       });
       await refreshOrders();
-      fireToast("Buyurtma bekor qilindi va sababi bilan ombor zaxirasiga o'tkazildi.", 'info');
+      if (hadPhysicalBook) {
+        fireToast("Buyurtma bekor qilindi va jismoniy kitob ombor zaxirasiga o'tkazildi.", 'info');
+      } else {
+        fireToast("Buyurtma bekor qilindi (Kitob hali buyurtma qilinmagan edi).", 'info');
+      }
     } catch (err: any) {
       fireToast(`Bekor qilishda xatolik: ${err.message}`, 'error');
       await refreshOrders();
     }
-  }, [checkAuth, refreshOrders, fireToast]);
+  }, [orders, checkAuth, refreshOrders, fireToast]);
 
   /** Manual inventory stock addition by Logistics */
   const addManualInventoryStock = useCallback(async (data: {
