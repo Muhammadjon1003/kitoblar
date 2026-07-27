@@ -3,6 +3,7 @@ import { CheckSquare, Square, Send, Package, Check, Clock, Truck, CheckCircle2, 
 import { useApp } from '../../context/AppContext';
 import { StatusBadge, EmptyState, uzs, TableShell, Th, Td } from '../../components/ui';
 import { QabulQilishModali, OmmaviyQabulModali } from '../../components/QabulModallari';
+import BekorQilishModali from '../../components/BekorQilishModali';
 import type { Order } from '../../types';
 
 export default function SupplierRouting() {
@@ -26,6 +27,7 @@ export default function SupplierRouting() {
   // Modals state
   const [singleOrderToAccept, setSingleOrderToAccept] = useState<Order | null>(null);
   const [showBulkAcceptModal, setShowBulkAcceptModal] = useState(false);
+  const [cancellingTarget, setCancellingTarget]       = useState<{ ids: string[]; targetName: string } | null>(null);
 
   const tolovBuyurtmalar  = orders.filter(o => o.status === 'PAID');
   const yoldaBuyurtmalar  = orders.filter(o => o.status === 'ORDERED');
@@ -114,10 +116,10 @@ export default function SupplierRouting() {
             <button
               onClick={() => {
                 if (selectedPaidIds.size === 0) return;
-                if (confirm(`Tanlangan ${selectedPaidIds.size} ta buyurtmani bekor qilasizmi?`)) {
-                  [...selectedPaidIds].forEach(id => cancelOrder(id, "Kassir/O'qituvchi xatosi sababli bekor qilindi"));
-                  setSelectedPaidIds(new Set());
-                }
+                setCancellingTarget({
+                  ids: [...selectedPaidIds],
+                  targetName: `${selectedPaidIds.size} ta tanlangan buyurtma`
+                });
               }}
               disabled={selectedPaidIds.size === 0}
               className="flex items-center gap-1.5 text-xs py-2 px-3.5 rounded-xl font-bold bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 disabled:opacity-40 transition-colors"
@@ -193,9 +195,10 @@ export default function SupplierRouting() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (confirm(`${getStudentName(o.studentId)} buyurtmasini ta'minotchiga yubormay bekor qilasizmi?`)) {
-                            cancelOrder(o.id, "Kassir xatosi sababli ta'minotchi buyurtmasi bekor qilindi");
-                          }
+                          setCancellingTarget({
+                            ids: [o.id],
+                            targetName: getStudentName(o.studentId)
+                          });
                         }}
                         className="py-1 px-2.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-[11px] font-bold rounded-lg transition-colors inline-flex items-center gap-1"
                       >
@@ -316,9 +319,10 @@ export default function SupplierRouting() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (confirm(`${getStudentName(o.studentId)} buyurtmasini ta'minotdan bekor qilasizmi?`)) {
-                              cancelOrder(o.id, "Kassir xatosi sababli ta'minotchi buyurtmasi bekor qilindi");
-                            }
+                            setCancellingTarget({
+                              ids: [o.id],
+                              targetName: getStudentName(o.studentId)
+                            });
                           }}
                           className="py-1.5 px-2.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-xs font-bold rounded-lg transition-colors inline-flex items-center gap-1"
                         >
@@ -349,6 +353,19 @@ export default function SupplierRouting() {
           orders={bulkYoldaOrdersToAccept}
           onClose={() => setShowBulkAcceptModal(false)}
           onSuccess={() => setSelectedYoldaIds(new Set())}
+        />
+      )}
+
+      {/* Cancel Reason Modal */}
+      {cancellingTarget && (
+        <BekorQilishModali
+          targetName={cancellingTarget.targetName}
+          onClose={() => setCancellingTarget(null)}
+          onConfirm={(reason) => {
+            cancellingTarget.ids.forEach(id => cancelOrder(id, reason));
+            setCancellingTarget(null);
+            setSelectedPaidIds(new Set());
+          }}
         />
       )}
     </div>

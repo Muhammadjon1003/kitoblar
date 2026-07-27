@@ -7,74 +7,7 @@ import { StatusBadge, uzs } from '../../../components/ui';
 import type { Order } from '../../../types';
 import TolovModali from './TolovModali';
 import FixPaymentModal from './FixPaymentModal';
-
-function BekorQilishModali({ studentName, onClose, onConfirm }: {
-  studentName: string;
-  onClose: () => void;
-  onConfirm: (reason: string) => void;
-}) {
-  const [reason, setReason] = useState('');
-  const [xato, setXato]     = useState('');
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!reason.trim()) {
-      setXato("Iltimos, bekor qilish sababini kiriting.");
-      return;
-    }
-    onConfirm(reason.trim());
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-2xl z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        <div className="px-6 py-4 bg-red-600 text-white flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <XCircle className="w-5 h-5" />
-            <h3 className="text-base font-bold">Buyurtmani Bekor Qilish Sababi</h3>
-          </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/15 text-white transition-colors">
-            <X className="w-4.5 h-4.5" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <p className="text-xs text-slate-600 font-medium">
-            <strong className="text-slate-800">"{studentName}"</strong> talabasining buyurtmasini bekor qilish sababini kiritishingiz shart:
-          </p>
-
-          <div>
-            <label className="sb-label">Bekor qilish sababi</label>
-            <textarea
-              rows={3}
-              className="w-full text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-300 rounded-xl p-3 focus:border-red-500 focus:outline-none leading-relaxed"
-              placeholder="masalan: Talaba o'qishni to'xtatdi / Adashib berilgan buyurtma"
-              value={reason}
-              onChange={e => { setReason(e.target.value); setXato(''); }}
-              autoFocus
-            />
-          </div>
-
-          {xato && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-red-600">
-              {xato}
-            </div>
-          )}
-
-          <div className="flex gap-2 pt-2 border-t border-slate-100">
-            <button type="button" onClick={onClose} className="sb-btn-secondary flex-1 text-xs">
-              Orqaga
-            </button>
-            <button type="submit" className="py-2 px-4 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-sm flex-1">
-              Bekor qilish va Saqlash
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
+import BekorQilishModali from '../../../components/BekorQilishModali';
 
 export default function TafsilotPaneli({ order, onClose }: { order: Order; onClose: () => void }) {
   const {
@@ -259,7 +192,7 @@ export default function TafsilotPaneli({ order, onClose }: { order: Order; onClo
       )}
       {bekorKorsat && (
         <BekorQilishModali
-          studentName={studentName}
+          targetName={studentName}
           onClose={() => setBekorKorsat(false)}
           onConfirm={(reason) => {
             cancelOrder(order.id, reason);
