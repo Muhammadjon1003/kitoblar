@@ -9,6 +9,7 @@ import { useApp } from '../../context/AppContext';
 import WarehouseInventory from './WarehouseInventory';
 import SupplierRouting from './SupplierRouting';
 import LogisticsBooksCatalog from './LogisticsBooksCatalog';
+import CashierDashboard from '../CashierView/CashierDashboard';
 
 // ─── Logistics Dashboard Router ────────────────────────────────────────────────
 
@@ -18,5 +19,6 @@ export default function LogisticsDashboard() {
   if (activeSubPage === 'warehouse') return <WarehouseInventory />;
   if (activeSubPage === 'supplier')  return <SupplierRouting />;
   if (activeSubPage === 'books')     return <LogisticsBooksCatalog />;
+  if (['pipeline', 'management', 'payments'].includes(activeSubPage)) return <CashierDashboard />;
   return null;
 }
