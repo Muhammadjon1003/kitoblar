@@ -32,7 +32,7 @@ const todayISO    = () => new Date().toISOString().slice(0, 10);
 const DEFAULT_SUBPAGE: Record<UserRole, SubPage> = {
   TEACHER:   'orders',
   CASHIER:   'pipeline',
-  LOGISTICS: 'supplier',
+  LOGISTICS: 'pipeline',
   MANAGER:   'analytics',
 };
 
