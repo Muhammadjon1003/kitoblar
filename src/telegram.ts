@@ -2,9 +2,18 @@ import { Telegraf } from 'telegraf';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
+export function formatChatId(id: string | number): string | number {
+  if (typeof id === 'number') return id;
+  const str = String(id).trim();
+  if (!str) return str;
+  if (str.startsWith('@') || str.startsWith('-')) return str;
+  if (str.length >= 10) return `-100${str}`;
+  return `-${str}`;
+}
+
 const BOT_TOKEN = process.env.BOT_TOKEN || 'YOUR_TELEGRAM_BOT_TOKEN';
-export const STORAGE_CHANNEL_ID = process.env.STORAGE_CHANNEL_ID || '-1004483506294';
-export const STAFF_GROUP_ID = process.env.STAFF_GROUP_ID || '-1002130662251';
+export const STORAGE_CHANNEL_ID = formatChatId(process.env.STORAGE_CHANNEL_ID || '-1004483506294');
+export const STAFF_GROUP_ID = formatChatId(process.env.STAFF_GROUP_ID || '-1002130662251');
 
 // Initialize the Telegram Bot
 export const bot = new Telegraf(BOT_TOKEN);

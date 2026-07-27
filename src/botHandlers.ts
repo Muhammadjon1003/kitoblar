@@ -431,13 +431,19 @@ export function registerBotHandlers() {
         const bookId = bookRecord.id;
         const caption = `ID: ${bookId}\nName: ${text}\nSubject: ${categoryName}`;
 
-        const channelMsg = await bot.telegram.sendDocument(STORAGE_CHANNEL_ID, fileId, {
-          caption: caption
-        });
+        let tgMsgId = 0;
+        try {
+          const channelMsg = await bot.telegram.sendDocument(STORAGE_CHANNEL_ID, fileId, {
+            caption: caption
+          });
+          tgMsgId = channelMsg.message_id;
+        } catch (channelErr: any) {
+          console.warn('[Telegram Channel Post Warning]:', channelErr.message);
+        }
 
         await prisma.telegramBook.update({
           where: { id: bookId },
-          data: { tgMessageId: channelMsg.message_id }
+          data: { tgMessageId: tgMsgId }
         });
 
         await clearSession(ctx.from.id);
