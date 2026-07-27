@@ -15,9 +15,9 @@ const ROLE_NAV: Record<UserRole, NavItem[]> = {
     { key: 'supplier',   label: 'Ta\'minotchi stoli' },
     { key: 'warehouse',  label: 'Ombor zaxirasi' },
     { key: 'books',      label: 'Darsliklar' },
-    { key: 'pipeline',   label: 'Kassa — CRM Yo\'nalishi' },
-    { key: 'management', label: 'Kassa — Guruhlar boshqaruvi' },
-    { key: 'payments',   label: 'Kassa — To\'lovlar tarixi' },
+    { key: 'pipeline',   label: 'CRM Yo\'nalishi' },
+    { key: 'management', label: 'Guruhlar boshqaruvi' },
+    { key: 'payments',   label: 'To\'lovlar tarixi' },
   ],
   MANAGER:   [{ key: 'analytics', label: 'Moliyaviy tahlil' }, { key: 'ledger', label: 'Buyurtmalar hisoboti' }, { key: 'groups', label: 'Guruhlar boshqaruvi' }, { key: 'users', label: 'Xodimlar va Rollar' }, { key: 'narxsozlama', label: 'Narx Sozlamalari' }],
 };
