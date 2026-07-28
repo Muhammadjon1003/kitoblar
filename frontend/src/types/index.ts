@@ -63,6 +63,8 @@ export interface InventoryItem {
   bookCost: number;   // Wholesale procurement cost (TR § 6: Σ book_cost)
   price?: number;     // Custom logistics/manager selling price (so'm)
   categoryName?: string;
+  isSet?: boolean;
+  setDetails?: string;
 }
 
 // ─── TR § 2: orders table (central state-machine table) ───────────────────────

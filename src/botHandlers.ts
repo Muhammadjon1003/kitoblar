@@ -17,7 +17,7 @@ async function getSession(userId: number) {
   }
   return {
     state: session.state,
-    data: JSON.parse(session.data),
+    data: JSON.parse(session.data || '{}'),
   };
 }
 
@@ -40,7 +40,8 @@ async function clearSession(userId: number) {
 function buildPersistentKeyboard() {
   return Markup.keyboard([
     ["📚 Barcha kitoblar (PDF)", "📂 Kategoriyalar"],
-    ["📥 Kitob yuklash bo'yicha", "📌 Chat ID (Ma'lumot)"]
+    ["📥 Kitob yuklash (Bitta)", "📦 Komplekt kitoblar yuklash"],
+    ["📌 Chat ID (Ma'lumot)"]
   ]).resize();
 }
 
@@ -115,11 +116,24 @@ export function registerBotHandlers() {
     );
   });
 
-  bot.hears("📥 Kitob yuklash bo'yicha", async (ctx) => {
+  bot.hears(["📥 Kitob yuklash (Bitta)", "📥 Kitob yuklash bo'yicha"], async (ctx) => {
+    await clearSession(ctx.from.id);
+    await setSession(ctx.from.id, 'SINGLE_UPLOAD_MODE', {});
     await ctx.reply(
-      "📥 <b>Kitob yuklash tartibi:</b>\n\n" +
-      "Botga har qanday <b>PDF, EPUB, DOCX</b> kitob faylini yuboring.\n" +
-      "Bot sizdan kategoriyani va kitob nomini so'raydi va bazaga avtomatik saqlaydi.",
+      "📥 <b>Bitta darslik yuklash:</b>\n\n" +
+      "Iltimos, PDF darslik faylini botga yuboring.",
+      { parse_mode: 'HTML', ...buildPersistentKeyboard() }
+    );
+  });
+
+  bot.hears("📦 Komplekt kitoblar yuklash", async (ctx) => {
+    await clearSession(ctx.from.id);
+    await setSession(ctx.from.id, 'SET_UPLOAD_ACTIVE', { files: [] });
+    await ctx.reply(
+      "📦 <b>Komplekt (Set) darsliklar yuklash rejimiga xush kelibsiz!</b>\n\n" +
+      "1️⃣ Ketma-ket ravishda PDF darslik fayllarini botga yuboring.\n" +
+      "2️⃣ Har bir PDF fayl yuborilganda, bot sizdan ushbu darslik nomini so'raydi.\n" +
+      "3️⃣ Barcha PDF fayllarni yuborib bo'lgach, <b>'✅ Komplektni tasdiqlash'</b> tugmasini bosing.",
       { parse_mode: 'HTML', ...buildPersistentKeyboard() }
     );
   });
@@ -182,7 +196,7 @@ export function registerBotHandlers() {
     }
 
     const buttons = category.books.map(b => [
-      Markup.button.callback(`📥 ${b.name}`, `send_pdf:${b.id}`)
+      Markup.button.callback(`${b.isSet ? '📦' : '📥'} ${b.name}`, `send_pdf:${b.id}`)
     ]);
     buttons.push([Markup.button.callback("⬅️ Kategoriyalarga qaytish", "cat_action:browse")]);
 
@@ -208,27 +222,37 @@ export function registerBotHandlers() {
 
     await ctx.answerCbQuery("Fayl yuborilmoqda...");
     try {
-      await ctx.replyWithDocument(book.tgFileId, {
-        caption: `📖 <b>${book.name}</b>\n📂 Kategoriya: ${book.category ? book.category.name : 'Umumiy'}`,
-        parse_mode: 'HTML'
-      });
+      if (book.isSet && book.setDetails) {
+        const files: Array<{ name: string; fileId: string }> = JSON.parse(book.setDetails);
+        for (const f of files) {
+          await ctx.replyWithDocument(f.fileId, {
+            caption: `📖 <b>${f.name}</b>\n📦 To'plam: ${book.name}`,
+            parse_mode: 'HTML'
+          });
+        }
+      } else {
+        await ctx.replyWithDocument(book.tgFileId, {
+          caption: `📖 <b>${book.name}</b>\n📂 Kategoriya: ${book.category ? book.category.name : 'Umumiy'}`,
+          parse_mode: 'HTML'
+        });
+      }
     } catch (err: any) {
       console.error(`Failed to send PDF for book ${book.name}:`, err);
       await ctx.reply(`❌ Fayl yuborishda xatolik yuz berdi: ${err.message}`);
     }
   });
 
-  // Add Category Callback
+  // Add Category Callbacks
   bot.action('cat_action:add', async (ctx) => {
     await setSession(ctx.from!.id, 'WAITING_FOR_ADD_CATEGORY_NAME', {});
     await ctx.editMessageText(
-      "➕ <b>Yangi kategoriya nomi</b>\n\nKategoriya nomini kiriting:",
+      "➕ <b>Yangi kategoriya nomini kiriting:</b>\n<i>(masalan: 'Ingliz tili', 'Matematika')</i>",
       { parse_mode: 'HTML' }
     );
     await ctx.answerCbQuery();
   });
 
-  // Edit Category List Callback
+  // Edit Category Callbacks
   bot.action('cat_action:edit', async (ctx) => {
     const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } });
     if (categories.length === 0) {
@@ -236,7 +260,7 @@ export function registerBotHandlers() {
       return;
     }
 
-    const buttons = categories.map(c => [Markup.button.callback(c.name, `cat_edit:${c.id}`)]);
+    const buttons = categories.map(c => [Markup.button.callback(`✏️ ${c.name}`, `cat_edit:${c.id}`)]);
     buttons.push([Markup.button.callback("⬅️ Orqaga", "cat_action:back")]);
 
     await ctx.editMessageText(
@@ -246,7 +270,6 @@ export function registerBotHandlers() {
     await ctx.answerCbQuery();
   });
 
-  // Edit Selected Category callback
   bot.action(/^cat_edit:(\d+)$/, async (ctx) => {
     const categoryId = parseInt(ctx.match[1]);
     const category = await prisma.category.findUnique({ where: { id: categoryId } });
@@ -263,7 +286,7 @@ export function registerBotHandlers() {
     await ctx.answerCbQuery();
   });
 
-  // Delete Category List Callback
+  // Delete Category Callbacks
   bot.action('cat_action:delete', async (ctx) => {
     const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } });
     if (categories.length === 0) {
@@ -281,7 +304,6 @@ export function registerBotHandlers() {
     await ctx.answerCbQuery();
   });
 
-  // Delete Selected Category callback
   bot.action(/^cat_delete:(\d+)$/, async (ctx) => {
     const categoryId = parseInt(ctx.match[1]);
     try {
@@ -307,7 +329,6 @@ export function registerBotHandlers() {
     }
   });
 
-  // Back to Menu Callback
   bot.action('cat_action:back', async (ctx) => {
     await clearSession(ctx.from!.id);
     await ctx.editMessageText(
@@ -317,7 +338,27 @@ export function registerBotHandlers() {
     await ctx.answerCbQuery();
   });
 
-  // Document Handler (Book upload triggers FSM)
+  // Confirm Set Files Callback
+  bot.action('set_action:confirm_files', async (ctx) => {
+    const session = await getSession(ctx.from!.id);
+    const files = session.data.files || [];
+
+    if (files.length === 0) {
+      await ctx.answerCbQuery("Hali hech qanday PDF darslik yuborilmadi.", { show_alert: true });
+      return;
+    }
+
+    await setSession(ctx.from!.id, 'WAITING_FOR_SET_TITLE', { files });
+    await ctx.editMessageText(
+      `✅ <b>${files.length} ta darslik tanlandi.</b>\n\n` +
+      `📝 Endi ushbu <b>Komplekt (To'plam) uchun umumiy nom</b> kiriting:\n` +
+      `<i>(masalan: 'Oxford Word Skills A1+ Komplekt (2 ta kitob)')</i>`,
+      { parse_mode: 'HTML' }
+    );
+    await ctx.answerCbQuery();
+  });
+
+  // Document Handler (Single & Set Upload FSM)
   bot.on('document', async (ctx) => {
     const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } });
     if (categories.length === 0) {
@@ -328,8 +369,28 @@ export function registerBotHandlers() {
     }
 
     const fileId = ctx.message.document.file_id;
-    await setSession(ctx.from.id, 'WAITING_FOR_BOOK_CATEGORY', { fileId });
+    const defaultFileName = ctx.message.document.file_name || 'Darslik';
+    const session = await getSession(ctx.from.id);
 
+    // If in SET UPLOAD mode
+    if (session.state === 'SET_UPLOAD_ACTIVE' || session.state === 'WAITING_FOR_SET_ITEM_NAME') {
+      const files = session.data.files || [];
+      await setSession(ctx.from.id, 'WAITING_FOR_SET_ITEM_NAME', {
+        ...session.data,
+        pendingFileId: fileId,
+        pendingFileName: defaultFileName,
+      });
+
+      await ctx.reply(
+        `📝 <b>${files.length + 1}-darslik uchun nom kiriting:</b>\n` +
+        `<i>(fayl nomi: ${defaultFileName})</i>`,
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
+    // Default: Single book upload
+    await setSession(ctx.from.id, 'WAITING_FOR_BOOK_CATEGORY', { fileId });
     const buttons = categories.map(c => [Markup.button.callback(c.name, `book_cat:${c.id}`)]);
     await ctx.reply(
       "📂 <b>Kategoriyani tanlang:</b>",
@@ -337,7 +398,7 @@ export function registerBotHandlers() {
     );
   });
 
-  // Book Category selected callback
+  // Book Category selected callback for Single book
   bot.action(/^book_cat:(\d+)$/, async (ctx) => {
     const categoryId = parseInt(ctx.match[1]);
     const session = await getSession(ctx.from!.id);
@@ -366,12 +427,95 @@ export function registerBotHandlers() {
     await ctx.answerCbQuery();
   });
 
-  // General text messages
+  // Set Category selected callback
+  bot.action(/^set_cat:(\d+)$/, async (ctx) => {
+    const categoryId = parseInt(ctx.match[1]);
+    const session = await getSession(ctx.from!.id);
+
+    if (session.state !== 'WAITING_FOR_SET_CATEGORY') {
+      await ctx.answerCbQuery("Sessiya eskirgan. Qaytadan urinib ko'ring.", { show_alert: true });
+      return;
+    }
+
+    const category = await prisma.category.findUnique({ where: { id: categoryId } });
+    if (!category) {
+      await ctx.answerCbQuery("Kategoriya topilmadi.", { show_alert: true });
+      return;
+    }
+
+    const { setTitle, files } = session.data;
+    const finalTitle = `📦 [Komplekt] ${setTitle}`;
+
+    try {
+      const bookRecord = await prisma.telegramBook.create({
+        data: {
+          tgFileId: files[0]?.fileId || '',
+          tgMessageId: 0,
+          name: finalTitle,
+          categoryId: categoryId,
+          isSet: true,
+          setDetails: JSON.stringify(files),
+        }
+      });
+
+      await clearSession(ctx.from!.id);
+      await ctx.editMessageText(
+        `🎉 <b>Komplekt darslik muvaffaqiyatli saqlandi!</b>\n\n` +
+        `📦 Nomi: <b>${finalTitle}</b>\n` +
+        `📚 Darsliklar soni: <b>${files.length} ta</b>\n` +
+        `📂 Kategoriya: <b>${category.name}</b>\n\n` +
+        `Endi ushbu to'plam veb-tizimda (Teacher View) 1 ta darslik bo'lib ko'rinadi!`,
+        { parse_mode: 'HTML', ...buildPersistentKeyboard() }
+      );
+      await ctx.answerCbQuery();
+    } catch (e: any) {
+      await clearSession(ctx.from!.id);
+      await ctx.reply(`❌ Komplektni saqlashda xatolik: ${e.message}`);
+    }
+  });
+
+  // General text messages FSM router
   bot.on('text', async (ctx, next) => {
     const text = ctx.message.text.trim();
     const session = await getSession(ctx.from.id);
 
-    if (session.state === 'WAITING_FOR_ADD_CATEGORY_NAME') {
+    // 1. Entering name for a single item in a Set
+    if (session.state === 'WAITING_FOR_SET_ITEM_NAME') {
+      const files = session.data.files || [];
+      const updatedFiles = [...files, { name: text, fileId: session.data.pendingFileId }];
+
+      await setSession(ctx.from.id, 'SET_UPLOAD_ACTIVE', {
+        files: updatedFiles
+      });
+
+      await ctx.reply(
+        `✅ <b>'${text}'</b> to'plamga qo'shildi!\n\n` +
+        `📊 Hozircha to'plamda: <b>${updatedFiles.length} ta darslik</b> bor.\n\n` +
+        `Yana PDF fayl yuborishingiz yoki to'plamni tasdiqlashingiz mumkin.`,
+        {
+          parse_mode: 'HTML',
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback("✅ Komplektni tasdiqlash", "set_action:confirm_files")]
+          ])
+        }
+      );
+    }
+    // 2. Entering the title for the overall Set
+    else if (session.state === 'WAITING_FOR_SET_TITLE') {
+      const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } });
+      await setSession(ctx.from.id, 'WAITING_FOR_SET_CATEGORY', {
+        files: session.data.files,
+        setTitle: text,
+      });
+
+      const buttons = categories.map(c => [Markup.button.callback(c.name, `set_cat:${c.id}`)]);
+      await ctx.reply(
+        `📦 Komplekt nomi: <b>${text}</b>\n\n📂 <b>Kategoriyani tanlang:</b>`,
+        { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) }
+      );
+    }
+    // 3. Adding Category Name
+    else if (session.state === 'WAITING_FOR_ADD_CATEGORY_NAME') {
       try {
         const record = await prisma.category.create({ data: { name: text } });
         await clearSession(ctx.from.id);
@@ -391,6 +535,7 @@ export function registerBotHandlers() {
         }
       }
     } 
+    // 4. Editing Category Name
     else if (session.state === 'WAITING_FOR_NEW_CATEGORY_NAME') {
       const categoryId = session.data.categoryId;
       try {
@@ -415,6 +560,7 @@ export function registerBotHandlers() {
         }
       }
     } 
+    // 5. Entering Single Book Name
     else if (session.state === 'WAITING_FOR_BOOK_NAME') {
       const { fileId, categoryId, categoryName } = session.data;
       
@@ -424,7 +570,8 @@ export function registerBotHandlers() {
             tgFileId: fileId,
             tgMessageId: 0,
             name: text,
-            categoryId: categoryId
+            categoryId: categoryId,
+            isSet: false,
           }
         });
 
@@ -480,7 +627,7 @@ async function sendAllBooksList(ctx: any) {
     }
 
     const buttons = books.map(b => [
-      Markup.button.callback(`📥 ${b.name} (${b.category ? b.category.name : 'Umumiy'})`, `send_pdf:${b.id}`)
+      Markup.button.callback(`${b.isSet ? '📦' : '📥'} ${b.name} (${b.category ? b.category.name : 'Umumiy'})`, `send_pdf:${b.id}`)
     ]);
 
     await ctx.reply(

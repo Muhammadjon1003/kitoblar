@@ -89,6 +89,8 @@ model TelegramBook {
   name        String   @db.VarChar(255)
   categoryId  Int      @map("category_id")
   price       Float?   @default(0)
+  isSet       Boolean  @default(false)
+  setDetails  String?  @db.Text
   category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@map("books")
