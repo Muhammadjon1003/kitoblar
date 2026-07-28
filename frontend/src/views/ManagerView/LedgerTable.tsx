@@ -21,7 +21,8 @@ const STATUS_OPTIONS: Array<{ value: string; label: string }> = [
 ];
 
 export default function LedgerTable() {
-  const { orders, groups, getStudentName, getGroupName, getInventoryItem } = useApp();
+  const { currentUser, orders, groups, getStudentName, getGroupName, getInventoryItem, updateOrderAdmin, fireToast } = useApp();
+  const isSuperAdmin = currentUser?.role === 'MANAGER' || (currentUser?.role as any) === 'SUPER_ADMIN';
 
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [searchQuery, setSearchQuery]       = useState<string>('');
@@ -224,7 +225,33 @@ export default function LedgerTable() {
                     </Td>
                     <Td>
                       <div className="relative group flex flex-col items-start gap-1" title={o.comment ? o.comment : undefined}>
-                        <StatusBadge status={o.status} />
+                        {isSuperAdmin ? (
+                          <select
+                            value={o.status}
+                            onChange={async (e) => {
+                              const newStatus = e.target.value;
+                              if (newStatus === o.status) return;
+                              try {
+                                await updateOrderAdmin(o.id, { status: newStatus });
+                                fireToast(`Buyurtma holati '${newStatus}' ga o'zgartirildi!`, 'success');
+                              } catch (err: any) {
+                                fireToast(`Xatolik: ${err.message}`, 'error');
+                              }
+                            }}
+                            className="text-xs font-bold py-1 px-2.5 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-2xs hover:border-indigo-400 transition-colors"
+                          >
+                            <option value="CREATED">Yaratildi (CREATED)</option>
+                            <option value="PAID">To'langan (PAID)</option>
+                            <option value="ORDERED">Buyurtma berildi (ORDERED)</option>
+                            <option value="ARRIVED">Keldi (ARRIVED)</option>
+                            <option value="GIVEN">Topshirildi (GIVEN)</option>
+                            <option value="CANCELLED">Bekor qilindi (CANCELLED)</option>
+                            <option value="RETURNED">Qaytarildi (RETURNED)</option>
+                            <option value="Ombordan biriktirildi">Ombordan biriktirildi</option>
+                          </select>
+                        ) : (
+                          <StatusBadge status={o.status} />
+                        )}
                         {o.comment && (
                           <span
                             className="text-[10px] text-amber-800 font-bold bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded max-w-[180px] truncate cursor-help shadow-2xs"
