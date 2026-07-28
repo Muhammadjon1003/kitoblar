@@ -221,6 +221,7 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
       where: { id: { in: orderIds } },
       include: {
         student: true,
+        group: true,
       }
     });
 
@@ -287,16 +288,20 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
           }
         });
 
-        // Insert permanent log into DispatchedOrderLog
-        await prisma.dispatchedOrderLog.create({
-          data: {
-            studentName: o.student.fullName,
-            groupName: o.group.groupName,
-            teacherName: o.group.teacherName ?? '',
-            bookTitle: bookName,
-            orderedAt: today,
-          }
-        });
+        // Insert permanent log into DispatchedOrderLog safely
+        try {
+          await prisma.dispatchedOrderLog.create({
+            data: {
+              studentName: o.student?.fullName ?? 'Talaba',
+              groupName: o.group?.groupName ?? '—',
+              teacherName: o.group?.teacherName ?? '',
+              bookTitle: bookName,
+              orderedAt: today,
+            }
+          });
+        } catch (logErr) {
+          console.warn('[DispatchedOrderLog Error]:', logErr);
+        }
 
         ordersToSendTelegram.push(o);
       }
