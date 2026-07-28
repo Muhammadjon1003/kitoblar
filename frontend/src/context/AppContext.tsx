@@ -30,18 +30,20 @@ const todayISO    = () => new Date().toISOString().slice(0, 10);
 
 // Default sub-pages per role
 const DEFAULT_SUBPAGE: Record<UserRole, SubPage> = {
-  TEACHER:   'orders',
-  CASHIER:   'pipeline',
-  LOGISTICS: 'pipeline',
-  MANAGER:   'analytics',
+  TEACHER:     'orders',
+  CASHIER:     'pipeline',
+  LOGISTICS:   'pipeline',
+  MANAGER:     'analytics',
+  SUPER_ADMIN: 'admin_console',
 };
 
 // Valid sub-pages per role
 const VALID_SUBPAGES: Record<UserRole, SubPage[]> = {
-  TEACHER:   ['orders'],
-  CASHIER:   ['pipeline', 'warehouse', 'management', 'payments'],
-  LOGISTICS: ['pipeline', 'supplier', 'history', 'warehouse', 'books', 'management', 'payments'],
-  MANAGER:   ['analytics', 'ledger', 'groups', 'users', 'narxsozlama'],
+  TEACHER:     ['orders'],
+  CASHIER:     ['pipeline', 'warehouse', 'management', 'payments'],
+  LOGISTICS:   ['pipeline', 'supplier', 'history', 'warehouse', 'books', 'management', 'payments'],
+  MANAGER:     ['analytics', 'ledger', 'groups', 'users', 'narxsozlama'],
+  SUPER_ADMIN: ['admin_console', 'ledger', 'analytics', 'groups', 'users', 'narxsozlama', 'supplier', 'history', 'books', 'warehouse', 'pipeline', 'orders'],
 };
 
 // ─── Context interface ─────────────────────────────────────────────────────────
@@ -136,7 +138,7 @@ function parseHashRoute(): { role: UserRole; subPage: SubPage } | null {
   const roleStr = parts[0]?.toUpperCase();
   const subStr = parts[1];
 
-  const validRoles: UserRole[] = ['TEACHER', 'CASHIER', 'LOGISTICS', 'MANAGER'];
+  const validRoles: UserRole[] = ['TEACHER', 'CASHIER', 'LOGISTICS', 'MANAGER', 'SUPER_ADMIN'];
   if (roleStr && validRoles.includes(roleStr as UserRole)) {
     const role = roleStr as UserRole;
     const defaultSub = DEFAULT_SUBPAGE[role];

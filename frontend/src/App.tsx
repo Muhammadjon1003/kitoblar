@@ -12,6 +12,7 @@ import TeacherView        from './views/TeacherView';
 import CashierDashboard   from './views/CashierView/CashierDashboard';
 import LogisticsDashboard from './views/LogisticsView/LogisticsDashboard';
 import ManagerDashboard   from './views/ManagerView/ManagerDashboard';
+import SuperAdminConsole  from './views/SuperAdminView/SuperAdminConsole';
 
 function AppShell() {
   const { currentUser, activeRole, toasts, dismissToast } = useApp();
@@ -32,10 +33,11 @@ function AppShell() {
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
         <main className="flex-1 flex flex-col overflow-hidden bg-slate-50">
-          {activeRole === 'TEACHER'   && <TeacherView />}
-          {activeRole === 'CASHIER'   && <CashierDashboard />}
-          {activeRole === 'LOGISTICS' && <LogisticsDashboard />}
-          {activeRole === 'MANAGER'   && <ManagerDashboard />}
+          {activeRole === 'TEACHER'     && <TeacherView />}
+          {activeRole === 'CASHIER'     && <CashierDashboard />}
+          {activeRole === 'LOGISTICS'   && <LogisticsDashboard />}
+          {activeRole === 'MANAGER'     && <ManagerDashboard />}
+          {activeRole === 'SUPER_ADMIN' && <SuperAdminConsole />}
         </main>
       </div>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />

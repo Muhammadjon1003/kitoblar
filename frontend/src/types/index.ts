@@ -20,7 +20,7 @@ export type OrderStatus =
   | 'Ombordan biriktirildi';
 
 // ─── RBAC Roles (TR § 1) ──────────────────────────────────────────────────────
-export type UserRole = 'TEACHER' | 'CASHIER' | 'LOGISTICS' | 'MANAGER';
+export type UserRole = 'TEACHER' | 'CASHIER' | 'LOGISTICS' | 'MANAGER' | 'SUPER_ADMIN';
 
 // ─── TR § 2: users table (display only — auth not in frontend scope) ──────────
 export interface Teacher {
@@ -136,4 +136,5 @@ export type SubPage =
   | 'coverage'      // MANAGER
   | 'groups'        // MANAGER — groups management
   | 'users'         // MANAGER — staff accounts management
-  | 'narxsozlama';  // MANAGER — price settings
+  | 'narxsozlama'   // MANAGER — price settings
+  | 'admin_console';// SUPER_ADMIN — developer / superadmin control console

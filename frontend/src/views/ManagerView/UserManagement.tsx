@@ -10,10 +10,11 @@ import { TableShell, Th, Td, EmptyState } from '../../components/ui';
 import type { UserRole } from '../../types';
 
 const ROLE_LABELS: Record<UserRole, { label: string; cls: string }> = {
-  TEACHER:   { label: "O'qituvchi",         cls: 'bg-blue-100 text-blue-800 border-blue-200' },
-  CASHIER:   { label: 'Kassir (Moliyachi)', cls: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
-  LOGISTICS: { label: 'Logistika Admin',    cls: 'bg-amber-100 text-amber-800 border-amber-200' },
-  MANAGER:   { label: 'Bosh Menejer',       cls: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+  TEACHER:     { label: "O'qituvchi",         cls: 'bg-blue-100 text-blue-800 border-blue-200' },
+  CASHIER:     { label: 'Kassir (Moliyachi)', cls: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
+  LOGISTICS:   { label: 'Logistika Admin',    cls: 'bg-amber-100 text-amber-800 border-amber-200' },
+  MANAGER:     { label: 'Bosh Menejer',       cls: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+  SUPER_ADMIN: { label: '⚡ Super Admin / Dev', cls: 'bg-purple-100 text-purple-800 border-purple-200' },
 };
 
 function YangiXodimModali({ onClose }: { onClose: () => void }) {

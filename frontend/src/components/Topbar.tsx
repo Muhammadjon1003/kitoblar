@@ -9,10 +9,11 @@ import NotificationsModal from './NotificationsModal';
 import type { UserRole } from '../types';
 
 const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
-  TEACHER:   'Buyurtmalar boshqaruvi — Talabalar bo\'yicha ish maydoni',
-  CASHIER:   'CRM Yo\'nalishi — To\'lov qabul qilish va kitob topshirish',
-  LOGISTICS: 'Ta\'minot zanjiri — Ombor, ta\'minotchi va kirim boshqaruvi',
-  MANAGER:   'Moliyaviy tahlil — Hisobot formulalari va qamrov hisobotlari',
+  TEACHER:     'Buyurtmalar boshqaruvi — Talabalar bo\'yicha ish maydoni',
+  CASHIER:     'CRM Yo\'nalishi — To\'lov qabul qilish va kitob topshirish',
+  LOGISTICS:   'Ta\'minot zanjiri — Ombor, ta\'minotchi va kirim boshqaruvi',
+  MANAGER:     'Moliyaviy tahlil — Hisobot formulalari va qamrov hisobotlari',
+  SUPER_ADMIN: '⚡ SuperAdmin & Developer Portal — Full System Override',
 };
 
 export default function Topbar() {

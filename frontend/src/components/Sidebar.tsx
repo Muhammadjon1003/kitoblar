@@ -26,20 +26,30 @@ const ROLE_NAV: Record<UserRole, NavItem[]> = {
     { key: 'payments',   label: 'To\'lovlar tarixi' },
   ],
   MANAGER:   [{ key: 'analytics', label: 'Moliyaviy tahlil' }, { key: 'ledger', label: 'Buyurtmalar hisoboti' }, { key: 'groups', label: 'Guruhlar boshqaruvi' }, { key: 'users', label: 'Xodimlar va Rollar' }, { key: 'narxsozlama', label: 'Narx Sozlamalari' }],
+  SUPER_ADMIN: [
+    { key: 'admin_console', label: '⚡ SuperAdmin Konsol' },
+    { key: 'ledger',        label: 'Buyurtmalar hisoboti' },
+    { key: 'analytics',     label: 'Moliyaviy tahlil' },
+    { key: 'groups',        label: 'Guruhlar boshqaruvi' },
+    { key: 'users',         label: 'Xodimlar va Rollar' },
+    { key: 'narxsozlama',   label: 'Narx Sozlamalari' },
+  ],
 };
 
 const ROLE_DOT: Record<UserRole, string> = {
-  TEACHER:   'bg-blue-500',
-  CASHIER:   'bg-indigo-500',
-  LOGISTICS: 'bg-amber-500',
-  MANAGER:   'bg-emerald-500',
+  TEACHER:     'bg-blue-500',
+  CASHIER:     'bg-indigo-500',
+  LOGISTICS:   'bg-amber-500',
+  MANAGER:     'bg-emerald-500',
+  SUPER_ADMIN: 'bg-purple-600',
 };
 
 const ROLE_LABEL: Record<UserRole, string> = {
-  TEACHER:   'O\'qituvchi',
-  CASHIER:   'Kassir',
-  LOGISTICS: 'Logistika',
-  MANAGER:   'Menejer',
+  TEACHER:     'O\'qituvchi',
+  CASHIER:     'Kassir',
+  LOGISTICS:   'Logistika',
+  MANAGER:     'Menejer',
+  SUPER_ADMIN: '⚡ Super Admin / Dev',
 };
 
 function SidebarContent({ onCloseMobile }: { onCloseMobile?: () => void }) {
