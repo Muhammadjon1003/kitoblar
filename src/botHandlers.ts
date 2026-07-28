@@ -230,15 +230,19 @@ export function registerBotHandlers() {
       return;
     }
 
-    await ctx.answerCbQuery("Fayl yuborilmoqda...");
+    await ctx.answerCbQuery("Fayllar yuborilmoqda...");
     try {
       if (book.isSet && book.setDetails) {
         const files: Array<{ name: string; fileId: string }> = JSON.parse(book.setDetails);
-        for (const f of files) {
+        for (let i = 0; i < files.length; i++) {
+          const f = files[i];
           await ctx.replyWithDocument(f.fileId, {
-            caption: `📖 <b>${f.name}</b>\n📦 To'plam: ${book.name}`,
+            caption: `📖 [${i + 1}/${files.length}] <b>${f.name}</b>\n📦 To'plam: ${book.name}`,
             parse_mode: 'HTML'
           });
+          if (i < files.length - 1) {
+            await new Promise(res => setTimeout(res, 600));
+          }
         }
       } else {
         await ctx.replyWithDocument(book.tgFileId, {

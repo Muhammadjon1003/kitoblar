@@ -315,9 +315,22 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
         const caption = `kitob nomi: ${group.bookName}\nSoni: ${studentNames.length}\nKimlar uchun:\n${studentNames.join('\n')}`;
 
         try {
-          const msg = await bot.telegram.sendDocument(targetChatId, group.tgFileId, {
-            caption: caption
-          });
+          const bookObj = bookMap.get(bookId);
+          let primaryMsgId = 0;
+
+          if (bookObj?.isSet && bookObj?.setDetails) {
+            const files: Array<{ name: string; fileId: string }> = JSON.parse(bookObj.setDetails);
+            for (let i = 0; i < files.length; i++) {
+              const f = files[i];
+              const fileCaption = `kitob nomi: ${f.name} [${i + 1}/${files.length}]\n📦 To'plam: ${group.bookName}\nSoni: ${studentNames.length}\nKimlar uchun:\n${studentNames.join('\n')}`;
+              const sentMsg = await bot.telegram.sendDocument(targetChatId, f.fileId, { caption: fileCaption });
+              if (i === 0) primaryMsgId = sentMsg.message_id;
+              if (i < files.length - 1) await new Promise(r => setTimeout(r, 600));
+            }
+          } else {
+            const sentMsg = await bot.telegram.sendDocument(targetChatId, group.tgFileId, { caption });
+            primaryMsgId = sentMsg.message_id;
+          }
 
           // Mark orders as ORDERED ONLY AFTER Telegram dispatch succeeds
           for (const o of group.orders) {
@@ -341,7 +354,7 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
             }
           }
 
-          sentResults.push({ bookId, bookName: group.bookName, success: true, messageId: msg.message_id });
+          sentResults.push({ bookId, bookName: group.bookName, success: true, messageId: primaryMsgId });
         } catch (err: any) {
           console.error(`Failed to send document for book ${group.bookName}:`, err);
           sentResults.push({ bookId, bookName: group.bookName, success: false, error: err.message });
