@@ -320,13 +320,17 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
 
           if (bookObj?.isSet && bookObj?.setDetails) {
             const files: Array<{ name: string; fileId: string }> = JSON.parse(bookObj.setDetails);
-            for (let i = 0; i < files.length; i++) {
-              const f = files[i];
-              const fileCaption = `kitob nomi: ${f.name} [${i + 1}/${files.length}]\n📦 To'plam: ${group.bookName}\nSoni: ${studentNames.length}\nKimlar uchun:\n${studentNames.join('\n')}`;
-              const sentMsg = await bot.telegram.sendDocument(targetChatId, f.fileId, { caption: fileCaption });
-              if (i === 0) primaryMsgId = sentMsg.message_id;
-              if (i < files.length - 1) await new Promise(r => setTimeout(r, 600));
-            }
+            const bookListStr = files.map((f, idx) => `${idx + 1}. ${f.name}`).join('\n');
+            const setCaption = `kitob nomi: ${group.bookName}\nSoni: ${studentNames.length}\n\n📚 Tarkibidagi darsliklar:\n${bookListStr}\n\nKimlar uchun:\n${studentNames.join('\n')}`;
+
+            const mediaGroup = files.map((f, index) => ({
+              type: 'document' as const,
+              media: f.fileId,
+              caption: index === 0 ? setCaption : undefined
+            }));
+
+            const sentMsgs = await bot.telegram.sendMediaGroup(targetChatId, mediaGroup);
+            primaryMsgId = sentMsgs[0]?.message_id || 0;
           } else {
             const sentMsg = await bot.telegram.sendDocument(targetChatId, group.tgFileId, { caption });
             primaryMsgId = sentMsg.message_id;

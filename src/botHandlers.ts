@@ -234,16 +234,17 @@ export function registerBotHandlers() {
     try {
       if (book.isSet && book.setDetails) {
         const files: Array<{ name: string; fileId: string }> = JSON.parse(book.setDetails);
-        for (let i = 0; i < files.length; i++) {
-          const f = files[i];
-          await ctx.replyWithDocument(f.fileId, {
-            caption: `📖 [${i + 1}/${files.length}] <b>${f.name}</b>\n📦 To'plam: ${book.name}`,
-            parse_mode: 'HTML'
-          });
-          if (i < files.length - 1) {
-            await new Promise(res => setTimeout(res, 600));
-          }
-        }
+        const bookListStr = files.map((f, idx) => `${idx + 1}. ${f.name}`).join('\n');
+        const caption = `📦 <b>${book.name}</b> (${files.length} ta darslik)\n\n📚 <b>Tarkibidagi darsliklar:</b>\n${bookListStr}`;
+        
+        const mediaGroup = files.map((f, index) => ({
+          type: 'document' as const,
+          media: f.fileId,
+          caption: index === 0 ? caption : undefined,
+          parse_mode: index === 0 ? ('HTML' as const) : undefined
+        }));
+
+        await ctx.replyWithMediaGroup(mediaGroup);
       } else {
         await ctx.replyWithDocument(book.tgFileId, {
           caption: `📖 <b>${book.name}</b>\n📂 Kategoriya: ${book.category ? book.category.name : 'Umumiy'}`,
