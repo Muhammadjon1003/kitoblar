@@ -455,7 +455,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const res = await fetch(`${API}/backend/groups`);
       if (!res.ok) throw new Error('groups API failed');
       const data: Group[] = await res.json();
-      setGroups(data);
+      setGroups(data.filter(g => g.groupName !== 'Ombor Zaxirasi'));
     } catch (err) {
       console.warn('Failed to load groups from live API:', err);
     }
@@ -466,11 +466,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const res = await fetch(`${API}/backend/students`);
       if (!res.ok) throw new Error('students API failed');
       const data = await res.json();
-      const mapped: Student[] = data.map((s: any) => ({
-        ...s,
-        name: s.fullName,
-        createdAt: s.joinedAt,
-      }));
+      const mapped: Student[] = data
+        .filter((s: any) => s.fullName !== 'Ombor Inventari')
+        .map((s: any) => ({
+          ...s,
+          name: s.fullName,
+          createdAt: s.joinedAt,
+        }));
       setStudents(mapped);
     } catch (err) {
       console.warn('Failed to load students from live API:', err);
