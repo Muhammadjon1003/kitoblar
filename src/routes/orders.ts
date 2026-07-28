@@ -286,6 +286,18 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
             updatedAt: today,
           }
         });
+
+        // Insert permanent log into DispatchedOrderLog
+        await prisma.dispatchedOrderLog.create({
+          data: {
+            studentName: o.student.fullName,
+            groupName: o.group.groupName,
+            teacherName: o.group.teacherName ?? '',
+            bookTitle: bookName,
+            orderedAt: today,
+          }
+        });
+
         ordersToSendTelegram.push(o);
       }
     }
@@ -338,6 +350,46 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
       autoFulfilled,
       results: sentResults,
     });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /backend/orders/dispatched-history — Immutable permanent log of supplier dispatches
+router.get('/backend/orders/dispatched-history', async (req, res) => {
+  try {
+    let logs = await prisma.dispatchedOrderLog.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Auto-backfill from existing ORDERED/ARRIVED/GIVEN orders if logs table is empty
+    if (logs.length === 0) {
+      const existingDispatched = await prisma.erpOrder.findMany({
+        where: { status: { in: ['ORDERED', 'ARRIVED', 'GIVEN'] } },
+        include: { student: true, group: true }
+      });
+
+      const books = await prisma.telegramBook.findMany();
+      const bookMap = new Map(books.map(b => [String(b.id), b.name]));
+
+      for (const o of existingDispatched) {
+        await prisma.dispatchedOrderLog.create({
+          data: {
+            studentName: o.student.fullName,
+            groupName: o.group.groupName,
+            teacherName: o.group.teacherName ?? '',
+            bookTitle: bookMap.get(o.bookId) ?? 'Darslik',
+            orderedAt: o.updatedAt || new Date().toISOString().slice(0, 10),
+          }
+        });
+      }
+
+      logs = await prisma.dispatchedOrderLog.findMany({
+        orderBy: { createdAt: 'desc' },
+      });
+    }
+
+    res.json(logs);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
