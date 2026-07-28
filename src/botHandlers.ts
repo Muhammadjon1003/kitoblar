@@ -520,8 +520,9 @@ export function registerBotHandlers() {
         `📚 Darsliklar soni: <b>${files.length} ta</b>\n` +
         `📂 Kategoriya: <b>${category.name}</b>\n\n` +
         `Endi ushbu to'plam veb-tizimda (Teacher View) 1 ta darslik bo'lib ko'rinadi!`,
-        { parse_mode: 'HTML', ...buildPersistentKeyboard() }
+        { parse_mode: 'HTML' }
       );
+      await ctx.reply("👇 Asosiy menyu:", buildPersistentKeyboard());
       await ctx.answerCbQuery();
     } catch (e: any) {
       await clearSession(ctx.from!.id);
