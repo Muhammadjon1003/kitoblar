@@ -279,36 +279,12 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
           bookName,
         });
       } else {
-        // If not in inventory stock, mark order as ORDERED and prepare for Telegram
-        await prisma.erpOrder.update({
-          where: { id: o.id },
-          data: {
-            status: 'ORDERED',
-            updatedAt: today,
-          }
-        });
-
-        // Insert permanent log into DispatchedOrderLog safely
-        try {
-          await prisma.dispatchedOrderLog.create({
-            data: {
-              studentName: o.student?.fullName ?? 'Talaba',
-              groupName: o.group?.groupName ?? '—',
-              teacherName: o.group?.teacherName ?? '',
-              bookTitle: bookName,
-              orderedAt: today,
-            }
-          });
-        } catch (logErr) {
-          console.warn('[DispatchedOrderLog Error]:', logErr);
-        }
-
         ordersToSendTelegram.push(o);
       }
     }
 
     // Group only remaining orders that were NOT auto-fulfilled from inventory
-    const groups: Record<string, { bookName: string; tgFileId: string; students: string[] }> = {};
+    const groups: Record<string, { bookName: string; tgFileId: string; orders: typeof orders }> = {};
     for (const o of ordersToSendTelegram) {
       const book = bookMap.get(o.bookId);
       if (!book) continue;
@@ -316,13 +292,13 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
         groups[o.bookId] = {
           bookName: book.name,
           tgFileId: book.tgFileId,
-          students: [],
+          orders: [],
         };
       }
-      groups[o.bookId].students.push(o.student.fullName);
+      groups[o.bookId].orders.push(o);
     }
 
-    let targetChatId = process.env.STAFF_GROUP_ID || process.env.STORAGE_CHANNEL_ID || '-1002130662251';
+    let targetChatId = process.env.STAFF_GROUP_ID || process.env.STORAGE_CHANNEL_ID || '-1004440998978';
     if (targetChatId && !targetChatId.startsWith('@') && !targetChatId.startsWith('-')) {
       if (targetChatId.length >= 10) {
         targetChatId = `-100${targetChatId}`;
@@ -335,12 +311,36 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
     if (targetChatId && ordersToSendTelegram.length > 0) {
       for (const bookId in groups) {
         const group = groups[bookId];
-        const caption = `kitob nomi: ${group.bookName}\nSoni: ${group.students.length}\nKimlar uchun:\n${group.students.join('\n')}`;
+        const studentNames = group.orders.map(o => o.student.fullName);
+        const caption = `kitob nomi: ${group.bookName}\nSoni: ${studentNames.length}\nKimlar uchun:\n${studentNames.join('\n')}`;
 
         try {
           const msg = await bot.telegram.sendDocument(targetChatId, group.tgFileId, {
             caption: caption
           });
+
+          // Mark orders as ORDERED ONLY AFTER Telegram dispatch succeeds
+          for (const o of group.orders) {
+            await prisma.erpOrder.update({
+              where: { id: o.id },
+              data: { status: 'ORDERED', updatedAt: today }
+            });
+
+            try {
+              await prisma.dispatchedOrderLog.create({
+                data: {
+                  studentName: o.student?.fullName ?? 'Talaba',
+                  groupName: o.group?.groupName ?? '—',
+                  teacherName: o.group?.teacherName ?? '',
+                  bookTitle: group.bookName,
+                  orderedAt: today,
+                }
+              });
+            } catch (logErr) {
+              console.warn('[DispatchedOrderLog Error]:', logErr);
+            }
+          }
+
           sentResults.push({ bookId, bookName: group.bookName, success: true, messageId: msg.message_id });
         } catch (err: any) {
           console.error(`Failed to send document for book ${group.bookName}:`, err);
