@@ -326,7 +326,7 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
             const mediaGroup = files.map((f, index) => ({
               type: 'document' as const,
               media: f.fileId,
-              caption: index === 0 ? setCaption : undefined
+              caption: index === files.length - 1 ? setCaption : undefined
             }));
 
             const sentMsgs = await bot.telegram.sendMediaGroup(targetChatId, mediaGroup);

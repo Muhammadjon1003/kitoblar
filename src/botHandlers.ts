@@ -240,8 +240,8 @@ export function registerBotHandlers() {
         const mediaGroup = files.map((f, index) => ({
           type: 'document' as const,
           media: f.fileId,
-          caption: index === 0 ? caption : undefined,
-          parse_mode: index === 0 ? ('HTML' as const) : undefined
+          caption: index === files.length - 1 ? caption : undefined,
+          parse_mode: index === files.length - 1 ? ('HTML' as const) : undefined
         }));
 
         await ctx.replyWithMediaGroup(mediaGroup);
