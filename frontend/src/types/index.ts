@@ -126,6 +126,7 @@ export type SubPage =
   | 'payments'      // CASHIER
   | 'warehouse'     // LOGISTICS
   | 'supplier'      // LOGISTICS
+  | 'history'       // LOGISTICS — buyurtmalar tarixi
   | 'books'         // LOGISTICS — darsliklar katalogi & narx sozlamasi
   | 'inbound'       // LOGISTICS
   | 'analytics'     // MANAGER
