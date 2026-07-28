@@ -41,7 +41,7 @@ function buildPersistentKeyboard() {
   return Markup.keyboard([
     ["📚 Barcha kitoblar (PDF)", "📂 Kategoriyalar"],
     ["📥 Kitob yuklash (Bitta)", "📦 Komplekt kitoblar yuklash"],
-    ["📌 Chat ID (Ma'lumot)"]
+    ["🗑 Kitobni o'chirish", "📌 Chat ID (Ma'lumot)"]
   ]).resize();
 }
 
@@ -50,7 +50,8 @@ function buildCategoriesMenu() {
     [Markup.button.callback("📂 Kategoriyalardagi kitoblar", 'cat_action:browse')],
     [Markup.button.callback("➕ Yangi kategoriya qo'shish", 'cat_action:add')],
     [Markup.button.callback("✏️ Kategoriya tahrirlash", 'cat_action:edit')],
-    [Markup.button.callback("🗑 Kategoriya o'chirish", 'cat_action:delete')]
+    [Markup.button.callback("🗑 Kategoriya o'chirish", 'cat_action:delete')],
+    [Markup.button.callback("🗑 Kitobni bazadan o'chirish", 'del_book_menu')]
   ]);
 }
 
@@ -103,6 +104,11 @@ export function registerBotHandlers() {
     await sendAllBooksList(ctx);
   });
 
+  // Delete Book command
+  bot.command(['deletebook', 'delbook'], async (ctx) => {
+    await sendDeleteBooksMenu(ctx);
+  });
+
   // Listen to persistent keyboard button clicks
   bot.hears("📚 Barcha kitoblar (PDF)", async (ctx) => {
     await sendAllBooksList(ctx);
@@ -136,6 +142,10 @@ export function registerBotHandlers() {
       "3️⃣ Barcha PDF fayllarni yuborib bo'lgach, <b>'✅ Komplektni tasdiqlash'</b> tugmasini bosing.",
       { parse_mode: 'HTML', ...buildPersistentKeyboard() }
     );
+  });
+
+  bot.hears(["🗑 Kitobni o'chirish", "🗑 Kitob o'chirish"], async (ctx) => {
+    await sendDeleteBooksMenu(ctx);
   });
 
   bot.hears("📌 Chat ID (Ma'lumot)", async (ctx) => {
@@ -240,6 +250,51 @@ export function registerBotHandlers() {
       console.error(`Failed to send PDF for book ${book.name}:`, err);
       await ctx.reply(`❌ Fayl yuborishda xatolik yuz berdi: ${err.message}`);
     }
+  });
+
+  // ─── Delete Book Callbacks ───────────────────────────────────────────────────
+
+  bot.action('del_book_menu', async (ctx) => {
+    await sendDeleteBooksMenu(ctx, true);
+  });
+
+  bot.action(/^del_book_ask:(\d+)$/, async (ctx) => {
+    const bookId = parseInt(ctx.match[1]);
+    const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
+    if (!book) {
+      await ctx.answerCbQuery("Kitob topilmadi.", { show_alert: true });
+      return;
+    }
+
+    const buttons = Markup.inlineKeyboard([
+      [Markup.button.callback("✅ Ha, o'chirish", `del_book_confirm:${book.id}`)],
+      [Markup.button.callback("❌ Bekor qilish", "del_book_cancel")]
+    ]);
+
+    await ctx.editMessageText(
+      `⚠️ <b>Haqiqatdan ham bazadan o'chirmoqchimisiz?</b>\n\n📖 Kitob nomi: <b>${book.name}</b>\n🆔 ID: <code>${book.id}</code>`,
+      { parse_mode: 'HTML', ...buttons }
+    );
+    await ctx.answerCbQuery();
+  });
+
+  bot.action(/^del_book_confirm:(\d+)$/, async (ctx) => {
+    const bookId = parseInt(ctx.match[1]);
+    try {
+      const deleted = await prisma.telegramBook.delete({ where: { id: bookId } });
+      await ctx.answerCbQuery(`'${deleted.name}' o'chirildi!`);
+      await ctx.editMessageText(
+        `✅ <b>'${deleted.name}'</b> kitobi bazadan muvaffaqiyatli o'chirildi!`,
+        { parse_mode: 'HTML', ...buildCategoriesMenu() }
+      );
+    } catch (err: any) {
+      await ctx.answerCbQuery("Kitobni o'chirishda xatolik yuz berdi.", { show_alert: true });
+    }
+  });
+
+  bot.action('del_book_cancel', async (ctx) => {
+    await ctx.answerCbQuery("Bekor qilindi.");
+    await sendDeleteBooksMenu(ctx, true);
   });
 
   // Add Category Callbacks
@@ -608,6 +663,41 @@ export function registerBotHandlers() {
       return next();
     }
   });
+}
+
+// Helper: Send Delete Books Menu
+async function sendDeleteBooksMenu(ctx: any, isEditMessage = false) {
+  try {
+    const books = await prisma.telegramBook.findMany({
+      orderBy: { id: 'asc' },
+      include: { category: true }
+    });
+
+    if (books.length === 0) {
+      const text = "🗑 <b>Bazada o'chirish uchun kitoblar mavjud emas.</b>";
+      if (isEditMessage) {
+        await ctx.editMessageText(text, { parse_mode: 'HTML', ...buildCategoriesMenu() });
+      } else {
+        await ctx.reply(text, { parse_mode: 'HTML', ...buildPersistentKeyboard() });
+      }
+      return;
+    }
+
+    const buttons = books.map(b => [
+      Markup.button.callback(`🗑 O'chirish: ${b.name}`, `del_book_ask:${b.id}`)
+    ]);
+    buttons.push([Markup.button.callback("⬅️ Orqaga", "cat_action:back")]);
+
+    const text = "🗑 <b>O'chirish uchun kitobni tanlang:</b>\n<i>(Ogohlantirish: Bazadan o'chirilgan kitob qayta tiklanmaydi)</i>";
+
+    if (isEditMessage) {
+      await ctx.editMessageText(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) });
+    } else {
+      await ctx.reply(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) });
+    }
+  } catch (err: any) {
+    await ctx.reply(`❌ Kitoblarni yuklashda xatolik: ${err.message}`);
+  }
 }
 
 // Helper: Send All Books List

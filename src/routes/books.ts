@@ -43,6 +43,17 @@ router.patch('/backend/books/:id', async (req, res) => {
   }
 });
 
+// DELETE /backend/books/:id — Hard delete a book record from database catalog
+router.delete('/backend/books/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const deleted = await prisma.telegramBook.delete({ where: { id } });
+    res.json({ message: "Kitob o'chirildi", deleted });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /backend/categories — Fetch all book categories
 router.get('/backend/categories', async (req, res) => {
   try {
