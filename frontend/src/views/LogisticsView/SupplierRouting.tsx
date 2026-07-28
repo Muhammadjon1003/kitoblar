@@ -100,20 +100,6 @@ export default function SupplierRouting() {
           </div>
           <div className="flex flex-wrap items-center gap-2 shrink-0">
             <button
-              onClick={handleSendTelegram}
-              disabled={yuborilmoqda || tolovBuyurtmalar.length === 0}
-              className="flex items-center gap-1.5 text-xs sb-btn-primary py-2 px-3.5 disabled:opacity-40 font-bold"
-            >
-              {yuborilmoqda ? (
-                <Clock className="w-3.5 h-3.5 animate-spin text-white" />
-              ) : yuborildi ? (
-                <Check className="w-3.5 h-3.5 text-white" />
-              ) : (
-                <Send className="w-3.5 h-3.5 text-white" />
-              )}
-              {yuborilmoqda ? 'Yuborilmoqda...' : yuborildi ? 'Yuborildi!' : 'Telegramga yuborish'}
-            </button>
-            <button
               onClick={() => {
                 if (selectedPaidIds.size === 0) return;
                 setCancellingTarget({
@@ -126,6 +112,20 @@ export default function SupplierRouting() {
             >
               <XCircle className="w-3.5 h-3.5" />
               {selectedPaidIds.size > 0 ? `${selectedPaidIds.size} tasini bekor qilish` : 'Tanlanganlarini bekor qilish'}
+            </button>
+            <button
+              onClick={handleSendTelegram}
+              disabled={yuborilmoqda || tolovBuyurtmalar.length === 0}
+              className="flex items-center gap-1.5 text-xs sb-btn-primary py-2 px-3.5 disabled:opacity-40 font-bold"
+            >
+              {yuborilmoqda ? (
+                <Clock className="w-3.5 h-3.5 animate-spin text-white" />
+              ) : yuborildi ? (
+                <Check className="w-3.5 h-3.5 text-white" />
+              ) : (
+                <Send className="w-3.5 h-3.5 text-white" />
+              )}
+              {yuborilmoqda ? 'Yuborilmoqda...' : yuborildi ? 'Yuborildi!' : 'Telegramga yuborish'}
             </button>
           </div>
         </div>
