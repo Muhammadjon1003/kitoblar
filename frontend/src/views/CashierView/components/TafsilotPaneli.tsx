@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  DollarSign, XCircle, RotateCcw, Lock, X, CheckCircle, Edit3
+  DollarSign, XCircle, RotateCcw, Lock, X, CheckCircle, Edit3, AlertTriangle, Clock, Sparkles
 } from 'lucide-react';
 import { useApp } from '../../../context/AppContext';
 import { StatusBadge, uzs } from '../../../components/ui';
@@ -13,7 +13,7 @@ export default function TafsilotPaneli({ order, onClose }: { order: Order; onClo
   const {
     getStudentName, getGroupName, getInventoryItem,
     cancelOrder, deliverBook, decoupleBook,
-    retailPrice, isDeliverable, groups,
+    retailPrice, isDeliverable, groups, orders,
   } = useApp();
   const [tolovKorsat, setTolovKorsat] = useState(false);
   const [fixKorsat, setFixKorsat]     = useState(false);
@@ -135,11 +135,96 @@ export default function TafsilotPaneli({ order, onClose }: { order: Order; onClo
             </div>
           )}
 
-          {/* Ulgurji narx */}
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] flex justify-between items-center">
-            <span className="text-slate-500">Tan narxi</span>
-            <span className="font-mono font-semibold text-slate-600">{uzs(order.bookCost)}</span>
-          </div>
+          {/* Replaces Tan narxi: Student Order History & Red Alert Box */}
+          {(() => {
+            const studentPastOrders = orders.filter(o =>
+              o.studentId === order.studentId &&
+              o.id !== order.id &&
+              o.status !== 'CANCELLED'
+            ).sort((a, b) => {
+              const timeA = new Date(a.createdAt || a.updatedAt).getTime();
+              const timeB = new Date(b.createdAt || b.updatedAt).getTime();
+              return timeB - timeA;
+            });
+
+            const lastOrder = studentPastOrders[0];
+            const lastOrderInv = lastOrder ? getInventoryItem(lastOrder.bookId) : null;
+            const isFirstOrder = studentPastOrders.length === 0;
+
+            const currentDateStr = order.createdAt || order.updatedAt;
+            const lastDateStr = lastOrder ? (lastOrder.createdAt || lastOrder.updatedAt) : '';
+
+            const currentDate = currentDateStr ? new Date(currentDateStr).getTime() : Date.now();
+            const lastOrderDate = lastDateStr ? new Date(lastDateStr).getTime() : 0;
+            const daysDiff = lastOrderDate > 0 ? Math.floor((currentDate - lastOrderDate) / (1000 * 60 * 60 * 24)) : null;
+
+            const isSameDayOrder = lastOrderDate > 0 && 
+              new Date(currentDate).toDateString() === new Date(lastOrderDate).toDateString();
+
+            const hasDuplicateBookOrder = studentPastOrders.some(o => o.bookId === order.bookId);
+            const isLessThan2Months = daysDiff !== null && daysDiff < 61 && !isSameDayOrder;
+            const showRedWarning = hasDuplicateBookOrder || isLessThan2Months;
+
+            if (isFirstOrder) {
+              return (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs space-y-1">
+                  <div className="flex items-center justify-between font-bold text-blue-900">
+                    <span className="flex items-center gap-1.5 text-blue-700">
+                      <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      Buyurtma tarixi:
+                    </span>
+                    <span className="bg-blue-600 text-white px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wide">
+                      Birinchi buyurtma ✨
+                    </span>
+                  </div>
+                  <p className="text-[10px] font-semibold text-blue-800 mt-0.5">
+                    Ushbu darslik buyurtmasi talaba uchun birinchisi sanaladi.
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className={`p-3 rounded-xl border text-xs space-y-1.5 ${
+                showRedWarning
+                  ? 'bg-red-50 border-red-200 text-red-900 font-medium'
+                  : 'bg-slate-50 border-slate-200 text-slate-700'
+              }`}>
+                <div className="flex items-center justify-between font-bold">
+                  <span className="flex items-center gap-1.5 text-[11px]">
+                    {showRedWarning ? (
+                      <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 animate-bounce" />
+                    ) : (
+                      <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    )}
+                    Oxirgi buyurtma qilingan darslik:
+                  </span>
+                  <span className="font-mono text-[10px] text-slate-500">{lastDateStr}</span>
+                </div>
+
+                <div className="text-[11px] font-bold text-slate-800 flex items-center gap-1">
+                  <span>📘 {lastOrderInv?.title ?? 'Darslik'}</span>
+                  <span className="text-[10px] font-normal text-slate-500">
+                    ({daysDiff !== null ? (daysDiff === 0 ? 'Bugun' : `${daysDiff} kun oldin`) : '—'})
+                  </span>
+                </div>
+
+                {hasDuplicateBookOrder && (
+                  <div className="p-2 bg-red-100 border border-red-300 rounded-lg text-[11px] font-bold text-red-900 flex items-start gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0 mt-0.5" />
+                    <span>Ogohlantirish: Ushbu talabaga ilgari ham ayni shu darslik ("{inv?.title}") buyurtma berilgan!</span>
+                  </div>
+                )}
+
+                {isLessThan2Months && !hasDuplicateBookOrder && (
+                  <div className="p-2 bg-red-100 border border-red-300 rounded-lg text-[11px] font-bold text-red-900 flex items-start gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0 mt-0.5" />
+                    <span>Ogohlantirish: Talabaning oxirgi darsligi 2 oydan kam vaqt ichida ({daysDiff} kun oldin) buyurtma qilingan!</span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Amallar paneli */}
