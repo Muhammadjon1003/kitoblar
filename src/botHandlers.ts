@@ -41,7 +41,8 @@ function buildPersistentKeyboard() {
   return Markup.keyboard([
     ["📚 Barcha kitoblar (PDF)", "📂 Kategoriyalar"],
     ["📥 Kitob yuklash (Bitta)", "📦 Komplekt kitoblar yuklash"],
-    ["🗑 Kitobni o'chirish", "📌 Chat ID (Ma'lumot)"]
+    ["✏️ Kitobni tahrirlash", "🗑 Kitobni o'chirish"],
+    ["📌 Chat ID (Ma'lumot)"]
   ]).resize();
 }
 
@@ -51,6 +52,7 @@ function buildCategoriesMenu() {
     [Markup.button.callback("➕ Yangi kategoriya qo'shish", 'cat_action:add')],
     [Markup.button.callback("✏️ Kategoriya tahrirlash", 'cat_action:edit')],
     [Markup.button.callback("🗑 Kategoriya o'chirish", 'cat_action:delete')],
+    [Markup.button.callback("✏️ Kitobni tahrirlash", 'edit_book_menu')],
     [Markup.button.callback("🗑 Kitobni bazadan o'chirish", 'del_book_menu')]
   ]);
 }
@@ -104,6 +106,11 @@ export function registerBotHandlers() {
     await sendAllBooksList(ctx);
   });
 
+  // Edit Book command
+  bot.command(['editbook'], async (ctx) => {
+    await sendEditBooksMenu(ctx);
+  });
+
   // Delete Book command
   bot.command(['deletebook', 'delbook'], async (ctx) => {
     await sendDeleteBooksMenu(ctx);
@@ -142,6 +149,10 @@ export function registerBotHandlers() {
       "3️⃣ Barcha PDF fayllarni yuborib bo'lgach, <b>'✅ Komplektni tasdiqlash'</b> tugmasini bosing.",
       { parse_mode: 'HTML', ...buildPersistentKeyboard() }
     );
+  });
+
+  bot.hears(["✏️ Kitobni tahrirlash", "✏️ Kitob tahrirlash"], async (ctx) => {
+    await sendEditBooksMenu(ctx);
   });
 
   bot.hears(["🗑 Kitobni o'chirish", "🗑 Kitob o'chirish"], async (ctx) => {
@@ -255,6 +266,255 @@ export function registerBotHandlers() {
       console.error(`Failed to send PDF for book ${book.name}:`, err);
       await ctx.reply(`❌ Fayl yuborishda xatolik yuz berdi: ${err.message}`);
     }
+  });
+
+  // ─── Edit Book Callbacks & Handlers ─────────────────────────────────────────
+
+  bot.action('edit_book_menu', async (ctx) => {
+    await sendEditBooksMenu(ctx, true);
+  });
+
+  // Select Book to Edit
+  bot.action(/^edit_book_select:(\d+)$/, async (ctx) => {
+    const bookId = parseInt(ctx.match[1]);
+    const book = await prisma.telegramBook.findUnique({
+      where: { id: bookId },
+      include: { category: true }
+    });
+
+    if (!book) {
+      await ctx.answerCbQuery("Kitob topilmadi.", { show_alert: true });
+      return;
+    }
+
+    let filesInfo = '';
+    if (book.isSet && book.setDetails) {
+      try {
+        const files: Array<{ name: string; fileId: string }> = JSON.parse(book.setDetails);
+        filesInfo = `\n\n📚 <b>To'plam tarkibidagi darsliklar (${files.length} ta):</b>\n` +
+          files.map((f, i) => `${i + 1}. ${f.name}`).join('\n');
+      } catch (e) {}
+    }
+
+    const buttons: any[] = [
+      [Markup.button.callback("✏️ Kitob/Komplekt nomini o'zgartirish", `edit_book_rename:${book.id}`)],
+      [Markup.button.callback("📂 Kategoriyasini o'zgartirish", `edit_book_cat:${book.id}`)]
+    ];
+
+    if (book.isSet) {
+      buttons.push([Markup.button.callback("➕ Komplektga fayl qo'shish", `edit_set_add_file:${book.id}`)]);
+      buttons.push([Markup.button.callback("❌ Komplektdan fayl o'chirish", `edit_set_delfile_list:${book.id}`)]);
+      buttons.push([Markup.button.callback("✏️ Komplektdagi fayl nomini tahrirlash", `edit_set_renfile_list:${book.id}`)]);
+    }
+
+    buttons.push([Markup.button.callback("⬅️ Kitoblar ro'yxatiga qaytish", "edit_book_menu")]);
+
+    await ctx.editMessageText(
+      `⚙️ <b>Kitob Sozlamalari va Tahrirlash:</b>\n\n` +
+      `📖 <b>Nomi:</b> ${book.name}\n` +
+      `📂 <b>Kategoriya:</b> ${book.category ? book.category.name : '—'}\n` +
+      `📦 <b>Turi:</b> ${book.isSet ? "Komplekt (Set)" : "Bitta darslik"}` +
+      filesInfo + `\n\nQaysi parametrni tahrirlamoqchisiz?`,
+      { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) }
+    );
+    await ctx.answerCbQuery();
+  });
+
+  // Rename Book or Set Title
+  bot.action(/^edit_book_rename:(\d+)$/, async (ctx) => {
+    const bookId = parseInt(ctx.match[1]);
+    const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
+    if (!book) {
+      await ctx.answerCbQuery("Kitob topilmadi.", { show_alert: true });
+      return;
+    }
+
+    await setSession(ctx.from!.id, 'WAITING_FOR_RENAME_BOOK', { bookId: book.id });
+    await ctx.editMessageText(
+      `✏️ <b>'${book.name}'</b> uchun yangi nom kiriting:`,
+      { parse_mode: 'HTML' }
+    );
+    await ctx.answerCbQuery();
+  });
+
+  // Change Book Category
+  bot.action(/^edit_book_cat:(\d+)$/, async (ctx) => {
+    const bookId = parseInt(ctx.match[1]);
+    const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } });
+    if (categories.length === 0) {
+      await ctx.answerCbQuery("Kategoriyalar mavjud emas.", { show_alert: true });
+      return;
+    }
+
+    const buttons = categories.map(c => [
+      Markup.button.callback(`📁 ${c.name}`, `edit_book_setcat:${bookId}:${c.id}`)
+    ]);
+    buttons.push([Markup.button.callback("⬅️ Orqaga", `edit_book_select:${bookId}`)]);
+
+    await ctx.editMessageText(
+      "📂 <b>Yangi kategoriyani tanlang:</b>",
+      { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) }
+    );
+    await ctx.answerCbQuery();
+  });
+
+  bot.action(/^edit_book_setcat:(\d+):(\d+)$/, async (ctx) => {
+    const bookId = parseInt(ctx.match[1]);
+    const categoryId = parseInt(ctx.match[2]);
+
+    try {
+      const updated = await prisma.telegramBook.update({
+        where: { id: bookId },
+        data: { categoryId },
+        include: { category: true }
+      });
+
+      await ctx.answerCbQuery("Kategoriya yangilandi!");
+      await ctx.editMessageText(
+        `✅ <b>'${updated.name}'</b> kitobi <b>${updated.category.name}</b> kategoriyasiga o'tkazildi!`,
+        { parse_mode: 'HTML', ...buildCategoriesMenu() }
+      );
+    } catch (e: any) {
+      await ctx.answerCbQuery("Xatolik yuz berdi.", { show_alert: true });
+    }
+  });
+
+  // Add File to Set
+  bot.action(/^edit_set_add_file:(\d+)$/, async (ctx) => {
+    const bookId = parseInt(ctx.match[1]);
+    const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
+    if (!book || !book.isSet) {
+      await ctx.answerCbQuery("Komplekt topilmadi.", { show_alert: true });
+      return;
+    }
+
+    await setSession(ctx.from!.id, 'WAITING_FOR_SET_ADD_FILE', { bookId: book.id });
+    await ctx.editMessageText(
+      `➕ <b>'${book.name}'</b> to'plamiga yangi darslik qo'shish:\n\n` +
+      `Iltimos, qo'shmoqchi bo'lgan <b>PDF darslik faylini botga yuboring</b>:`,
+      { parse_mode: 'HTML' }
+    );
+    await ctx.answerCbQuery();
+  });
+
+  // Delete File list from Set
+  bot.action(/^edit_set_delfile_list:(\d+)$/, async (ctx) => {
+    const bookId = parseInt(ctx.match[1]);
+    const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
+    if (!book || !book.isSet || !book.setDetails) {
+      await ctx.answerCbQuery("Komplekt ma'lumotlari topilmadi.", { show_alert: true });
+      return;
+    }
+
+    let files: Array<{ name: string; fileId: string }> = [];
+    try { files = JSON.parse(book.setDetails); } catch (e) {}
+
+    if (files.length <= 1) {
+      await ctx.answerCbQuery("Komplektda kamida 1 ta fayl bo'lishi shart.", { show_alert: true });
+      return;
+    }
+
+    const buttons = files.map((f, index) => [
+      Markup.button.callback(`❌ O'chirish: ${index + 1}. ${f.name}`, `edit_set_delfile:${book.id}:${index}`)
+    ]);
+    buttons.push([Markup.button.callback("⬅️ Orqaga", `edit_book_select:${book.id}`)]);
+
+    await ctx.editMessageText(
+      `❌ <b>Komplektdan o'chirmoqchi bo'lgan darslikni tanlang:</b>`,
+      { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) }
+    );
+    await ctx.answerCbQuery();
+  });
+
+  bot.action(/^edit_set_delfile:(\d+):(\d+)$/, async (ctx) => {
+    const bookId = parseInt(ctx.match[1]);
+    const fileIdx = parseInt(ctx.match[2]);
+
+    const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
+    if (!book || !book.isSet || !book.setDetails) {
+      await ctx.answerCbQuery("Komplekt topilmadi.", { show_alert: true });
+      return;
+    }
+
+    let files: Array<{ name: string; fileId: string }> = [];
+    try { files = JSON.parse(book.setDetails); } catch (e) {}
+
+    if (fileIdx < 0 || fileIdx >= files.length) {
+      await ctx.answerCbQuery("Fayl indeksi noto'g'ri.", { show_alert: true });
+      return;
+    }
+
+    const removedFile = files.splice(fileIdx, 1)[0];
+    const updated = await prisma.telegramBook.update({
+      where: { id: bookId },
+      data: {
+        setDetails: JSON.stringify(files),
+        tgFileId: files[0]?.fileId || book.tgFileId
+      }
+    });
+
+    await ctx.answerCbQuery(`'${removedFile.name}' o'chirildi!`);
+    await ctx.editMessageText(
+      `✅ <b>'${removedFile.name}'</b> to'plamdan o'chirildi!\n` +
+      `📦 <b>${updated.name}</b> tarkibida qolgan kitoblar: <b>${files.length} ta</b>`,
+      { parse_mode: 'HTML', ...buildCategoriesMenu() }
+    );
+  });
+
+  // Rename File list inside Set
+  bot.action(/^edit_set_renfile_list:(\d+)$/, async (ctx) => {
+    const bookId = parseInt(ctx.match[1]);
+    const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
+    if (!book || !book.isSet || !book.setDetails) {
+      await ctx.answerCbQuery("Komplekt topilmadi.", { show_alert: true });
+      return;
+    }
+
+    let files: Array<{ name: string; fileId: string }> = [];
+    try { files = JSON.parse(book.setDetails); } catch (e) {}
+
+    const buttons = files.map((f, index) => [
+      Markup.button.callback(`✏️ Tahrirlash: ${index + 1}. ${f.name}`, `edit_set_renfile_ask:${book.id}:${index}`)
+    ]);
+    buttons.push([Markup.button.callback("⬅️ Orqaga", `edit_book_select:${book.id}`)]);
+
+    await ctx.editMessageText(
+      `✏️ <b>Nomini tahrirlamoqchi bo'lgan darslikni tanlang:</b>`,
+      { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) }
+    );
+    await ctx.answerCbQuery();
+  });
+
+  bot.action(/^edit_set_renfile_ask:(\d+):(\d+)$/, async (ctx) => {
+    const bookId = parseInt(ctx.match[1]);
+    const fileIdx = parseInt(ctx.match[2]);
+
+    const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
+    if (!book || !book.isSet || !book.setDetails) {
+      await ctx.answerCbQuery("Komplekt topilmadi.", { show_alert: true });
+      return;
+    }
+
+    let files: Array<{ name: string; fileId: string }> = [];
+    try { files = JSON.parse(book.setDetails); } catch (e) {}
+
+    const targetFile = files[fileIdx];
+    if (!targetFile) {
+      await ctx.answerCbQuery("Fayl topilmadi.", { show_alert: true });
+      return;
+    }
+
+    await setSession(ctx.from!.id, 'WAITING_FOR_SET_FILE_RENAME', {
+      bookId,
+      fileIndex: fileIdx,
+      oldName: targetFile.name,
+    });
+
+    await ctx.editMessageText(
+      `✏️ <b>'${targetFile.name}'</b> darsligi uchun yangi nom kiriting:`,
+      { parse_mode: 'HTML' }
+    );
+    await ctx.answerCbQuery();
   });
 
   // ─── Delete Book Callbacks ───────────────────────────────────────────────────
@@ -418,7 +678,7 @@ export function registerBotHandlers() {
     await ctx.answerCbQuery();
   });
 
-  // Document Handler (Single & Set Upload FSM)
+  // Document Handler (Single & Set Upload FSM + Set Add File)
   bot.on('document', async (ctx) => {
     const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } });
     if (categories.length === 0) {
@@ -431,6 +691,23 @@ export function registerBotHandlers() {
     const fileId = ctx.message.document.file_id;
     const defaultFileName = ctx.message.document.file_name || 'Darslik';
     const session = await getSession(ctx.from.id);
+
+    // If in SET ADD FILE mode
+    if (session.state === 'WAITING_FOR_SET_ADD_FILE') {
+      const bookId = session.data.bookId;
+      await setSession(ctx.from.id, 'WAITING_FOR_SET_ADD_FILE_NAME', {
+        bookId,
+        pendingFileId: fileId,
+        pendingFileName: defaultFileName,
+      });
+
+      await ctx.reply(
+        `📝 <b>Qo'shilayotgan yangi darslik uchun nom kiriting:</b>\n` +
+        `<i>(fayl nomi: ${defaultFileName})</i>`,
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
 
     // If in SET UPLOAD mode
     if (session.state === 'SET_UPLOAD_ACTIVE' || session.state === 'WAITING_FOR_SET_ITEM_NAME') {
@@ -540,8 +817,83 @@ export function registerBotHandlers() {
     const text = ctx.message.text.trim();
     const session = await getSession(ctx.from.id);
 
-    // 1. Entering name for a single item in a Set
-    if (session.state === 'WAITING_FOR_SET_ITEM_NAME') {
+    // 1. Entering new file name to add to an existing Set
+    if (session.state === 'WAITING_FOR_SET_ADD_FILE_NAME') {
+      const { bookId, pendingFileId } = session.data;
+      const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
+
+      if (!book || !book.isSet) {
+        await clearSession(ctx.from.id);
+        await ctx.reply("❌ Komplekt topilmadi.");
+        return;
+      }
+
+      let files: Array<{ name: string; fileId: string }> = [];
+      try { files = JSON.parse(book.setDetails || '[]'); } catch (e) {}
+
+      files.push({ name: text, fileId: pendingFileId });
+
+      const updated = await prisma.telegramBook.update({
+        where: { id: bookId },
+        data: { setDetails: JSON.stringify(files) }
+      });
+
+      await clearSession(ctx.from.id);
+      await ctx.reply(
+        `✅ <b>'${text}'</b> fayli muvaffaqiyatli qo'shildi!\n\n` +
+        `📦 <b>${updated.name}</b> tarkibidagi jami darsliklar: <b>${files.length} ta</b>`,
+        { parse_mode: 'HTML', ...buildPersistentKeyboard() }
+      );
+    }
+    // 2. Renaming a specific file inside a Set
+    else if (session.state === 'WAITING_FOR_SET_FILE_RENAME') {
+      const { bookId, fileIndex, oldName } = session.data;
+      const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
+
+      if (!book || !book.isSet) {
+        await clearSession(ctx.from.id);
+        await ctx.reply("❌ Komplekt topilmadi.");
+        return;
+      }
+
+      let files: Array<{ name: string; fileId: string }> = [];
+      try { files = JSON.parse(book.setDetails || '[]'); } catch (e) {}
+
+      if (files[fileIndex]) {
+        files[fileIndex].name = text;
+      }
+
+      await prisma.telegramBook.update({
+        where: { id: bookId },
+        data: { setDetails: JSON.stringify(files) }
+      });
+
+      await clearSession(ctx.from.id);
+      await ctx.reply(
+        `✅ Darslik nomi <b>'${oldName}'</b> dan <b>'${text}'</b> ga o'zgartirildi!`,
+        { parse_mode: 'HTML', ...buildPersistentKeyboard() }
+      );
+    }
+    // 3. Renaming a Book or Set title
+    else if (session.state === 'WAITING_FOR_RENAME_BOOK') {
+      const bookId = session.data.bookId;
+      try {
+        const updated = await prisma.telegramBook.update({
+          where: { id: bookId },
+          data: { name: text }
+        });
+        await clearSession(ctx.from.id);
+        await ctx.reply(
+          `✅ Kitob nomi muvaffaqiyatli saqlandi!\n📖 Yangi nom: <b>${updated.name}</b>`,
+          { parse_mode: 'HTML', ...buildPersistentKeyboard() }
+        );
+      } catch (e: any) {
+        await clearSession(ctx.from.id);
+        await ctx.reply(`❌ Xatolik yuz berdi: ${e.message}`);
+      }
+    }
+    // 4. Entering name for a single item in a Set during initial creation
+    else if (session.state === 'WAITING_FOR_SET_ITEM_NAME') {
       const files = session.data.files || [];
       const updatedFiles = [...files, { name: text, fileId: session.data.pendingFileId }];
 
@@ -561,7 +913,7 @@ export function registerBotHandlers() {
         }
       );
     }
-    // 2. Entering the title for the overall Set
+    // 5. Entering the title for the overall Set
     else if (session.state === 'WAITING_FOR_SET_TITLE') {
       const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } });
       await setSession(ctx.from.id, 'WAITING_FOR_SET_CATEGORY', {
@@ -575,7 +927,7 @@ export function registerBotHandlers() {
         { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) }
       );
     }
-    // 3. Adding Category Name
+    // 6. Adding Category Name
     else if (session.state === 'WAITING_FOR_ADD_CATEGORY_NAME') {
       try {
         const record = await prisma.category.create({ data: { name: text } });
@@ -596,7 +948,7 @@ export function registerBotHandlers() {
         }
       }
     } 
-    // 4. Editing Category Name
+    // 7. Editing Category Name
     else if (session.state === 'WAITING_FOR_NEW_CATEGORY_NAME') {
       const categoryId = session.data.categoryId;
       try {
@@ -621,7 +973,7 @@ export function registerBotHandlers() {
         }
       }
     } 
-    // 5. Entering Single Book Name
+    // 8. Entering Single Book Name
     else if (session.state === 'WAITING_FOR_BOOK_NAME') {
       const { fileId, categoryId, categoryName } = session.data;
       
@@ -669,6 +1021,41 @@ export function registerBotHandlers() {
       return next();
     }
   });
+}
+
+// Helper: Send Edit Books Menu
+async function sendEditBooksMenu(ctx: any, isEditMessage = false) {
+  try {
+    const books = await prisma.telegramBook.findMany({
+      orderBy: { id: 'asc' },
+      include: { category: true }
+    });
+
+    if (books.length === 0) {
+      const text = "✏️ <b>Bazada tahrirlash uchun kitoblar mavjud emas.</b>";
+      if (isEditMessage) {
+        await ctx.editMessageText(text, { parse_mode: 'HTML', ...buildCategoriesMenu() });
+      } else {
+        await ctx.reply(text, { parse_mode: 'HTML', ...buildPersistentKeyboard() });
+      }
+      return;
+    }
+
+    const buttons = books.map(b => [
+      Markup.button.callback(`✏️ ${b.isSet ? '📦' : '📖'} ${b.name}`, `edit_book_select:${b.id}`)
+    ]);
+    buttons.push([Markup.button.callback("⬅️ Orqaga", "cat_action:back")]);
+
+    const text = "✏️ <b>Tahrirlash uchun kitobni tanlang:</b>";
+
+    if (isEditMessage) {
+      await ctx.editMessageText(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) });
+    } else {
+      await ctx.reply(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) });
+    }
+  } catch (err: any) {
+    await ctx.reply(`❌ Kitoblarni yuklashda xatolik: ${err.message}`);
+  }
 }
 
 // Helper: Send Delete Books Menu

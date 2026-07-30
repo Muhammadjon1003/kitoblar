@@ -22,18 +22,22 @@ router.get('/backend/books', async (req, res) => {
   }
 });
 
-// PATCH /backend/books/:id — Update book custom price
+// PATCH /backend/books/:id — Update book name, price, setDetails, or categoryId
 router.patch('/backend/books/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { price } = req.body;
-    if (price === undefined || isNaN(Number(price))) {
-      return res.status(400).json({ error: "Sotuv narxi (price) raqam shaklida bo'lishi shart." });
-    }
+    const { name, price, setDetails, categoryId, isSet } = req.body;
+    
+    const updateData: any = {};
+    if (price !== undefined && !isNaN(Number(price))) updateData.price = Number(price);
+    if (name !== undefined && typeof name === 'string' && name.trim()) updateData.name = name.trim();
+    if (setDetails !== undefined) updateData.setDetails = typeof setDetails === 'string' ? setDetails : JSON.stringify(setDetails);
+    if (categoryId !== undefined && !isNaN(Number(categoryId))) updateData.categoryId = Number(categoryId);
+    if (isSet !== undefined) updateData.isSet = Boolean(isSet);
 
     const updated = await prisma.telegramBook.update({
       where: { id },
-      data: { price: Number(price) },
+      data: updateData,
       include: { category: true }
     });
 
