@@ -35,6 +35,40 @@ async function clearSession(userId: number) {
   });
 }
 
+// ─── Storage Channel Sync Helpers ─────────────────────────────────────────────
+
+async function syncStorageChannel(bookId: number) {
+  try {
+    const book = await prisma.telegramBook.findUnique({
+      where: { id: bookId },
+      include: { category: true }
+    });
+    if (!book || !book.tgMessageId) return;
+
+    const categoryName = book.category ? book.category.name : 'Umumiy';
+    if (book.isSet && book.setDetails) {
+      const files: Array<{ name: string; fileId: string }> = JSON.parse(book.setDetails);
+      const fileListStr = files.map((f, i) => `${i + 1}. ${f.name}`).join('\n');
+      const caption = `🆔 ID: ${book.id}\n📦 Nomi: ${book.name}\n📂 Kategoriya: ${categoryName}\n\n📚 Tarkibidagi darsliklar (${files.length} ta):\n${fileListStr}`;
+      await bot.telegram.editMessageCaption(STORAGE_CHANNEL_ID, book.tgMessageId, undefined, caption);
+    } else {
+      const caption = `🆔 ID: ${book.id}\n📖 Nomi: ${book.name}\n📂 Kategoriya: ${categoryName}`;
+      await bot.telegram.editMessageCaption(STORAGE_CHANNEL_ID, book.tgMessageId, undefined, caption);
+    }
+  } catch (e: any) {
+    console.warn('[Storage Channel Auto-Sync Warning]:', e.message);
+  }
+}
+
+async function deleteStorageChannelMsg(tgMessageId: number) {
+  if (!tgMessageId) return;
+  try {
+    await bot.telegram.deleteMessage(STORAGE_CHANNEL_ID, tgMessageId);
+  } catch (e: any) {
+    console.warn('[Storage Channel Auto-Delete Warning]:', e.message);
+  }
+}
+
 // ─── Keyboard Builders ────────────────────────────────────────────────────────
 
 function buildPersistentKeyboard() {
@@ -369,6 +403,8 @@ export function registerBotHandlers() {
         include: { category: true }
       });
 
+      await syncStorageChannel(updated.id);
+
       await ctx.answerCbQuery("Kategoriya yangilandi!");
       await ctx.editMessageText(
         `✅ <b>'${updated.name}'</b> kitobi <b>${updated.category.name}</b> kategoriyasiga o'tkazildi!`,
@@ -452,6 +488,8 @@ export function registerBotHandlers() {
         tgFileId: files[0]?.fileId || book.tgFileId
       }
     });
+
+    await syncStorageChannel(updated.id);
 
     await ctx.answerCbQuery(`'${removedFile.name}' o'chirildi!`);
     await ctx.editMessageText(
@@ -546,10 +584,15 @@ export function registerBotHandlers() {
   bot.action(/^del_book_confirm:(\d+)$/, async (ctx) => {
     const bookId = parseInt(ctx.match[1]);
     try {
+      const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
+      if (book && book.tgMessageId) {
+        await deleteStorageChannelMsg(book.tgMessageId);
+      }
+
       const deleted = await prisma.telegramBook.delete({ where: { id: bookId } });
       await ctx.answerCbQuery(`'${deleted.name}' o'chirildi!`);
       await ctx.editMessageText(
-        `✅ <b>'${deleted.name}'</b> kitobi bazadan muvaffaqiyatli o'chirildi!`,
+        `✅ <b>'${deleted.name}'</b> kitobi bazadan va saqlash kanalidan muvaffaqiyatli o'chirildi!`,
         { parse_mode: 'HTML', ...buildCategoriesMenu() }
       );
     } catch (err: any) {
@@ -627,6 +670,11 @@ export function registerBotHandlers() {
   bot.action(/^cat_delete:(\d+)$/, async (ctx) => {
     const categoryId = parseInt(ctx.match[1]);
     try {
+      const booksInCat = await prisma.telegramBook.findMany({ where: { categoryId } });
+      for (const b of booksInCat) {
+        if (b.tgMessageId) await deleteStorageChannelMsg(b.tgMessageId);
+      }
+
       const deleted = await prisma.category.delete({ where: { id: categoryId } });
       await ctx.answerCbQuery(`'${deleted.name}' o'chirildi.`);
       
@@ -795,6 +843,27 @@ export function registerBotHandlers() {
         }
       });
 
+      // Post set album to Storage Channel
+      let channelMsgId = 0;
+      try {
+        const fileListStr = files.map((f: any, i: number) => `${i + 1}. ${f.name}`).join('\n');
+        const caption = `🆔 ID: ${bookRecord.id}\n📦 Nomi: ${finalTitle}\n📂 Kategoriya: ${category.name}\n\n📚 Tarkibidagi darsliklar (${files.length} ta):\n${fileListStr}`;
+        const mediaGroup = files.map((f: any, index: number) => ({
+          type: 'document' as const,
+          media: f.fileId,
+          caption: index === files.length - 1 ? caption : undefined,
+        }));
+        const msgs = await bot.telegram.sendMediaGroup(STORAGE_CHANNEL_ID, mediaGroup);
+        channelMsgId = msgs[0]?.message_id || 0;
+
+        await prisma.telegramBook.update({
+          where: { id: bookRecord.id },
+          data: { tgMessageId: channelMsgId }
+        });
+      } catch (chErr: any) {
+        console.warn('[Storage Channel Post Set Error]:', chErr.message);
+      }
+
       await clearSession(ctx.from!.id);
       await ctx.editMessageText(
         `🎉 <b>Komplekt darslik muvaffaqiyatli saqlandi!</b>\n\n` +
@@ -838,6 +907,8 @@ export function registerBotHandlers() {
         data: { setDetails: JSON.stringify(files) }
       });
 
+      await syncStorageChannel(updated.id);
+
       await clearSession(ctx.from.id);
       await ctx.reply(
         `✅ <b>'${text}'</b> fayli muvaffaqiyatli qo'shildi!\n\n` +
@@ -868,6 +939,8 @@ export function registerBotHandlers() {
         data: { setDetails: JSON.stringify(files) }
       });
 
+      await syncStorageChannel(book.id);
+
       await clearSession(ctx.from.id);
       await ctx.reply(
         `✅ Darslik nomi <b>'${oldName}'</b> dan <b>'${text}'</b> ga o'zgartirildi!`,
@@ -882,6 +955,9 @@ export function registerBotHandlers() {
           where: { id: bookId },
           data: { name: text }
         });
+
+        await syncStorageChannel(updated.id);
+
         await clearSession(ctx.from.id);
         await ctx.reply(
           `✅ Kitob nomi muvaffaqiyatli saqlandi!\n📖 Yangi nom: <b>${updated.name}</b>`,
@@ -989,7 +1065,7 @@ export function registerBotHandlers() {
         });
 
         const bookId = bookRecord.id;
-        const caption = `ID: ${bookId}\nName: ${text}\nSubject: ${categoryName}`;
+        const caption = `🆔 ID: ${bookId}\n📖 Nomi: ${text}\n📂 Kategoriya: ${categoryName}`;
 
         let tgMsgId = 0;
         try {
