@@ -73,6 +73,20 @@ export default function SuperAdminConsole() {
     }
   };
 
+  const handleTestStaffGroup = async () => {
+    try {
+      const res = await fetch('/backend/system/test-staff-group', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        fireToast(`✅ ${data.text} (Chat: ${data.chatId})`, 'success');
+      } else {
+        fireToast(`❌ Xatolik: ${data.error}`, 'error');
+      }
+    } catch (e: any) {
+      fireToast(`Xatolik: ${e.message}`, 'error');
+    }
+  };
+
   return (
     <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 space-y-6 bg-slate-900 text-slate-100 min-h-screen">
       {/* Top Banner */}
@@ -94,13 +108,21 @@ export default function SuperAdminConsole() {
           </div>
         </div>
 
-        <button
-          onClick={() => refreshOrders()}
-          className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-purple-600/40 hover:bg-purple-600/60 border border-purple-400/40 text-purple-100 transition-all shadow-md shrink-0"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Tizimni qayta yuklash
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleTestStaffGroup}
+            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl bg-indigo-600/50 hover:bg-indigo-600/80 border border-indigo-400/40 text-indigo-100 transition-all shadow-md"
+          >
+            ✈️ Staff Guruhiga Test Yuborish
+          </button>
+          <button
+            onClick={() => refreshOrders()}
+            className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-purple-600/40 hover:bg-purple-600/60 border border-purple-400/40 text-purple-100 transition-all shadow-md"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Tizimni qayta yuklash
+          </button>
+        </div>
       </div>
 
       {/* Control Tools Header */}
