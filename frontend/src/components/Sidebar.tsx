@@ -67,8 +67,8 @@ const ROLE_LABEL: Record<UserRole, string> = {
 };
 
 function SidebarContent({ onCloseMobile }: { onCloseMobile?: () => void }) {
-  const { activeRole, activeSubPage, setActiveSubPage, currentUser, logout } = useApp();
-  const navItems = ROLE_NAV[activeRole];
+  const { activeRole, activeSubPage, setActiveSubPage, setActiveRole, currentUser, logout } = useApp();
+  const navItems = ROLE_NAV[activeRole] || ROLE_NAV['SUPER_ADMIN'];
 
   return (
     <div className="flex flex-col h-full bg-white border-r border-slate-200">
@@ -90,13 +90,33 @@ function SidebarContent({ onCloseMobile }: { onCloseMobile?: () => void }) {
         )}
       </div>
 
-      {/* Faol rol belgisi */}
-      <div className="px-4 py-3 border-b border-slate-100">
-        <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
-          <span className={`w-2 h-2 rounded-full shrink-0 ${ROLE_DOT[activeRole]}`} />
-          <span className="text-[11px] font-semibold text-slate-600">{ROLE_LABEL[activeRole]} bo'limi</span>
+      {/* SuperAdmin Role Switcher Dropdown */}
+      {currentUser?.role === 'SUPER_ADMIN' ? (
+        <div className="px-4 py-3 border-b border-purple-100 bg-purple-50/60">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-purple-700 block mb-1">
+            ⚡ SuperAdmin Bo'lim Switcher
+          </label>
+          <select
+            value={activeRole}
+            onChange={(e) => setActiveRole(e.target.value as UserRole)}
+            className="w-full h-8.5 px-2.5 bg-white border border-purple-300 rounded-xl text-xs font-bold text-purple-900 focus:outline-none focus:border-purple-600 shadow-xs"
+          >
+            <option value="SUPER_ADMIN">⚡ SuperAdmin Konsol Portal</option>
+            <option value="MANAGER">💼 Menejer Bo'limi</option>
+            <option value="LOGISTICS">📦 Logistika Bo'limi</option>
+            <option value="CASHIER">💳 Kassir / CRM Bo'limi</option>
+            <option value="TEACHER">✏️ O'qituvchi Bo'limi</option>
+          </select>
         </div>
-      </div>
+      ) : (
+        /* Standard role indicator */
+        <div className="px-4 py-3 border-b border-slate-100">
+          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
+            <span className={`w-2 h-2 rounded-full shrink-0 ${ROLE_DOT[activeRole]}`} />
+            <span className="text-[11px] font-semibold text-slate-600">{ROLE_LABEL[activeRole]} bo'limi</span>
+          </div>
+        </div>
+      )}
 
       {/* Navigatsiya */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">

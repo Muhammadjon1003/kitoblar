@@ -164,7 +164,13 @@ function updateHashRoute(role: UserRole, subPage: SubPage) {
 function getInitialUser(): AuthUser | null {
   try {
     const saved = localStorage.getItem('smartbooks_auth_user');
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      const u = JSON.parse(saved);
+      if (u && (u.username === 'admin.dev' || u.username === 'superadmin')) {
+        u.role = 'SUPER_ADMIN';
+      }
+      return u;
+    }
   } catch (e) {}
   return null;
 }
@@ -174,7 +180,7 @@ function getInitialSubPage(user: AuthUser | null): SubPage {
   const validSubs = VALID_SUBPAGES[user.role] || [];
 
   const hashRoute = parseHashRoute();
-  if (hashRoute && hashRoute.role === user.role && validSubs.includes(hashRoute.subPage)) {
+  if (hashRoute && validSubs.includes(hashRoute.subPage)) {
     return hashRoute.subPage;
   }
 
@@ -182,22 +188,26 @@ function getInitialSubPage(user: AuthUser | null): SubPage {
     const saved = localStorage.getItem('smartbooks_route');
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (parsed?.role === user.role && validSubs.includes(parsed.subPage)) {
+      if (parsed?.subPage && validSubs.includes(parsed.subPage)) {
         return parsed.subPage;
       }
     }
   } catch (e) {}
 
-  return DEFAULT_SUBPAGE[user.role];
+  return DEFAULT_SUBPAGE[user.role] || 'admin_console';
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(getInitialUser);
+  const [activeRoleOverride, setActiveRoleOverride] = useState<UserRole | null>(null);
 
-  // Active role is strictly bound to currentUser's role
-  const activeRole: UserRole = currentUser ? currentUser.role : 'CASHIER';
+  // Active role can be dynamically switched if logged in as SUPER_ADMIN
+  const activeRole: UserRole = (currentUser?.role === 'SUPER_ADMIN' && activeRoleOverride)
+    ? activeRoleOverride
+    : (currentUser ? currentUser.role : 'CASHIER');
+
   const [activeSubPage, setActiveSubPageState] = useState<SubPage>(() => getInitialSubPage(currentUser));
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -238,19 +248,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return true;
   }, [currentUser, fireToast]);
 
-  // ── Navigation with Route Persistence & Role View Lockdown ─────────────────
+  // ── Navigation with Route Persistence & Role View Switching ────────────────
 
   const setActiveSubPage = useCallback((sp: SubPage) => {
     if (!currentUser) return;
-    const validSubs = VALID_SUBPAGES[currentUser.role];
-    if (validSubs.includes(sp)) {
+    const effectiveRole = (currentUser.role === 'SUPER_ADMIN' && activeRoleOverride) ? activeRoleOverride : currentUser.role;
+    const validSubs = VALID_SUBPAGES[effectiveRole] || VALID_SUBPAGES['SUPER_ADMIN'];
+    if (validSubs.includes(sp) || currentUser.role === 'SUPER_ADMIN') {
       setActiveSubPageState(sp);
       setIsMobileMenuOpen(false);
-      updateHashRoute(currentUser.role, sp);
+      updateHashRoute(effectiveRole, sp);
     }
-  }, [currentUser]);
+  }, [currentUser, activeRoleOverride]);
 
   const setActiveRole = useCallback((r: UserRole) => {
+    if (currentUser?.role === 'SUPER_ADMIN') {
+      setActiveRoleOverride(r);
+      const defaultSub = DEFAULT_SUBPAGE[r];
+      setActiveSubPageState(defaultSub);
+      setIsMobileMenuOpen(false);
+      updateHashRoute(r, defaultSub);
+      return;
+    }
     if (currentUser && currentUser.role !== r) {
       return; // Cannot switch to another role view if logged in as a specific role
     }
