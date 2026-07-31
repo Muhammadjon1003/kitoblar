@@ -106,6 +106,7 @@ interface AppContextType {
   refreshWarehouseStock: () => Promise<void>;
   sendToTelegram: (orderIds: string[]) => Promise<boolean>;
   returnOrderWithStock: (orderId: string, returnedFileIds?: string[], comment?: string) => Promise<boolean>;
+  addWarehouseStockItem: (payload: { bookId: string; selectedFileIds?: string[]; quantity?: number; bookCost?: number; comment?: string }) => Promise<boolean>;
 
   // ── Data
   sotuvNarxi: number;  // current manager-set selling price
@@ -536,6 +537,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return false;
     }
   }, [checkAuth, refreshOrders, refreshWarehouseStock, fireToast]);
+
+  const addWarehouseStockItem = useCallback(async (payload: {
+    bookId: string;
+    selectedFileIds?: string[];
+    quantity?: number;
+    bookCost?: number;
+    comment?: string;
+  }): Promise<boolean> => {
+    if (!checkAuth()) return false;
+    try {
+      const res = await fetch(`${API}/backend/warehouse-stock/add`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Omborga qo'shishda xatolik.");
+      }
+      const data = await res.json();
+      await refreshWarehouseStock();
+      fireToast(data.message || "Darslik ombor zaxirasiga qo'shildi!", 'success');
+      return true;
+    } catch (err: any) {
+      fireToast(`Xatolik: ${err.message}`, 'error');
+      return false;
+    }
+  }, [checkAuth, refreshWarehouseStock, fireToast]);
 
   useEffect(() => {
     async function loadBooks() {
@@ -1083,7 +1112,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       allocateFromWarehouse, addInventoryItem, updateOrderAdmin, updateOrderBook, updateBookPrice,
       markNotificationAsRead, markAllNotificationsAsRead, dismissNotification, dismissToast,
       refreshGroups, refreshStudents, refreshOrders, refreshSettings, refreshWarehouseStock,
-      sendToTelegram, returnOrderWithStock,
+      sendToTelegram, returnOrderWithStock, addWarehouseStockItem,
       getTeacherName, getStudentName, getGroupName, getInventoryItem,
       getStudentOrders, getLatestOrder, getStudentsByGroup, getGroupsByTeacher,
       retailPrice, isDeliverable,

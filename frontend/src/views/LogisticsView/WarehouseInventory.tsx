@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Archive, Send, ChevronDown, Package, XCircle, RotateCcw, CheckCircle2, X, PlusCircle, Search } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { EmptyState, TableShell, Th, Td, uzs } from '../../components/ui';
@@ -231,7 +231,7 @@ function KomplektSubBookReturnModal({
 }
 
 function OmborgaKitobQoshishModali({ onClose }: { onClose: () => void }) {
-  const { inventory, addManualInventoryStock } = useApp();
+  const { inventory, addWarehouseStockItem } = useApp();
   const [bookId, setBookId] = useState(inventory[0]?.id ?? '');
   const [quantity, setQuantity] = useState(1);
   const [bookCost, setBookCost] = useState(0);
@@ -239,17 +239,51 @@ function OmborgaKitobQoshishModali({ onClose }: { onClose: () => void }) {
   const [saving, setSaving] = useState(false);
   const [xato, setXato] = useState('');
 
+  const selectedBook = inventory.find(b => b.id === bookId);
+  let setFiles: Array<{ name: string; fileId: string }> = [];
+  if (selectedBook?.isSet && selectedBook?.setDetails) {
+    try { setFiles = JSON.parse(selectedBook.setDetails); } catch (e) {}
+  }
+
+  const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    const b = inventory.find(i => i.id === bookId);
+    if (b?.isSet && b?.setDetails) {
+      try {
+        const files: Array<{ fileId: string }> = JSON.parse(b.setDetails);
+        setSelectedFileIds(files.map(f => f.fileId));
+      } catch (e) {
+        setSelectedFileIds([]);
+      }
+    } else {
+      setSelectedFileIds([]);
+    }
+  }, [bookId, inventory]);
+
+  const toggleSubBook = (fileId: string) => {
+    setSelectedFileIds(prev =>
+      prev.includes(fileId) ? prev.filter(id => id !== fileId) : [...prev, fileId]
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!bookId) {
       setXato("Iltimos, darslikni tanlang.");
       return;
     }
+    if (selectedBook?.isSet && setFiles.length > 0 && selectedFileIds.length === 0) {
+      setXato("Komplektdan kamida 1 ta darslikni tanlang.");
+      return;
+    }
+
     setSaving(true);
     setXato('');
 
-    const success = await addManualInventoryStock({
+    const success = await addWarehouseStockItem({
       bookId,
+      selectedFileIds: selectedBook?.isSet ? selectedFileIds : undefined,
       quantity,
       bookCost,
       comment: comment.trim() || undefined,
@@ -275,9 +309,9 @@ function OmborgaKitobQoshishModali({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
           <div>
-            <label className="sb-label">Darslik turi</label>
+            <label className="sb-label">Darslik turi / Komplekt</label>
             {inventory.length === 0 ? (
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-700">
                 Hozircha bot/katalogda darsliklar mavjud emas. Avval Telegram bot orqali kitob yuklang.
@@ -291,7 +325,7 @@ function OmborgaKitobQoshishModali({ onClose }: { onClose: () => void }) {
                 >
                   {inventory.map(b => (
                     <option key={b.id} value={b.id}>
-                      {b.title} ({b.categoryName || 'Umumiy'})
+                      {b.title} {b.isSet ? '(📦 Komplekt)' : ''} ({b.categoryName || 'Umumiy'})
                     </option>
                   ))}
                 </select>
@@ -299,6 +333,35 @@ function OmborgaKitobQoshishModali({ onClose }: { onClose: () => void }) {
               </div>
             )}
           </div>
+
+          {/* If selected item is a Komplekt Set: Sub-item Checklist */}
+          {selectedBook?.isSet && setFiles.length > 0 && (
+            <div className="bg-purple-50/70 border border-purple-200 p-3.5 rounded-xl space-y-2">
+              <label className="text-xs font-bold text-purple-900 block">
+                Komplektdan qaysi darsliklar omborga qo'shilmoqda? (Belgilang):
+              </label>
+              <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                {setFiles.map((f, idx) => (
+                  <label
+                    key={f.fileId}
+                    className={`flex items-center gap-2.5 p-2 rounded-lg border text-xs cursor-pointer transition-all ${
+                      selectedFileIds.includes(f.fileId)
+                        ? 'bg-white border-purple-400 text-purple-900 font-bold shadow-xs'
+                        : 'bg-slate-100/70 border-slate-200 text-slate-500'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedFileIds.includes(f.fileId)}
+                      onChange={() => toggleSubBook(f.fileId)}
+                      className="w-3.5 h-3.5 text-purple-600 rounded border-slate-300"
+                    />
+                    <span>{idx + 1}. {f.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>

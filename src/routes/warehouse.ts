@@ -91,4 +91,62 @@ router.post('/backend/warehouse-stock/return', async (req, res) => {
   }
 });
 
+// POST /backend/warehouse-stock/add — Add unassigned physical books or sub-books of a set directly to warehouse
+router.post('/backend/warehouse-stock/add', async (req, res) => {
+  try {
+    const { bookId, selectedFileIds, quantity, bookCost, comment } = req.body;
+    if (!bookId) {
+      return res.status(400).json({ error: "bookId parametr kiritilishi shart." });
+    }
+
+    const qtyToAdd = Math.max(1, parseInt(String(quantity || 1)));
+
+    const book = await prisma.telegramBook.findUnique({
+      where: { id: parseInt(String(bookId)) }
+    });
+
+    if (!book) {
+      return res.status(404).json({ error: "Darslik topilmadi." });
+    }
+
+    const addedLogs: string[] = [];
+
+    // Case A: Set book sub-items addition
+    if (book.isSet && book.setDetails) {
+      let files: Array<{ name: string; fileId: string }> = [];
+      try { files = JSON.parse(book.setDetails); } catch (e) {}
+
+      const filesToAdd = Array.isArray(selectedFileIds) && selectedFileIds.length > 0
+        ? files.filter(f => selectedFileIds.includes(f.fileId))
+        : files;
+
+      for (const item of filesToAdd) {
+        await prisma.warehouseStock.upsert({
+          where: { fileId: item.fileId },
+          update: { quantity: { increment: qtyToAdd } },
+          create: { fileId: item.fileId, title: item.name, quantity: qtyToAdd }
+        });
+        addedLogs.push(`${item.name} (${qtyToAdd} ta)`);
+      }
+    } 
+    // Case B: Single book addition
+    else {
+      await prisma.warehouseStock.upsert({
+        where: { fileId: book.tgFileId },
+        update: { quantity: { increment: qtyToAdd } },
+        create: { fileId: book.tgFileId, title: book.name, quantity: qtyToAdd }
+      });
+      addedLogs.push(`${book.name} (${qtyToAdd} ta)`);
+    }
+
+    res.json({
+      success: true,
+      message: `${addedLogs.length} turdagi darslik ombor zaxirasiga qo'shildi.`,
+      addedItems: addedLogs
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;
