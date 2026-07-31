@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../prisma';
-import { bot } from '../telegram';
+import { bot, formatChatId } from '../telegram';
 
 const router = Router();
 
@@ -91,29 +91,32 @@ router.get('/webhook-info', async (req, res) => {
 
 // POST /backend/system/test-staff-group — send a test message to the configured STAFF_GROUP_ID
 router.post('/backend/system/test-staff-group', async (req, res) => {
-  try {
-    let targetChatId = process.env.STAFF_GROUP_ID || process.env.STORAGE_CHANNEL_ID || '-1004440998978';
-    if (targetChatId && !targetChatId.startsWith('@') && !targetChatId.startsWith('-')) {
-      targetChatId = targetChatId.length >= 10 ? `-100${targetChatId}` : `-${targetChatId}`;
-    }
+  const rawId = process.env.STAFF_GROUP_ID || process.env.STORAGE_CHANNEL_ID || '-1004440998978';
+  const targetChatId = formatChatId(rawId);
 
+  try {
     const msg = await bot.telegram.sendMessage(
       targetChatId,
       `✅ <b>SmartBook ERP Test Xabari!</b>\n\n` +
       `📌 Xodimlar Telegram Guruhi (STAFF_GROUP_ID) muvaffaqiyatli ulangan!\n` +
-      `🆔 Chat ID: <code>${targetChatId}</code>\n` +
+      `🆔 Raw Env ID: <code>${rawId}</code>\n` +
+      `🆔 Formatted Chat ID: <code>${targetChatId}</code>\n` +
       `⏰ Sana/Vaqt: <code>${new Date().toLocaleString('uz-UZ')}</code>`,
       { parse_mode: 'HTML' }
     );
 
     res.json({
       success: true,
+      rawEnvId: rawId,
       chatId: targetChatId,
       messageId: msg.message_id,
-      text: "Test xabari xodimlar guruhiga muvaffaqiyatli yuborildi!"
+      text: `Test xabari xodimlar guruhiga muvaffaqiyatli yuborildi! (Chat ID: ${targetChatId})`
     });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error('[Test Staff Group Error]:', e.message);
+    res.status(400).json({
+      error: `Telegramga yuborishda xatolik: ${e.message} (Env ID: "${rawId}" -> Chat ID: "${targetChatId}"). Bot guruhda admin ekanligini va Group ID to'g'riligini tekshiring.`
+    });
   }
 });
 
