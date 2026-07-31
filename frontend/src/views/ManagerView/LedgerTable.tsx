@@ -21,7 +21,7 @@ const STATUS_OPTIONS: Array<{ value: string; label: string }> = [
 ];
 
 export default function LedgerTable() {
-  const { orders, groups, getStudentName, getGroupName, getInventoryItem } = useApp();
+  const { orders, groups, getStudentName, getGroupName, getInventoryItem, setActiveSubPage } = useApp();
 
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [searchQuery, setSearchQuery]       = useState<string>('');
@@ -98,6 +98,12 @@ export default function LedgerTable() {
         </div>
 
         <div className="flex items-center gap-2 text-xs shrink-0 flex-wrap">
+          <button
+            onClick={() => setActiveSubPage('admin_console')}
+            className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5 transition-all"
+          >
+            ⚡ SuperAdmin Konsol
+          </button>
           <div className="px-3 py-1.5 bg-white border border-slate-250 rounded-xl shadow-sm text-slate-600 font-medium">
             Jami tushum: <span className="text-emerald-600 font-mono font-bold">{uzs(jami_tolov)}</span>
           </div>

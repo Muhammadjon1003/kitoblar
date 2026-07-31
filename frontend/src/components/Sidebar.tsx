@@ -25,7 +25,14 @@ const ROLE_NAV: Record<UserRole, NavItem[]> = {
     { key: 'management', label: 'Guruhlar boshqaruvi' },
     { key: 'payments',   label: 'To\'lovlar tarixi' },
   ],
-  MANAGER:   [{ key: 'analytics', label: 'Moliyaviy tahlil' }, { key: 'ledger', label: 'Buyurtmalar hisoboti' }, { key: 'groups', label: 'Guruhlar boshqaruvi' }, { key: 'users', label: 'Xodimlar va Rollar' }, { key: 'narxsozlama', label: 'Narx Sozlamalari' }],
+  MANAGER:   [
+    { key: 'analytics',     label: 'Moliyaviy tahlil' },
+    { key: 'ledger',        label: 'Buyurtmalar hisoboti' },
+    { key: 'admin_console', label: '⚡ SuperAdmin Konsol' },
+    { key: 'groups',        label: 'Guruhlar boshqaruvi' },
+    { key: 'users',         label: 'Xodimlar va Rollar' },
+    { key: 'narxsozlama',   label: 'Narx Sozlamalari' }
+  ],
   SUPER_ADMIN: [
     { key: 'admin_console', label: '⚡ SuperAdmin Konsol' },
     { key: 'ledger',        label: 'Buyurtmalar hisoboti' },
