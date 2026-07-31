@@ -10,7 +10,7 @@ import type { ReactNode } from 'react';
 import type {
   Teacher, Group, Student, InventoryItem, Order, OrderStatus,
   SystemNotification, AppToast, BulkOrderItem,
-  UserRole, SubPage, AuthUser,
+  UserRole, SubPage, AuthUser, WarehouseStockItem,
 } from '../types';
 
 const API = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
@@ -103,10 +103,13 @@ interface AppContextType {
   refreshStudents: () => Promise<void>;
   refreshOrders: () => Promise<void>;
   refreshSettings: () => Promise<void>;
+  refreshWarehouseStock: () => Promise<void>;
   sendToTelegram: (orderIds: string[]) => Promise<boolean>;
+  returnOrderWithStock: (orderId: string, returnedFileIds?: string[], comment?: string) => Promise<boolean>;
 
   // ── Data
   sotuvNarxi: number;  // current manager-set selling price
+  warehouseStock: WarehouseStockItem[];
 
   // ── Computed helpers
   getTeacherName: (id: string) => string;
@@ -481,6 +484,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const [warehouseStock, setWarehouseStock] = useState<import('../types').WarehouseStockItem[]>([]);
+
+  const refreshWarehouseStock = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/backend/warehouse-stock`);
+      if (res.ok) {
+        const data = await res.json();
+        setWarehouseStock(data);
+      }
+    } catch (err) {}
+  }, []);
+
+  const returnOrderWithStock = useCallback(async (orderId: string, returnedFileIds?: string[], comment?: string): Promise<boolean> => {
+    if (!checkAuth()) return false;
+    try {
+      const res = await fetch(`${API}/backend/warehouse-stock/return`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, returnedFileIds, comment }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Omborga qaytarishda xatolik.");
+      }
+      await refreshOrders();
+      await refreshWarehouseStock();
+      fireToast("Darslik ombor zaxirasiga muvaffaqiyatli qaytarildi!", 'success');
+      return true;
+    } catch (err: any) {
+      fireToast(`Xatolik: ${err.message}`, 'error');
+      return false;
+    }
+  }, [checkAuth, refreshOrders, refreshWarehouseStock, fireToast]);
+
   useEffect(() => {
     async function loadBooks() {
       try {
@@ -495,6 +532,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           bookCost: b.bookCost ?? 0,
           price: b.price ?? 0,
           categoryName: b.category ? b.category.name : 'Umumiy',
+          isSet: b.isSet ?? false,
+          setDetails: b.setDetails ?? null,
         }));
         if (mappedBooks.length > 0) setInventory(mappedBooks);
       } catch (err) {
@@ -507,7 +546,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     refreshOrders();
     refreshSettings();
     refreshUsers();
-  }, [refreshGroups, refreshStudents, refreshOrders, refreshSettings, refreshUsers]);
+    refreshWarehouseStock();
+  }, [refreshGroups, refreshStudents, refreshOrders, refreshSettings, refreshUsers, refreshWarehouseStock]);
 
   /** Logistics/Manager updates a book's custom selling price → PATCH /backend/books/:id */
   const updateBookPrice = useCallback(async (bookId: string, price: number): Promise<boolean> => {
@@ -1017,13 +1057,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       currentUser, users, login, logout, createUserAccount, deleteUserAccount, updateUserAccount, refreshUsers,
       teachers, groups, students, inventory, orders, notifications, toasts, setOrders,
       sotuvNarxi,
+      warehouseStock,
       fireToast,
       createBulkOrders, collectCash, markCoursePayment, cancelOrder, addManualInventoryStock,
       dispatchToSupplier, markArrived, deliverBook, decoupleBook,
       allocateFromWarehouse, addInventoryItem, updateOrderAdmin, updateOrderBook, updateBookPrice,
       markNotificationAsRead, markAllNotificationsAsRead, dismissNotification, dismissToast,
-      refreshGroups, refreshStudents, refreshOrders, refreshSettings,
-      sendToTelegram,
+      refreshGroups, refreshStudents, refreshOrders, refreshSettings, refreshWarehouseStock,
+      sendToTelegram, returnOrderWithStock,
       getTeacherName, getStudentName, getGroupName, getInventoryItem,
       getStudentOrders, getLatestOrder, getStudentsByGroup, getGroupsByTeacher,
       retailPrice, isDeliverable,

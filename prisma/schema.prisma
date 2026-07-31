@@ -128,22 +128,35 @@ model ErpStudent {
 // ─── ERP: Orders (pipeline persistence) ──────────────────────────────────────
 
 model ErpOrder {
-  id         String     @id @default(cuid())
-  studentId  String
-  groupId    String
-  bookId     String
-  status     String     @default("CREATED")
-  amountPaid Float      @default(0)
-  bookCost   Float      @default(0)   // tan narxi — set by cashier at arrival
-  sotuvNarxi Float      @default(0)   // sotuv narxi — locked from manager settings at order creation
-  comment    String     @default("")
-  updatedAt  String
-  createdAt  DateTime   @default(now())
+  id                  String     @id @default(cuid())
+  studentId           String
+  groupId             String
+  bookId              String
+  status              String     @default("CREATED")
+  amountPaid          Float      @default(0)
+  bookCost            Float      @default(0)   // tan narxi — set by cashier at arrival
+  sotuvNarxi          Float      @default(0)   // sotuv narxi — locked from manager settings at order creation
+  comment             String     @default("")
+  fulfilledSetDetails String?    @db.Text      // JSON string of partial fulfillment breakdown
+  updatedAt           String
+  createdAt           DateTime   @default(now())
 
   student    ErpStudent @relation(fields: [studentId], references: [id], onDelete: Cascade)
   group      ErpGroup   @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@map("erp_orders")
+}
+
+// ─── ERP: Sub-Book Physical Warehouse Inventory Stock ─────────────────
+
+model WarehouseStock {
+  id        Int      @id @default(autoincrement())
+  fileId    String   @unique
+  title     String
+  quantity  Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@map("warehouse_stock")
 }
 
 // ─── ERP: Global Settings ──────────────────────────────────────────────

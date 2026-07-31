@@ -11,6 +11,7 @@ import ordersRouter from './routes/orders';
 import settingsRouter from './routes/settings';
 import usersRouter from './routes/users';
 import systemRouter, { webhookLogger } from './routes/system';
+import warehouseRouter from './routes/warehouse';
 
 dotenv.config();
 
@@ -40,7 +41,7 @@ app.get('/', (req, res) => {
     status: 'active',
     service: 'SmartBook ERP Backend API',
     webhook: '/telegram-webhook',
-    endpoints: ['POST /api/orders/smart-create', 'GET /webhook-info', 'GET /webhook-debug', 'GET /backend/books', 'GET /backend/categories']
+    endpoints: ['POST /api/orders/smart-create', 'GET /webhook-info', 'GET /webhook-debug', 'GET /backend/books', 'GET /backend/categories', 'GET /backend/warehouse-stock']
   });
 });
 
@@ -52,6 +53,7 @@ app.use(ordersRouter);
 app.use(settingsRouter);
 app.use(usersRouter);
 app.use(systemRouter);
+app.use(warehouseRouter);
 
 // Setup Telegram Webhook or Polling
 const PORT = process.env.PORT || 3000;

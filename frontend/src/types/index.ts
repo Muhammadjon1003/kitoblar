@@ -22,6 +22,14 @@ export type OrderStatus =
 // ─── RBAC Roles (TR § 1) ──────────────────────────────────────────────────────
 export type UserRole = 'TEACHER' | 'CASHIER' | 'LOGISTICS' | 'MANAGER' | 'SUPER_ADMIN';
 
+export interface WarehouseStockItem {
+  id: number;
+  fileId: string;
+  title: string;
+  quantity: number;
+  updatedAt: string;
+}
+
 // ─── TR § 2: users table (display only — auth not in frontend scope) ──────────
 export interface Teacher {
   id: string;

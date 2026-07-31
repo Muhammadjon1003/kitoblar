@@ -310,30 +310,82 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
         try {
           const bookObj = bookMap.get(bookId);
           let primaryMsgId = 0;
+          let subBookFulfillmentInfo = '';
 
           if (bookObj?.isSet && bookObj?.setDetails) {
-            const files: Array<{ name: string; fileId: string }> = JSON.parse(bookObj.setDetails);
-            const bookListStr = files.map((f, idx) => `${idx + 1}. ${f.name}`).join('\n');
-            const setCaption = `kitob nomi: ${group.bookName}\nSoni: ${studentNames.length}\n\n📚 Tarkibidagi darsliklar:\n${bookListStr}\n\nKimlar uchun:\n${studentNames.join('\n')}`;
+            let files: Array<{ name: string; fileId: string }> = [];
+            try { files = JSON.parse(bookObj.setDetails); } catch (e) {}
 
-            const mediaGroup = files.map((f, index) => ({
+            const filesToOrder: Array<{ name: string; fileId: string }> = [];
+            const fulfilledFromStock: string[] = [];
+
+            // Sub-item inventory check for each textbook in the set
+            for (const f of files) {
+              const stock = await prisma.warehouseStock.findFirst({
+                where: { fileId: f.fileId, quantity: { gt: 0 } }
+              });
+
+              if (stock && stock.quantity > 0) {
+                // Reserve 1 unit from warehouse stock
+                await prisma.warehouseStock.update({
+                  where: { id: stock.id },
+                  data: { quantity: stock.quantity - 1 }
+                });
+                fulfilledFromStock.push(f.name);
+              } else {
+                filesToOrder.push(f);
+              }
+            }
+
+            if (filesToOrder.length === 0) {
+              // ALL sub-books were available in warehouse stock!
+              subBookFulfillmentInfo = "Barcha darsliklar ombordan biriktirildi";
+              for (const o of group.orders) {
+                await prisma.erpOrder.update({
+                  where: { id: o.id },
+                  data: {
+                    status: 'ARRIVED',
+                    comment: "Ombor zaxirasidan to'liq biriktirildi",
+                    fulfilledSetDetails: JSON.stringify({ fulfilledFromStock, orderedFromSupplier: [] }),
+                    updatedAt: today
+                  }
+                });
+              }
+              sentResults.push({ bookId, bookName: group.bookName, success: true, messageId: 0, note: "Ombordan to'liq biriktirildi" });
+              continue;
+            }
+
+            // Construct filtered Telegram media group with ONLY missing PDFs
+            const missingListStr = filesToOrder.map((f, idx) => `${idx + 1}. ${f.name}`).join('\n');
+            const stockNoteStr = fulfilledFromStock.length > 0
+              ? `\n📌 Ombordan biriktirildi (${fulfilledFromStock.length} ta): ${fulfilledFromStock.join(', ')}\n`
+              : '';
+
+            const setCaption = `kitob nomi: ${group.bookName} (${filesToOrder.length}/${files.length} ta darslik)\nSoni: ${studentNames.length}${stockNoteStr}\n📚 Yetkazilishi kerak bo'lgan darsliklar:\n${missingListStr}\n\nKimlar uchun:\n${studentNames.join('\n')}`;
+
+            const mediaGroup = filesToOrder.map((f, index) => ({
               type: 'document' as const,
               media: f.fileId,
-              caption: index === files.length - 1 ? setCaption : undefined
+              caption: index === filesToOrder.length - 1 ? setCaption : undefined
             }));
 
             const sentMsgs = await bot.telegram.sendMediaGroup(targetChatId, mediaGroup);
             primaryMsgId = sentMsgs[0]?.message_id || 0;
+            subBookFulfillmentInfo = JSON.stringify({ fulfilledFromStock, orderedFromSupplier: filesToOrder.map(f => f.name) });
           } else {
             const sentMsg = await bot.telegram.sendDocument(targetChatId, group.tgFileId, { caption });
             primaryMsgId = sentMsg.message_id;
           }
 
-          // Mark orders as ORDERED ONLY AFTER Telegram dispatch succeeds
+          // Mark orders as ORDERED AFTER Telegram dispatch succeeds
           for (const o of group.orders) {
             await prisma.erpOrder.update({
               where: { id: o.id },
-              data: { status: 'ORDERED', updatedAt: today }
+              data: {
+                status: 'ORDERED',
+                fulfilledSetDetails: subBookFulfillmentInfo || undefined,
+                updatedAt: today
+              }
             });
 
             try {
