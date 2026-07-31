@@ -42,7 +42,7 @@ const VALID_SUBPAGES: Record<UserRole, SubPage[]> = {
   TEACHER:     ['orders'],
   CASHIER:     ['pipeline', 'warehouse', 'management', 'payments'],
   LOGISTICS:   ['pipeline', 'supplier', 'history', 'warehouse', 'books', 'management', 'payments'],
-  MANAGER:     ['analytics', 'ledger', 'groups', 'users', 'narxsozlama'],
+  MANAGER:     ['analytics', 'ledger', 'groups', 'users', 'narxsozlama', 'admin_console'],
   SUPER_ADMIN: ['admin_console', 'ledger', 'analytics', 'groups', 'users', 'narxsozlama', 'supplier', 'history', 'books', 'warehouse', 'pipeline', 'orders'],
 };
 
