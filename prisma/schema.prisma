@@ -149,9 +149,11 @@ model ErpOrder {
 // ─── ERP: Global Settings ──────────────────────────────────────────────
 
 model ErpSettings {
-  id         String   @id @default("global")
-  sotuvNarxi Float    @default(0)   // manager-set selling price (so'm)
-  updatedAt  DateTime @updatedAt
+  id               String   @id @default("global")
+  sotuvNarxi       Float    @default(0)   // manager-set selling price (so'm)
+  staffGroupId     String?  // Optional DB override for STAFF_GROUP_ID
+  storageChannelId String?  // Optional DB override for STORAGE_CHANNEL_ID
+  updatedAt        DateTime @updatedAt
 
   @@map("erp_settings")
 }

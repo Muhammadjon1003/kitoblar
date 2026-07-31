@@ -4,7 +4,7 @@
  * Full system state override, order status editing, price overrides, and data repairs.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { RefreshCw, Save, Search, Edit3, Zap } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Td, StatusBadge, uzs } from '../../components/ui';
@@ -31,6 +31,42 @@ export default function SuperAdminConsole() {
   const [editPrice, setEditPrice] = useState<string>('');
   const [editComment, setEditComment] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
+
+  const [dbStaffGroupId, setDbStaffGroupId] = useState('');
+  const [activeStaffGroupInfo, setActiveStaffGroupInfo] = useState('');
+  const [isSavingGroup, setIsSavingGroup] = useState(false);
+
+  useEffect(() => {
+    fetch('/backend/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data.staffGroupId) setDbStaffGroupId(data.staffGroupId);
+        setActiveStaffGroupInfo(data.activeStaffGroupId || data.envStaffGroupId || 'Sozlanmagan');
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSaveStaffGroupId = async () => {
+    setIsSavingGroup(true);
+    try {
+      const res = await fetch('/backend/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ staffGroupId: dbStaffGroupId.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        fireToast("✅ Telegram Xodimlar Guruhi ID si saqlandi!", 'success');
+        setActiveStaffGroupInfo(data.staffGroupId || data.envStaffGroupId || 'Sozlanmagan');
+      } else {
+        fireToast(`❌ Xatolik: ${data.error}`, 'error');
+      }
+    } catch (err: any) {
+      fireToast(`Xatolik: ${err.message}`, 'error');
+    } finally {
+      setIsSavingGroup(false);
+    }
+  };
 
   // Filtered orders
   const filteredOrders = useMemo(() => {
@@ -110,17 +146,49 @@ export default function SuperAdminConsole() {
 
         <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={handleTestStaffGroup}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl bg-indigo-600/50 hover:bg-indigo-600/80 border border-indigo-400/40 text-indigo-100 transition-all shadow-md"
-          >
-            ✈️ Staff Guruhiga Test Yuborish
-          </button>
-          <button
             onClick={() => refreshOrders()}
             className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-purple-600/40 hover:bg-purple-600/60 border border-purple-400/40 text-purple-100 transition-all shadow-md"
           >
             <RefreshCw className="w-4 h-4" />
             Tizimni qayta yuklash
+          </button>
+        </div>
+      </div>
+
+      {/* Telegram Staff Group Settings Box */}
+      <div className="bg-slate-800/90 border border-slate-700/80 p-5 rounded-2xl shadow-lg space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-700/60 pb-3">
+          <div>
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              📱 Telegram Xodimlar Guruhi (STAFF_GROUP_ID) Sozlamalari
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Faol Xodimlar Guruhi ID: <code className="text-purple-300 font-mono font-bold">{activeStaffGroupInfo || '—'}</code>
+            </p>
+          </div>
+          <button
+            onClick={handleTestStaffGroup}
+            className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-md shrink-0"
+          >
+            ✈️ Guruhga Test Xabari Yuborish
+          </button>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <input
+            type="text"
+            placeholder="Yangi Staff Group ID (masalan: -1004440998978 yoki 4440998978)"
+            value={dbStaffGroupId}
+            onChange={(e) => setDbStaffGroupId(e.target.value)}
+            className="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono"
+          />
+          <button
+            onClick={handleSaveStaffGroupId}
+            disabled={isSavingGroup}
+            className="w-full sm:w-auto px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-2 shrink-0 transition-all"
+          >
+            <Save className="w-4 h-4" />
+            Bazaga Saqlash
           </button>
         </div>
       </div>

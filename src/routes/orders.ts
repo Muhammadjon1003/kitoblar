@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { prisma } from '../prisma';
-import { bot, uploadToTelegramChannel } from '../telegram';
+import { bot, uploadToTelegramChannel, getStaffGroupId } from '../telegram';
 import { createSmartOrder } from '../orderService';
 
 const router = Router();
@@ -298,14 +298,7 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
       groups[o.bookId].orders.push(o);
     }
 
-    let targetChatId = process.env.STAFF_GROUP_ID || process.env.STORAGE_CHANNEL_ID || '-1004440998978';
-    if (targetChatId && !targetChatId.startsWith('@') && !targetChatId.startsWith('-')) {
-      if (targetChatId.length >= 10) {
-        targetChatId = `-100${targetChatId}`;
-      } else {
-        targetChatId = `-${targetChatId}`;
-      }
-    }
+    let targetChatId = await getStaffGroupId();
 
     const sentResults = [];
     if (targetChatId && ordersToSendTelegram.length > 0) {

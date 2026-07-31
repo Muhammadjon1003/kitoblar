@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../prisma';
-import { bot, formatChatId } from '../telegram';
+import { bot, formatChatId, getStaffGroupId } from '../telegram';
 
 const router = Router();
 
@@ -91,23 +91,20 @@ router.get('/webhook-info', async (req, res) => {
 
 // POST /backend/system/test-staff-group — send a test message to the configured STAFF_GROUP_ID
 router.post('/backend/system/test-staff-group', async (req, res) => {
-  const rawId = process.env.STAFF_GROUP_ID || process.env.STORAGE_CHANNEL_ID || '-1004440998978';
-  const targetChatId = formatChatId(rawId);
-
   try {
+    const targetChatId = await getStaffGroupId();
+
     const msg = await bot.telegram.sendMessage(
       targetChatId,
       `✅ <b>SmartBook ERP Test Xabari!</b>\n\n` +
       `📌 Xodimlar Telegram Guruhi (STAFF_GROUP_ID) muvaffaqiyatli ulangan!\n` +
-      `🆔 Raw Env ID: <code>${rawId}</code>\n` +
-      `🆔 Formatted Chat ID: <code>${targetChatId}</code>\n` +
+      `🆔 Active Target Chat ID: <code>${targetChatId}</code>\n` +
       `⏰ Sana/Vaqt: <code>${new Date().toLocaleString('uz-UZ')}</code>`,
       { parse_mode: 'HTML' }
     );
 
     res.json({
       success: true,
-      rawEnvId: rawId,
       chatId: targetChatId,
       messageId: msg.message_id,
       text: `Test xabari xodimlar guruhiga muvaffaqiyatli yuborildi! (Chat ID: ${targetChatId})`
@@ -115,7 +112,7 @@ router.post('/backend/system/test-staff-group', async (req, res) => {
   } catch (e: any) {
     console.error('[Test Staff Group Error]:', e.message);
     res.status(400).json({
-      error: `Telegramga yuborishda xatolik: ${e.message} (Env ID: "${rawId}" -> Chat ID: "${targetChatId}"). Bot guruhda admin ekanligini va Group ID to'g'riligini tekshiring.`
+      error: `Telegramga yuborishda xatolik: ${e.message}. Bot guruhda admin ekanligini va Group ID to'g'riligini tekshiring.`
     });
   }
 });

@@ -1,6 +1,9 @@
 import { Telegraf } from 'telegraf';
+import { PrismaClient } from '@prisma/client';
 import * as dotenv from 'dotenv';
 dotenv.config();
+
+const prisma = new PrismaClient();
 
 export function formatChatId(id: string | number): string | number {
   if (typeof id === 'number') return id;
@@ -11,26 +14,68 @@ export function formatChatId(id: string | number): string | number {
   return `-${str}`;
 }
 
-const BOT_TOKEN = process.env.BOT_TOKEN || 'YOUR_TELEGRAM_BOT_TOKEN';
-export const STORAGE_CHANNEL_ID = formatChatId(process.env.STORAGE_CHANNEL_ID || '-1004483506294');
-export const STAFF_GROUP_ID = formatChatId(process.env.STAFF_GROUP_ID || '-1002130662251');
-
-// Initialize the Telegram Bot
+const BOT_TOKEN = process.env.BOT_TOKEN || '';
 export const bot = new Telegraf(BOT_TOKEN);
 
 /**
- * Uploads a file buffer directly to Telegram to save disk space (0GB local storage).
- * The file is sent to a private channel, and we capture the tg_file_id.
+ * Dynamic resolution of Staff Group ID:
+ * 1. Checks ErpSettings table in PostgreSQL (DB override)
+ * 2. Checks process.env.STAFF_GROUP_ID
+ * 3. Throws descriptive error if neither is configured.
+ */
+export async function getStaffGroupId(): Promise<string> {
+  // 1. DB Override
+  try {
+    const dbSettings = await prisma.erpSettings.findUnique({ where: { id: 'global' } });
+    if (dbSettings?.staffGroupId && dbSettings.staffGroupId.trim()) {
+      return String(formatChatId(dbSettings.staffGroupId));
+    }
+  } catch (e) {}
+
+  // 2. Env variable
+  if (process.env.STAFF_GROUP_ID && process.env.STAFF_GROUP_ID.trim()) {
+    return String(formatChatId(process.env.STAFF_GROUP_ID));
+  }
+
+  throw new Error("STAFF_GROUP_ID is not configured. Please set STAFF_GROUP_ID in Vercel Environment Variables or SuperAdmin Console.");
+}
+
+/**
+ * Dynamic resolution of Storage Channel ID:
+ * 1. Checks ErpSettings table in PostgreSQL (DB override)
+ * 2. Checks process.env.STORAGE_CHANNEL_ID
+ */
+export async function getStorageChannelId(): Promise<string> {
+  try {
+    const dbSettings = await prisma.erpSettings.findUnique({ where: { id: 'global' } });
+    if (dbSettings?.storageChannelId && dbSettings.storageChannelId.trim()) {
+      return String(formatChatId(dbSettings.storageChannelId));
+    }
+  } catch (e) {}
+
+  if (process.env.STORAGE_CHANNEL_ID && process.env.STORAGE_CHANNEL_ID.trim()) {
+    return String(formatChatId(process.env.STORAGE_CHANNEL_ID));
+  }
+
+  throw new Error("STORAGE_CHANNEL_ID is not configured. Please set STORAGE_CHANNEL_ID in Vercel Environment Variables or SuperAdmin Console.");
+}
+
+// Backward compatibility static fallbacks for botHandlers background startup
+export const STORAGE_CHANNEL_ID = formatChatId(process.env.STORAGE_CHANNEL_ID || '');
+export const STAFF_GROUP_ID = formatChatId(process.env.STAFF_GROUP_ID || '');
+
+/**
+ * Uploads a file buffer directly to Telegram to save disk space.
  */
 export async function uploadToTelegramChannel(
   fileBuffer: Buffer, 
   fileName: string
 ): Promise<string> {
-  const message = await bot.telegram.sendDocument(STORAGE_CHANNEL_ID, {
+  const channelId = await getStorageChannelId();
+  const message = await bot.telegram.sendDocument(channelId, {
     source: fileBuffer,
     filename: fileName,
   });
 
-  // Return ONLY the string ID for the database
   return message.document.file_id;
 }
