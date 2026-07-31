@@ -12,7 +12,7 @@ import TeacherView        from './views/TeacherView';
 import CashierDashboard   from './views/CashierView/CashierDashboard';
 import LogisticsDashboard from './views/LogisticsView/LogisticsDashboard';
 import ManagerDashboard   from './views/ManagerView/ManagerDashboard';
-import SuperAdminConsole  from './views/SuperAdminView/SuperAdminConsole';
+import SuperAdminDashboard from './views/SuperAdminView/SuperAdminDashboard';
 
 function AppShell() {
   const { currentUser, activeRole, toasts, dismissToast } = useApp();
@@ -37,7 +37,7 @@ function AppShell() {
           {activeRole === 'CASHIER'     && <CashierDashboard />}
           {activeRole === 'LOGISTICS'   && <LogisticsDashboard />}
           {activeRole === 'MANAGER'     && <ManagerDashboard />}
-          {activeRole === 'SUPER_ADMIN' && <SuperAdminConsole />}
+          {activeRole === 'SUPER_ADMIN' && <SuperAdminDashboard />}
         </main>
       </div>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />

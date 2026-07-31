@@ -35,11 +35,18 @@ const ROLE_NAV: Record<UserRole, NavItem[]> = {
   ],
   SUPER_ADMIN: [
     { key: 'admin_console', label: '⚡ SuperAdmin Konsol' },
-    { key: 'ledger',        label: 'Buyurtmalar hisoboti' },
     { key: 'analytics',     label: 'Moliyaviy tahlil' },
+    { key: 'ledger',        label: 'Buyurtmalar hisoboti' },
+    { key: 'pipeline',      label: 'CRM Yo\'nalishi' },
+    { key: 'supplier',      label: 'Ta\'minotchi stoli' },
+    { key: 'history',       label: 'Buyurtmalar tarixi' },
+    { key: 'warehouse',     label: 'Ombor zaxirasi' },
+    { key: 'books',         label: 'Darsliklar va Komplektlar' },
     { key: 'groups',        label: 'Guruhlar boshqaruvi' },
     { key: 'users',         label: 'Xodimlar va Rollar' },
     { key: 'narxsozlama',   label: 'Narx Sozlamalari' },
+    { key: 'payments',      label: 'To\'lovlar tarixi' },
+    { key: 'orders',        label: 'O\'qituvchi Buyurtmalari' },
   ],
 };
 
