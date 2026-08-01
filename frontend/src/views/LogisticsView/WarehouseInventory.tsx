@@ -416,6 +416,7 @@ export default function WarehouseInventory() {
     orders,
     students,
     groups,
+    warehouseStock,
     allocateFromWarehouse,
     getStudentName,
     getGroupName,
@@ -441,7 +442,7 @@ export default function WarehouseInventory() {
     setAllocations(prev => { const next = { ...prev }; delete next[itemKey]; return next; });
   };
 
-  // 1. Books in company hands that can be allocated/re-assigned (Returned, Cancelled, Free stock)
+  // 1. Books in company hands that can be allocated/re-assigned (Returned, Cancelled, Free stock, Sub-book stock)
   const allocatableItems: Array<{
     key: string;
     bookId: string;
@@ -450,6 +451,18 @@ export default function WarehouseInventory() {
     reason: string;
     badgeColor: string;
   }> = [];
+
+  // Individual physical sub-books / books in warehouse (warehouse_stock table)
+  (warehouseStock || []).filter(ws => ws.quantity > 0).forEach(ws => {
+    allocatableItems.push({
+      key: `stock-${ws.id}`,
+      bookId: ws.fileId,
+      title: ws.title,
+      categoryName: 'Darslik Zaxirasi',
+      reason: `Jismoniy Ombor Zaxirasi (${ws.quantity} ta darslik)`,
+      badgeColor: 'bg-emerald-100 border-emerald-300 text-emerald-800 font-bold',
+    });
+  });
 
   // Returned inventory items (True inventory)
   inventory.filter(i => i.isReturned).forEach(i => {
@@ -500,8 +513,17 @@ export default function WarehouseInventory() {
   });
 
   // 2. Comprehensive Company Possession Inventory (All books physically in company hands)
-  // True inventory & physical books come first; cancelled books come later.
   const companyBooksList = [
+    ...(warehouseStock || []).filter(ws => ws.quantity > 0).map(ws => ({
+      id: `stock-${ws.id}`,
+      title: ws.title,
+      categoryName: 'Darslik Zaxirasi',
+      studentName: '—',
+      groupName: '—',
+      statusLabel: `Ombor Zaxirasi (${ws.quantity} ta)`,
+      statusType: 'STOCK' as const,
+      price: sotuvNarxi,
+    })),
     ...orders.filter(o => o.status === 'ARRIVED').map(o => ({
       id: o.id,
       title: getInventoryItem(o.bookId)?.title ?? 'Kitob',
