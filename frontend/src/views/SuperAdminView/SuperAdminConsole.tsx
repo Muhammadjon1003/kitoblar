@@ -5,7 +5,7 @@
  */
 
 import { useState, useMemo, useEffect } from 'react';
-import { RefreshCw, Save, Search, Edit3, Zap } from 'lucide-react';
+import { RefreshCw, Save, Search, Edit3, Zap, Trash2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Td, StatusBadge, uzs } from '../../components/ui';
 
@@ -21,7 +21,7 @@ const STATUS_LIST = [
 ];
 
 export default function SuperAdminConsole() {
-  const { orders, updateOrderAdmin, refreshOrders, getStudentName, getGroupName, getInventoryItem, fireToast } = useApp();
+  const { orders, updateOrderAdmin, deleteOrderAdmin, refreshOrders, getStudentName, getGroupName, getInventoryItem, fireToast } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL');
@@ -88,6 +88,13 @@ export default function SuperAdminConsole() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleDeleteOrder = async (orderId: string, studentName: string) => {
+    if (!window.confirm(`Rostdan ham "${studentName}" ga tegishli ushbu buyurtmani bazadan BUTUNLAY O'CHIRMOQCHIMISIZ?\n\n(Bu amalni ortga qaytarib bo'lmaydi!)`)) {
+      return;
+    }
+    await deleteOrderAdmin(orderId);
   };
 
   const handleTestStaffGroup = async () => {
@@ -297,13 +304,22 @@ export default function SuperAdminConsole() {
                           </button>
                         </div>
                       ) : (
-                        <button
-                          onClick={() => handleStartEdit(o)}
-                          className="px-3 py-1.5 bg-purple-600/30 hover:bg-purple-600/60 border border-purple-400/40 text-purple-300 hover:text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                          Tahrirlash
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => handleStartEdit(o)}
+                            className="px-3 py-1.5 bg-purple-600/30 hover:bg-purple-600/60 border border-purple-400/40 text-purple-300 hover:text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            Tahrirlash
+                          </button>
+                          <button
+                            onClick={() => handleDeleteOrder(o.id, studentName)}
+                            className="p-1.5 bg-red-500/20 hover:bg-red-500/40 border border-red-500/40 text-red-400 hover:text-red-200 rounded-lg text-xs font-bold transition-all"
+                            title="Buyurtmani bazadan o'chirish"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>

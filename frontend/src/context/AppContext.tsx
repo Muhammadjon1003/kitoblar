@@ -107,6 +107,7 @@ interface AppContextType {
   sendToTelegram: (orderIds: string[]) => Promise<boolean>;
   returnOrderWithStock: (orderId: string, returnedFileIds?: string[], comment?: string) => Promise<boolean>;
   addWarehouseStockItem: (payload: { bookId: string; selectedFileIds?: string[]; quantity?: number; bookCost?: number; comment?: string }) => Promise<boolean>;
+  deleteOrderAdmin: (orderId: string) => Promise<boolean>;
 
   // ── Data
   sotuvNarxi: number;  // current manager-set selling price
@@ -1070,6 +1071,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [checkAuth, refreshOrders, fireToast]);
 
+  /** SuperAdmin hard delete of an order */
+  const deleteOrderAdmin = useCallback(async (orderId: string): Promise<boolean> => {
+    if (!checkAuth()) return false;
+    setOrders(prev => prev.filter(o => o.id !== orderId));
+    try {
+      const res = await fetch(`${API}/backend/orders/${orderId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error(await res.text());
+      await refreshOrders();
+      fireToast("Buyurtma bazadan butunlay o'chirib tashlandi.", 'info');
+      return true;
+    } catch (err: any) {
+      fireToast(`O'chirishda xatolik: ${err.message}`, 'error');
+      await refreshOrders();
+      return false;
+    }
+  }, [checkAuth, refreshOrders, fireToast]);
+
   const addInventoryItem = useCallback((title: string, _bookCost: number) => {
     fireToast(`"${title}" ro'yxatga olindi.`);
   }, [fireToast]);
@@ -1109,7 +1129,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       fireToast,
       createBulkOrders, collectCash, markCoursePayment, cancelOrder, addManualInventoryStock,
       dispatchToSupplier, markArrived, deliverBook, decoupleBook,
-      allocateFromWarehouse, addInventoryItem, updateOrderAdmin, updateOrderBook, updateBookPrice,
+      allocateFromWarehouse, addInventoryItem, updateOrderAdmin, updateOrderBook, updateBookPrice, deleteOrderAdmin,
       markNotificationAsRead, markAllNotificationsAsRead, dismissNotification, dismissToast,
       refreshGroups, refreshStudents, refreshOrders, refreshSettings, refreshWarehouseStock,
       sendToTelegram, returnOrderWithStock, addWarehouseStockItem,
