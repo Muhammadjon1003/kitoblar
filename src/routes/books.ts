@@ -135,19 +135,68 @@ router.get('/backend/books', async (req, res) => {
   }
 });
 
+// Helper to re-upload PDF buffer to Telegram with new filename so file_name on Telegram matches updated book title
+export async function reuploadFileWithNewName(fileId: string, newCleanName: string): Promise<string> {
+  if (!fileId || !newCleanName || fileId.startsWith('sub_file_') || fileId.startsWith('sub_book_')) return fileId;
+  try {
+    const fileUrl = await bot.telegram.getFileLink(fileId);
+    const res = await fetch(fileUrl.toString());
+    if (!res.ok) return fileId;
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const sanitizedFilename = newCleanName.replace(/[^a-zA-Z0-9_\-\.]/g, '_') + '.pdf';
+    const sentMsg = await bot.telegram.sendDocument(STORAGE_CHANNEL_ID, {
+      source: buffer,
+      filename: sanitizedFilename
+    }, {
+      caption: `🔄 Auto-renamed PDF: ${newCleanName}`
+    });
+
+    return sentMsg.document.file_id;
+  } catch (e: any) {
+    console.warn(`[Reupload Rename Warning]: Failed for fileId ${fileId}:`, e.message);
+    return fileId;
+  }
+}
+
 // PATCH /backend/books/:id — Update book name, price, setDetails, or categoryId
 router.patch('/backend/books/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const { name, price, setDetails, categoryId, isSet } = req.body;
     
+    const existing = await prisma.telegramBook.findUnique({ where: { id } });
+
     const updateData: any = {};
     if (price !== undefined && !isNaN(Number(price))) updateData.price = Number(price);
-    if (name !== undefined && typeof name === 'string' && name.trim()) updateData.name = cleanBookName(name);
+    
+    if (name !== undefined && typeof name === 'string' && name.trim()) {
+      const cleanName = cleanBookName(name);
+      updateData.name = cleanName;
+      if (existing && existing.tgFileId && existing.name !== cleanName) {
+        updateData.tgFileId = await reuploadFileWithNewName(existing.tgFileId, cleanName);
+      }
+    }
+
     if (setDetails !== undefined) {
-      let parsed = typeof setDetails === 'string' ? JSON.parse(setDetails) : setDetails;
+      let parsed: Array<{ name: string; fileId: string; isMain?: boolean; fileType?: string; parentFileId?: string }> = 
+        typeof setDetails === 'string' ? JSON.parse(setDetails) : setDetails;
       if (Array.isArray(parsed)) {
-        parsed = parsed.map(f => ({ ...f, name: cleanBookName(f.name) }));
+        let existingFiles: typeof parsed = [];
+        try { existingFiles = JSON.parse(existing?.setDetails || '[]'); } catch (e) {}
+
+        const updatedFiles = [];
+        for (const f of parsed) {
+          const cleanFname = cleanBookName(f.name);
+          const oldFile = existingFiles.find(ef => ef.fileId === f.fileId);
+          let fileId = f.fileId;
+          if (oldFile && oldFile.name !== cleanFname && f.fileId) {
+            fileId = await reuploadFileWithNewName(f.fileId, cleanFname);
+          }
+          updatedFiles.push({ ...f, name: cleanFname, fileId });
+        }
+        parsed = updatedFiles;
       }
       updateData.setDetails = JSON.stringify(parsed);
     }

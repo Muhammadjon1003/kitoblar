@@ -1,5 +1,5 @@
 import { bot, STORAGE_CHANNEL_ID, getStorageChannelId, getSupplierGroupId } from './telegram';
-import { cleanBookName, generateBooksCSVBuffer } from './routes/books';
+import { cleanBookName, generateBooksCSVBuffer, reuploadFileWithNewName } from './routes/books';
 import { PrismaClient } from '@prisma/client';
 import { Markup } from 'telegraf';
 
@@ -1078,7 +1078,10 @@ export function registerBotHandlers() {
       try { files = JSON.parse(book.setDetails || '[]'); } catch (e) {}
 
       if (files[fileIndex]) {
-        files[fileIndex].name = text;
+        const cleanName = cleanBookName(text);
+        const newFileId = await reuploadFileWithNewName(files[fileIndex].fileId, cleanName);
+        files[fileIndex].name = cleanName;
+        files[fileIndex].fileId = newFileId;
       }
 
       await prisma.telegramBook.update({
@@ -1098,9 +1101,16 @@ export function registerBotHandlers() {
     else if (session.state === 'WAITING_FOR_RENAME_BOOK') {
       const bookId = session.data.bookId;
       try {
+        const existing = await prisma.telegramBook.findUnique({ where: { id: bookId } });
+        const cleanName = cleanBookName(text);
+        let newFileId = existing?.tgFileId;
+        if (existing?.tgFileId && existing.name !== cleanName) {
+          newFileId = await reuploadFileWithNewName(existing.tgFileId, cleanName);
+        }
+
         const updated = await prisma.telegramBook.update({
           where: { id: bookId },
-          data: { name: text }
+          data: { name: cleanName, tgFileId: newFileId }
         });
 
         await syncStorageChannel(updated.id);
