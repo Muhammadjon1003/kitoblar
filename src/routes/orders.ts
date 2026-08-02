@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { prisma } from '../prisma';
-import { bot, uploadToTelegramChannel, getStaffGroupId } from '../telegram';
+import { bot, uploadToTelegramChannel, getStaffGroupId, getSupplierGroupId } from '../telegram';
 import { createSmartOrder } from '../orderService';
+import { cleanBookName } from './books';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -298,7 +299,68 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
       groups[o.bookId].orders.push(o);
     }
 
-    let targetChatId = await getStaffGroupId();
+    let targetChatId = getSupplierGroupId() || getStaffGroupId();
+
+    // Prepare aggregated summary lists (Ta'minotchidan vs Ombor zaxirasidan)
+    const supplierItemsMap: Record<string, number> = {};
+    const warehouseItemsMap: Record<string, number> = {};
+
+    for (const item of autoFulfilled) {
+      const title = cleanBookName(item.bookName);
+      warehouseItemsMap[title] = (warehouseItemsMap[title] || 0) + 1;
+    }
+
+    for (const bookId in groups) {
+      const group = groups[bookId];
+      const count = group.orders.length;
+      const bookObj = bookMap.get(bookId);
+
+      if (bookObj?.isSet && bookObj?.setDetails) {
+        let files: Array<{ name: string; fileId: string }> = [];
+        try { files = JSON.parse(bookObj.setDetails); } catch (e) {}
+        for (const f of files) {
+          const cleanName = cleanBookName(f.name);
+          const stock = await prisma.warehouseStock.findFirst({
+            where: { fileId: f.fileId, quantity: { gt: 0 } }
+          });
+          if (stock && stock.quantity > 0) {
+            warehouseItemsMap[cleanName] = (warehouseItemsMap[cleanName] || 0) + count;
+          } else {
+            supplierItemsMap[cleanName] = (supplierItemsMap[cleanName] || 0) + count;
+          }
+        }
+      } else {
+        const cleanName = cleanBookName(group.bookName);
+        supplierItemsMap[cleanName] = (supplierItemsMap[cleanName] || 0) + count;
+      }
+    }
+
+    if (targetChatId) {
+      let summaryText = `🚚 <b>YETKAZILISHI KERAK BO'LGAN DARSLIKLAR RO'YXATI</b>\n\n`;
+
+      const supplierEntries = Object.entries(supplierItemsMap);
+      if (supplierEntries.length > 0) {
+        summaryText += `<b>Ta'minotchidan:</b>\n`;
+        supplierEntries.forEach(([title, qty]) => {
+          summaryText += `${title} - ${qty}ta\n`;
+        });
+        summaryText += `\n`;
+      }
+
+      const warehouseEntries = Object.entries(warehouseItemsMap);
+      if (warehouseEntries.length > 0) {
+        summaryText += `<b>Ombor zaxirasidan:</b>\n`;
+        warehouseEntries.forEach(([title, qty]) => {
+          summaryText += `${title} - ${qty}ta\n`;
+        });
+      }
+
+      try {
+        await bot.telegram.sendMessage(targetChatId, summaryText, { parse_mode: 'HTML' });
+      } catch (err: any) {
+        console.warn('[Supplier Group Summary Error]:', err.message);
+      }
+    }
 
     const sentResults = [];
     if (targetChatId && ordersToSendTelegram.length > 0) {

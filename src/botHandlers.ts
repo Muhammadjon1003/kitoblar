@@ -1,4 +1,4 @@
-import { bot, STORAGE_CHANNEL_ID, getStorageChannelId } from './telegram';
+import { bot, STORAGE_CHANNEL_ID, getStorageChannelId, getSupplierGroupId } from './telegram';
 import { cleanBookName, generateBooksCSVBuffer } from './routes/books';
 import { PrismaClient } from '@prisma/client';
 import { Markup } from 'telegraf';
@@ -31,8 +31,10 @@ async function setSession(userId: number, state: string, data: any) {
 }
 
 async function clearSession(userId: number) {
-  await prisma.session.deleteMany({
+  await prisma.session.upsert({
     where: { userId: String(userId) },
+    update: { state: 'IDLE', data: '{}' },
+    create: { userId: String(userId), state: 'IDLE', data: '{}' },
   });
 }
 
@@ -176,6 +178,11 @@ export function registerBotHandlers() {
     await sendBooksCSV(ctx);
   });
 
+  // Supplier Breakdown List command
+  bot.command(['supplier', 'taminotchi', 'supplierlist'], async (ctx) => {
+    await sendSupplierBreakdownList(ctx, false);
+  });
+
   // Edit Book command
   bot.command(['editbook'], async (ctx) => {
     await sendEditBooksMenu(ctx);
@@ -195,9 +202,18 @@ export function registerBotHandlers() {
     await sendBooksCSV(ctx);
   });
 
+  bot.hears(["🚚 Ta'minotchi ro'yxati", "🚚 Ta'minotchi darsliklar ro'yxati"], async (ctx) => {
+    await sendSupplierBreakdownList(ctx, false);
+  });
+
   bot.action("send_csv_books_file", async (ctx) => {
     await ctx.answerCbQuery("CSV fayl tayyorlanmoqda...");
     await sendBooksCSV(ctx);
+  });
+
+  bot.action("send_supplier_list_to_group", async (ctx) => {
+    await ctx.answerCbQuery("Ta'minotchi guruhiga yuborilmoqda...");
+    await sendSupplierBreakdownList(ctx, true);
   });
 
   bot.hears("📂 Kategoriyalar", async (ctx) => {
