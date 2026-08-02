@@ -125,4 +125,69 @@ router.get('/backend/categories', async (req, res) => {
   }
 });
 
+// POST /backend/books/post-storage-list — Post all individual books text list to Telegram Storage Channel
+router.post('/backend/books/post-storage-list', async (req, res) => {
+  try {
+    const books = await prisma.telegramBook.findMany({
+      include: { category: true },
+      orderBy: [
+        { categoryId: 'asc' },
+        { id: 'asc' }
+      ]
+    });
+
+    if (books.length === 0) {
+      return res.status(400).json({ error: "Hozircha bazada darsliklar mavjud emas." });
+    }
+
+    const categorizedBooks: Record<string, string[]> = {};
+
+    for (const b of books) {
+      const catName = b.category ? b.category.name : 'Umumiy';
+      if (!categorizedBooks[catName]) {
+        categorizedBooks[catName] = [];
+      }
+
+      if (b.isSet && b.setDetails) {
+        try {
+          const files: Array<{ name: string }> = JSON.parse(b.setDetails);
+          for (const f of files) {
+            const cleanName = cleanBookName(f.name);
+            if (cleanName) categorizedBooks[catName].push(cleanName);
+          }
+        } catch (e) {
+          const cleanName = cleanBookName(b.name);
+          if (cleanName) categorizedBooks[catName].push(cleanName);
+        }
+      } else {
+        const cleanName = cleanBookName(b.name);
+        if (cleanName) categorizedBooks[catName].push(cleanName);
+      }
+    }
+
+    let text = `📖 <b>BARCHA DARSLIKLAR RO'YXATI</b>\n<i>(Komplekt nomlarisiz, faqat alohida darsliklar)</i>\n\n`;
+    let totalCount = 0;
+
+    for (const [cat, bookList] of Object.entries(categorizedBooks)) {
+      text += `📂 <b>${cat}:</b>\n`;
+      bookList.forEach((bName, idx) => {
+        totalCount++;
+        text += `  ${idx + 1}. ${bName}\n`;
+      });
+      text += `\n`;
+    }
+
+    text += `📊 <b>Jami jismoniy darsliklar soni:</b> ${totalCount} ta`;
+
+    if (STORAGE_CHANNEL_ID) {
+      await bot.telegram.sendMessage(STORAGE_CHANNEL_ID, text, { parse_mode: 'HTML' });
+      res.json({ success: true, message: "Barcha darsliklar matnli ro'yxati Ombor Kanaliga muvaffaqiyatli yuborildi!", totalCount, text });
+    } else {
+      res.status(400).json({ error: "STORAGE_CHANNEL_ID kiritilmagan." });
+    }
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;

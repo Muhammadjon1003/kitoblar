@@ -1,4 +1,5 @@
-import { bot, STORAGE_CHANNEL_ID } from './telegram';
+import { bot, STORAGE_CHANNEL_ID, getStorageChannelId } from './telegram';
+import { cleanBookName } from './routes/books';
 import { PrismaClient } from '@prisma/client';
 import { Markup } from 'telegraf';
 
@@ -73,10 +74,10 @@ async function deleteStorageChannelMsg(tgMessageId: number) {
 
 function buildPersistentKeyboard() {
   return Markup.keyboard([
-    ["📚 Barcha kitoblar (PDF)", "📂 Kategoriyalar"],
-    ["📥 Kitob yuklash (Bitta)", "📦 Komplekt kitoblar yuklash"],
-    ["✏️ Kitobni tahrirlash", "🗑 Kitobni o'chirish"],
-    ["📌 Chat ID (Ma'lumot)"]
+    ["📚 Barcha kitoblar (PDF)", "📋 Barcha darsliklar (Matn)"],
+    ["📂 Kategoriyalar", "📥 Kitob yuklash (Bitta)"],
+    ["📦 Komplekt kitoblar yuklash", "✏️ Kitobni tahrirlash"],
+    ["🗑 Kitobni o'chirish", "📌 Chat ID (Ma'lumot)"]
   ]).resize();
 }
 
@@ -89,6 +90,86 @@ function buildCategoriesMenu() {
     [Markup.button.callback("✏️ Kitobni tahrirlash", 'edit_book_menu')],
     [Markup.button.callback("🗑 Kitobni bazadan o'chirish", 'del_book_menu')]
   ]);
+}
+
+export async function sendIndividualBooksTextList(ctx: any, postToStorageChannel = false) {
+  try {
+    const books = await prisma.telegramBook.findMany({
+      include: { category: true },
+      orderBy: [
+        { categoryId: 'asc' },
+        { id: 'asc' }
+      ]
+    });
+
+    if (books.length === 0) {
+      if (ctx) await ctx.reply("❌ Hozircha bazada darsliklar mavjud emas.");
+      return;
+    }
+
+    const categorizedBooks: Record<string, string[]> = {};
+
+    for (const b of books) {
+      const catName = b.category ? b.category.name : 'Umumiy';
+      if (!categorizedBooks[catName]) {
+        categorizedBooks[catName] = [];
+      }
+
+      if (b.isSet && b.setDetails) {
+        try {
+          const files: Array<{ name: string }> = JSON.parse(b.setDetails);
+          for (const f of files) {
+            const cleanName = cleanBookName(f.name);
+            if (cleanName) categorizedBooks[catName].push(cleanName);
+          }
+        } catch (e) {
+          const cleanName = cleanBookName(b.name);
+          if (cleanName) categorizedBooks[catName].push(cleanName);
+        }
+      } else {
+        const cleanName = cleanBookName(b.name);
+        if (cleanName) categorizedBooks[catName].push(cleanName);
+      }
+    }
+
+    let text = `📖 <b>BARCHA DARSLIKLAR RO'YXATI</b>\n<i>(Komplekt nomlarisiz, faqat alohida darsliklar)</i>\n\n`;
+    let totalCount = 0;
+
+    for (const [cat, bookList] of Object.entries(categorizedBooks)) {
+      text += `📂 <b>${cat}:</b>\n`;
+      bookList.forEach((bName, idx) => {
+        totalCount++;
+        text += `  ${idx + 1}. ${bName}\n`;
+      });
+      text += `\n`;
+    }
+
+    text += `📊 <b>Jami jismoniy darsliklar soni:</b> ${totalCount} ta`;
+
+    if (postToStorageChannel) {
+      const channelId = getStorageChannelId();
+      await bot.telegram.sendMessage(channelId, text, { parse_mode: 'HTML' });
+      if (ctx) {
+        await ctx.reply(`✅ <b>Barcha darsliklar matnli ro'yxati Ombor Kanaliga yuborildi!</b>`, {
+          parse_mode: 'HTML'
+        });
+      }
+      return;
+    }
+
+    const buttons = [
+      [Markup.button.callback("✈️ Ombor Kanaliga yuborish (Storage Channel)", "post_books_list_to_channel")]
+    ];
+
+    if (ctx) {
+      await ctx.reply(text, {
+        parse_mode: 'HTML',
+        ...Markup.inlineKeyboard(buttons)
+      });
+    }
+  } catch (err: any) {
+    if (ctx) await ctx.reply(`❌ Ro'yxat tuzishda xatolik: ${err.message}`);
+  }
 }
 
 // ─── Bot Handlers ────────────────────────────────────────────────────────────
@@ -140,6 +221,11 @@ export function registerBotHandlers() {
     await sendAllBooksList(ctx);
   });
 
+  // Plain text individual books list command
+  bot.command(['allbooks', 'listbooks', 'textbooks', 'darsliklar'], async (ctx) => {
+    await sendIndividualBooksTextList(ctx, false);
+  });
+
   // Edit Book command
   bot.command(['editbook'], async (ctx) => {
     await sendEditBooksMenu(ctx);
@@ -153,6 +239,15 @@ export function registerBotHandlers() {
   // Listen to persistent keyboard button clicks
   bot.hears("📚 Barcha kitoblar (PDF)", async (ctx) => {
     await sendAllBooksList(ctx);
+  });
+
+  bot.hears(["📋 Barcha darsliklar (Matn)", "📋 Barcha darsliklar ro'yxati (Matn)"], async (ctx) => {
+    await sendIndividualBooksTextList(ctx, false);
+  });
+
+  bot.action("post_books_list_to_channel", async (ctx) => {
+    await ctx.answerCbQuery("Ombor kanaliga yuborilmoqda...");
+    await sendIndividualBooksTextList(ctx, true);
   });
 
   bot.hears("📂 Kategoriyalar", async (ctx) => {

@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { BookOpen, Search, Edit3, CheckCircle2, X, Plus, Trash2, Layers } from 'lucide-react';
+import { BookOpen, Search, Edit3, CheckCircle2, X, Plus, Trash2, Layers, Send } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { TableShell, Th, Td, EmptyState, uzs } from '../../components/ui';
 import type { InventoryItem } from '../../types';
@@ -212,9 +212,25 @@ function DarslikTahrirlashModali({ book, onClose }: { book: InventoryItem; onClo
 }
 
 export default function LogisticsBooksCatalog() {
-  const { inventory, sotuvNarxi } = useApp();
+  const { inventory, sotuvNarxi, fireToast } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBook, setSelectedBook] = useState<InventoryItem | null>(null);
+  const [postingList, setPostingList] = useState(false);
+
+  const handlePostStorageList = async () => {
+    setPostingList(true);
+    try {
+      const API = import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${API}/backend/books/post-storage-list`, { method: 'POST' });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      fireToast(`Barcha darsliklar ro'yxati (${data.totalCount} ta) Ombor Kanaliga matn ko'rinishida yuborildi!`, 'success');
+    } catch (e: any) {
+      fireToast(`Yuborishda xatolik: ${e.message}`, 'error');
+    } finally {
+      setPostingList(false);
+    }
+  };
 
   const filteredBooks = inventory.filter(b => {
     if (!searchQuery.trim()) return true;
@@ -236,6 +252,14 @@ export default function LogisticsBooksCatalog() {
             Darsliklar va komplekt ichidagi kitoblar nomlarini bevosita veb-saytdan tahrirlash
           </p>
         </div>
+        <button
+          onClick={handlePostStorageList}
+          disabled={postingList}
+          className="py-2 px-3.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-2 transition-all self-start sm:self-auto"
+        >
+          <Send className="w-4 h-4" />
+          {postingList ? "Yuborilmoqda..." : "Ombor Kanaliga Matnli Ro'yxat Yuborish"}
+        </button>
       </div>
 
       {/* Filter / Search Bar */}
