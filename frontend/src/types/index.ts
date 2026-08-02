@@ -75,6 +75,14 @@ export interface InventoryItem {
   setDetails?: string;
 }
 
+export interface SubBookFile {
+  name: string;
+  fileId: string;
+  isMain?: boolean;
+  fileType?: 'MAIN' | 'COVER' | 'SUPPLEMENT';
+  parentFileId?: string;
+}
+
 // ─── TR § 2: orders table (central state-machine table) ───────────────────────
 export interface Order {
   id: string;

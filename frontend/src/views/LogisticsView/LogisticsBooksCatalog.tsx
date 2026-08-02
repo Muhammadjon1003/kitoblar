@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { BookOpen, Search, Edit3, CheckCircle2, X, Plus, Trash2, Layers, Download } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { TableShell, Th, Td, EmptyState, uzs } from '../../components/ui';
-import type { InventoryItem } from '../../types';
+import type { InventoryItem, SubBookFile } from '../../types';
 
 function DarslikTahrirlashModali({ book, onClose }: { book: InventoryItem; onClose: () => void }) {
   const { updateBookDetails, sotuvNarxi } = useApp();
@@ -16,23 +16,33 @@ function DarslikTahrirlashModali({ book, onClose }: { book: InventoryItem; onClo
   const [titleInput, setTitleInput] = useState(book.title || '');
   const [priceInput, setPriceInput] = useState(String(currentPrice || ''));
 
-  let parsedSubFiles: Array<{ name: string; fileId: string }> = [];
+  let parsedSubFiles: Array<SubBookFile> = [];
   if (book.isSet && book.setDetails) {
     try { parsedSubFiles = JSON.parse(book.setDetails); } catch (e) {}
   }
 
-  const [subBooks, setSubBooks] = useState<Array<{ name: string; fileId: string }>>(parsedSubFiles);
+  const [subBooks, setSubBooks] = useState<Array<SubBookFile>>(parsedSubFiles);
   const [saving, setSaving]     = useState(false);
   const [xato, setXato]         = useState('');
 
-  const handleSubBookNameChange = (index: number, newName: string) => {
-    setSubBooks(prev => prev.map((item, idx) => idx === index ? { ...item, name: newName } : item));
+  const mainBooksList = subBooks.filter(sb => sb.isMain !== false && sb.fileType !== 'COVER' && sb.fileType !== 'SUPPLEMENT');
+
+  const handleSubBookChange = (index: number, patch: Partial<SubBookFile>) => {
+    setSubBooks(prev => prev.map((item, idx) => idx === index ? { ...item, ...patch } : item));
   };
 
-  const handleAddSubBook = () => {
+  const handleAddSubBook = (fileType: 'MAIN' | 'COVER' | 'SUPPLEMENT' = 'MAIN') => {
+    const isMain = fileType === 'MAIN';
+    const defaultParent = mainBooksList[0]?.name || '';
     setSubBooks(prev => [
       ...prev,
-      { name: `Darslik ${prev.length + 1}`, fileId: `sub_book_${Date.now()}` }
+      {
+        name: fileType === 'MAIN' ? `Darslik ${prev.length + 1}` : (fileType === 'COVER' ? `Muqova ${prev.length + 1}` : `Qo'shimcha Sahifalar ${prev.length + 1}`),
+        fileId: `sub_file_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        isMain,
+        fileType,
+        parentFileId: isMain ? undefined : defaultParent
+      }
     ]);
   };
 
@@ -136,43 +146,110 @@ function DarslikTahrirlashModali({ book, onClose }: { book: InventoryItem; onClo
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
                   <Layers className="w-4 h-4 text-purple-600" />
-                  Komplekt Ichidagi Darsliklar ({subBooks.length} ta):
+                  Komplekt Ichidagi Darsliklar ({mainBooksList.length} ta darslik, {subBooks.length - mainBooksList.length} ta ilova):
                 </label>
-                <button
-                  type="button"
-                  onClick={handleAddSubBook}
-                  className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold rounded-lg flex items-center gap-1 transition-all shadow-xs"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Darslik Qo'shish
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => handleAddSubBook('MAIN')}
+                    className="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold rounded-lg flex items-center gap-1 transition-all shadow-xs"
+                    title="Asosiy Darslik qo'shish"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Darslik
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddSubBook('COVER')}
+                    className="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold rounded-lg flex items-center gap-1 transition-all shadow-xs"
+                    title="Muqova qo'shish"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Muqova
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddSubBook('SUPPLEMENT')}
+                    className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-lg flex items-center gap-1 transition-all shadow-xs"
+                    title="Qo'shimcha sahifa qo'shish"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Qo'shimcha
+                  </button>
+                </div>
               </div>
 
               {subBooks.length === 0 ? (
                 <p className="text-xs text-purple-600 italic">Komplektda darsliklar yo'q.</p>
               ) : (
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                  {subBooks.map((sb, idx) => (
-                    <div key={idx} className="flex items-center gap-2 bg-white p-2 border border-purple-200 rounded-lg shadow-2xs">
-                      <span className="text-[11px] font-mono font-bold text-purple-700 w-5 text-center">
-                        {idx + 1}.
-                      </span>
-                      <input
-                        type="text"
-                        value={sb.name}
-                        onChange={e => handleSubBookNameChange(idx, e.target.value)}
-                        placeholder="Darslik nomi..."
-                        className="flex-1 h-8 px-2.5 text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-md focus:border-purple-500 focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveSubBook(idx)}
-                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                        title="O'chirish"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
+                <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+                  {subBooks.map((sb, idx) => {
+                    const isNonMain = sb.isMain === false || sb.fileType === 'COVER' || sb.fileType === 'SUPPLEMENT';
+                    return (
+                      <div key={idx} className="bg-white p-2.5 border border-purple-200 rounded-lg shadow-2xs space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-mono font-bold text-purple-700 w-5 text-center">
+                            {idx + 1}.
+                          </span>
+
+                          {/* Sub-file Name Input */}
+                          <input
+                            type="text"
+                            value={sb.name}
+                            onChange={e => handleSubBookChange(idx, { name: e.target.value })}
+                            placeholder="Fayl nomi..."
+                            className="flex-1 h-8 px-2.5 text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-md focus:border-purple-500 focus:outline-none"
+                          />
+
+                          {/* File Type Selector */}
+                          <select
+                            value={sb.fileType || (sb.isMain === false ? 'SUPPLEMENT' : 'MAIN')}
+                            onChange={e => {
+                              const ft = e.target.value as 'MAIN' | 'COVER' | 'SUPPLEMENT';
+                              const isMain = ft === 'MAIN';
+                              handleSubBookChange(idx, {
+                                fileType: ft,
+                                isMain,
+                                parentFileId: isMain ? undefined : (sb.parentFileId || mainBooksList[0]?.name || '')
+                              });
+                            }}
+                            className="h-8 px-2 text-[11px] font-bold text-slate-700 bg-slate-100 border border-slate-200 rounded-md focus:outline-none"
+                          >
+                            <option value="MAIN">📖 Darslik</option>
+                            <option value="COVER">🖼 Muqova</option>
+                            <option value="SUPPLEMENT">📄 Qo'shimcha</option>
+                          </select>
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSubBook(idx)}
+                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                            title="O'chirish"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        {/* If non-main file: Parent Main Book binding selector */}
+                        {isNonMain && (
+                          <div className="flex items-center gap-2 pl-7 text-[11px]">
+                            <span className="text-amber-700 font-semibold flex items-center gap-1">
+                              ↳ Birchikuvchi darslik (Parent):
+                            </span>
+                            <select
+                              value={sb.parentFileId || ''}
+                              onChange={e => handleSubBookChange(idx, { parentFileId: e.target.value })}
+                              className="flex-1 h-7 px-2 font-medium text-slate-800 bg-amber-50/80 border border-amber-200 rounded focus:outline-none"
+                            >
+                              <option value="">-- Darslikni tanlang --</option>
+                              {mainBooksList.map((mb, mIdx) => (
+                                <option key={mIdx} value={mb.name}>
+                                  📖 {mb.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

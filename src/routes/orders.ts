@@ -318,12 +318,13 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
       const bookObj = bookMap.get(bookId);
 
       if (bookObj?.isSet && bookObj?.setDetails) {
-        let files: Array<{ name: string; fileId: string }> = [];
+        let files: Array<{ name: string; fileId: string; isMain?: boolean; fileType?: string; parentFileId?: string }> = [];
         try { files = JSON.parse(bookObj.setDetails); } catch (e) {}
 
+        const mainFiles = files.filter(f => f.isMain !== false && f.fileType !== 'COVER' && f.fileType !== 'SUPPLEMENT');
         const subBookDeficits: Array<{ name: string; fileId: string; needed: number; inStock: number; deficit: number }> = [];
 
-        for (const f of files) {
+        for (const f of mainFiles) {
           const cleanName = cleanBookName(f.name);
           const stock = await prisma.warehouseStock.findFirst({
             where: { fileId: f.fileId, quantity: { gt: 0 } }
@@ -342,7 +343,7 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
         }
 
         // Complete sets to order from supplier:
-        const fullSetsToOrder = Math.min(...subBookDeficits.map(d => d.deficit));
+        const fullSetsToOrder = subBookDeficits.length > 0 ? Math.min(...subBookDeficits.map(d => d.deficit)) : 0;
         if (fullSetsToOrder > 0) {
           const setName = cleanBookName(bookObj.name);
           fullSetsSupplierMap[setName] = (fullSetsSupplierMap[setName] || 0) + fullSetsToOrder;
@@ -417,13 +418,15 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
           let subBookFulfillmentInfo = '';
 
           if (bookObj?.isSet && bookObj?.setDetails) {
-            let files: Array<{ name: string; fileId: string }> = [];
+            let files: Array<{ name: string; fileId: string; isMain?: boolean; fileType?: string; parentFileId?: string }> = [];
             try { files = JSON.parse(bookObj.setDetails); } catch (e) {}
 
-            const subBookRequirements: Array<{ name: string; neededFromSupplier: number; fromStock: number }> = [];
+            const subBookRequirements: Array<{ name: string; neededFromSupplier: number; fromStock: number; attachedFiles: string[] }> = [];
 
-            // Reserve warehouse stock & calculate exact needed count for each sub-book
-            for (const f of files) {
+            const mainFiles = files.filter(f => f.isMain !== false && f.fileType !== 'COVER' && f.fileType !== 'SUPPLEMENT');
+            const compFiles = files.filter(f => f.isMain === false || f.fileType === 'COVER' || f.fileType === 'SUPPLEMENT');
+
+            for (const f of mainFiles) {
               const cleanName = cleanBookName(f.name);
               const stock = await prisma.warehouseStock.findFirst({
                 where: { fileId: f.fileId, quantity: { gt: 0 } }
@@ -439,18 +442,25 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
                 });
               }
 
+              // Find non-main files attached to this main book
+              const attached = compFiles
+                .filter(cf => cf.parentFileId === f.fileId || cf.parentFileId === f.name)
+                .map(cf => cf.name);
+
               subBookRequirements.push({
                 name: cleanName,
                 neededFromSupplier,
-                fromStock
+                fromStock,
+                attachedFiles: attached
               });
             }
 
             const subBookListStr = subBookRequirements.map(r => {
+              const attachedStr = r.attachedFiles.length > 0 ? `\n    📎 <i>Ilovalar: ${r.attachedFiles.join(', ')}</i>` : '';
               if (r.neededFromSupplier > 0) {
-                return `• <b>${r.name}</b>: <b>${r.neededFromSupplier} ta</b> (🖨 Chop etilishi kerak)`;
+                return `• <b>${r.name}</b>: <b>${r.neededFromSupplier} ta</b> (🖨 Chop etilishi kerak)${attachedStr}`;
               } else {
-                return `• <b>${r.name}</b>: 0 ta (❌ Chop etilmasin — omborda bor)`;
+                return `• <b>${r.name}</b>: 0 ta (❌ Chop etilmasin — omborda bor)${attachedStr}`;
               }
             }).join('\n');
 

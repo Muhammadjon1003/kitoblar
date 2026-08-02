@@ -15,9 +15,14 @@ async function syncStorageChannel(bookId: number) {
 
     const categoryName = book.category ? book.category.name : 'Umumiy';
     if (book.isSet && book.setDetails) {
-      const files: Array<{ name: string; fileId: string }> = JSON.parse(book.setDetails);
-      const fileListStr = files.map((f, i) => `${i + 1}. ${f.name}`).join('\n');
-      const caption = `🆔 ID: ${book.id}\n📦 Nomi: ${book.name}\n📂 Kategoriya: ${categoryName}\n\n📚 Tarkibidagi darsliklar (${files.length} ta):\n${fileListStr}`;
+      const files: Array<{ name: string; fileId: string; isMain?: boolean; fileType?: string; parentFileId?: string }> = JSON.parse(book.setDetails);
+      const mainFiles = files.filter(f => f.isMain !== false && f.fileType !== 'COVER' && f.fileType !== 'SUPPLEMENT');
+      const fileListStr = files.map((f, i) => {
+        const isComp = f.isMain === false || f.fileType === 'COVER' || f.fileType === 'SUPPLEMENT';
+        const tag = isComp ? (f.fileType === 'COVER' ? ' 🖼 [Muqova]' : ' 📄 [Qo\'shimcha]') : '';
+        return `${i + 1}. ${f.name}${tag}`;
+      }).join('\n');
+      const caption = `🆔 ID: ${book.id}\n📦 Nomi: ${book.name}\n📂 Kategoriya: ${categoryName}\n\n📚 Tarkibidagi darsliklar (${mainFiles.length} ta asosiy darslik):\n${fileListStr}`;
       await bot.telegram.editMessageCaption(STORAGE_CHANNEL_ID, book.tgMessageId, undefined, caption);
     } else {
       const caption = `🆔 ID: ${book.id}\n📖 Nomi: ${book.name}\n📂 Kategoriya: ${categoryName}`;
@@ -45,8 +50,9 @@ export function generateBooksCSVBuffer(books: any[]): Buffer {
 
     if (b.isSet && b.setDetails) {
       try {
-        const files: Array<{ name: string }> = JSON.parse(b.setDetails);
-        for (const f of files) {
+        const files: Array<{ name: string; isMain?: boolean; fileType?: string }> = JSON.parse(b.setDetails);
+        const mainFiles = files.filter(f => f.isMain !== false && f.fileType !== 'COVER' && f.fileType !== 'SUPPLEMENT');
+        for (const f of mainFiles) {
           const cleanName = cleanBookName(f.name);
           if (cleanName) {
             rows.push([
