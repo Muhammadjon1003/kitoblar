@@ -94,6 +94,92 @@ function buildCategoriesMenu() {
   ]);
 }
 
+export async function sendSupplierBreakdownList(ctx: any, sendToStaffGroup = false) {
+  try {
+    const orders = await prisma.erpOrder.findMany({
+      where: { status: { in: ['CREATED', 'ORDERED'] } },
+      include: { student: true }
+    });
+
+    if (orders.length === 0) {
+      if (ctx) await ctx.reply("ℹ️ Hozircha buyurtma qilingan faol darsliklar mavjud emas.");
+      return;
+    }
+
+    const bookIds = Array.from(new Set(orders.map(o => parseInt(o.bookId)).filter(id => !isNaN(id))));
+    const books = await prisma.telegramBook.findMany({
+      where: { id: { in: bookIds } }
+    });
+    const bookMap = new Map(books.map(b => [String(b.id), b]));
+
+    const supplierItemsMap: Record<string, number> = {};
+    const warehouseItemsMap: Record<string, number> = {};
+
+    for (const o of orders) {
+      const bookObj = bookMap.get(o.bookId);
+      const bookName = bookObj ? bookObj.name : 'Darslik';
+
+      if (bookObj?.isSet && bookObj?.setDetails) {
+        let files: Array<{ name: string; fileId: string }> = [];
+        try { files = JSON.parse(bookObj.setDetails); } catch (e) {}
+        for (const f of files) {
+          const cleanName = cleanBookName(f.name);
+          const stock = await prisma.warehouseStock.findFirst({
+            where: { fileId: f.fileId, quantity: { gt: 0 } }
+          });
+          if (stock && stock.quantity > 0) {
+            warehouseItemsMap[cleanName] = (warehouseItemsMap[cleanName] || 0) + 1;
+          } else {
+            supplierItemsMap[cleanName] = (supplierItemsMap[cleanName] || 0) + 1;
+          }
+        }
+      } else {
+        const cleanName = cleanBookName(bookName);
+        supplierItemsMap[cleanName] = (supplierItemsMap[cleanName] || 0) + 1;
+      }
+    }
+
+    let text = `🚚 <b>YETKAZILISHI KERAK BO'LGAN DARSLIKLAR RO'YXATI</b>\n\n`;
+
+    const supplierEntries = Object.entries(supplierItemsMap);
+    if (supplierEntries.length > 0) {
+      text += `<b>Ta'minotchidan:</b>\n`;
+      supplierEntries.forEach(([title, qty]) => {
+        text += `${title} - ${qty}ta\n`;
+      });
+      text += `\n`;
+    }
+
+    const warehouseEntries = Object.entries(warehouseItemsMap);
+    if (warehouseEntries.length > 0) {
+      text += `<b>Ombor zaxirasidan:</b>\n`;
+      warehouseEntries.forEach(([title, qty]) => {
+        text += `${title} - ${qty}ta\n`;
+      });
+    }
+
+    if (sendToStaffGroup) {
+      const staffGroupId = getStaffGroupId();
+      await bot.telegram.sendMessage(staffGroupId, text, { parse_mode: 'HTML' });
+      if (ctx) await ctx.reply("✅ <b>Xodimlar ro'yxati Telegram guruhiga yuborildi!</b>");
+      return;
+    }
+
+    const buttons = [
+      [Markup.button.callback("✈️ Xodimlar guruhiga yuborish (Staff Group)", "send_supplier_list_to_group")]
+    ];
+
+    if (ctx) {
+      await ctx.reply(text, {
+        parse_mode: 'HTML',
+        ...Markup.inlineKeyboard(buttons)
+      });
+    }
+  } catch (err: any) {
+    if (ctx) await ctx.reply(`❌ Ro'yxat tuzishda xatolik: ${err.message}`);
+  }
+}
+
 export async function sendBooksCSV(ctx: any) {
   try {
     const books = await prisma.telegramBook.findMany({

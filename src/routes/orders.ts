@@ -299,7 +299,8 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
       groups[o.bookId].orders.push(o);
     }
 
-    let targetChatId = getSupplierGroupId() || getStaffGroupId();
+    const supplierGroupId = getSupplierGroupId();
+    const staffGroupId = getStaffGroupId();
 
     // Prepare aggregated summary lists (Ta'minotchidan vs Ombor zaxirasidan)
     const supplierItemsMap: Record<string, number> = {};
@@ -335,7 +336,8 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
       }
     }
 
-    if (targetChatId) {
+    // 1. Send the text breakdown summary to STAFF_GROUP_ID for internal staff
+    if (staffGroupId) {
       let summaryText = `🚚 <b>YETKAZILISHI KERAK BO'LGAN DARSLIKLAR RO'YXATI</b>\n\n`;
 
       const supplierEntries = Object.entries(supplierItemsMap);
@@ -356,14 +358,17 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
       }
 
       try {
-        await bot.telegram.sendMessage(targetChatId, summaryText, { parse_mode: 'HTML' });
+        await bot.telegram.sendMessage(staffGroupId, summaryText, { parse_mode: 'HTML' });
       } catch (err: any) {
-        console.warn('[Supplier Group Summary Error]:', err.message);
+        console.warn('[Staff Group Summary Error]:', err.message);
       }
     }
 
+    // 2. Send PDF document files to SUPPLIER_GROUP_ID for supplier printing
+    const targetPDFChatId = supplierGroupId || staffGroupId;
+
     const sentResults = [];
-    if (targetChatId && ordersToSendTelegram.length > 0) {
+    if (targetPDFChatId && ordersToSendTelegram.length > 0) {
       for (const bookId in groups) {
         const group = groups[bookId];
         const studentNames = group.orders.map(o => o.student.fullName);
@@ -431,11 +436,11 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
               caption: index === filesToOrder.length - 1 ? setCaption : undefined
             }));
 
-            const sentMsgs = await bot.telegram.sendMediaGroup(targetChatId, mediaGroup);
+            const sentMsgs = await bot.telegram.sendMediaGroup(targetPDFChatId, mediaGroup);
             primaryMsgId = sentMsgs[0]?.message_id || 0;
             subBookFulfillmentInfo = JSON.stringify({ fulfilledFromStock, orderedFromSupplier: filesToOrder.map(f => f.name) });
           } else {
-            const sentMsg = await bot.telegram.sendDocument(targetChatId, group.tgFileId, { caption });
+            const sentMsg = await bot.telegram.sendDocument(targetPDFChatId, group.tgFileId, { caption });
             primaryMsgId = sentMsg.message_id;
           }
 
