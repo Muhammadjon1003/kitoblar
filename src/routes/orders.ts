@@ -420,62 +420,54 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
             let files: Array<{ name: string; fileId: string }> = [];
             try { files = JSON.parse(bookObj.setDetails); } catch (e) {}
 
-            const filesToOrder: Array<{ name: string; fileId: string }> = [];
-            const fulfilledFromStock: string[] = [];
+            const subBookRequirements: Array<{ name: string; neededFromSupplier: number; fromStock: number }> = [];
 
-            // Sub-item inventory check for each textbook in the set
+            // Reserve warehouse stock & calculate exact needed count for each sub-book
             for (const f of files) {
+              const cleanName = cleanBookName(f.name);
               const stock = await prisma.warehouseStock.findFirst({
                 where: { fileId: f.fileId, quantity: { gt: 0 } }
               });
+              const available = stock ? stock.quantity : 0;
+              const fromStock = Math.min(available, studentNames.length);
+              const neededFromSupplier = studentNames.length - fromStock;
 
-              if (stock && stock.quantity > 0) {
-                // Reserve 1 unit from warehouse stock
+              if (stock && fromStock > 0) {
                 await prisma.warehouseStock.update({
                   where: { id: stock.id },
-                  data: { quantity: stock.quantity - 1 }
+                  data: { quantity: stock.quantity - fromStock }
                 });
-                fulfilledFromStock.push(f.name);
+              }
+
+              subBookRequirements.push({
+                name: cleanName,
+                neededFromSupplier,
+                fromStock
+              });
+            }
+
+            const subBookListStr = subBookRequirements.map(r => {
+              if (r.neededFromSupplier > 0) {
+                return `• <b>${r.name}</b>: <b>${r.neededFromSupplier} ta</b> (Chop etilishi kerak)`;
               } else {
-                filesToOrder.push(f);
+                return `• <b>${r.name}</b>: 0 ta (Ombordan biriktirildi)`;
               }
-            }
+            }).join('\n');
 
-            if (filesToOrder.length === 0) {
-              // ALL sub-books were available in warehouse stock!
-              subBookFulfillmentInfo = "Barcha darsliklar ombordan biriktirildi";
-              for (const o of group.orders) {
-                await prisma.erpOrder.update({
-                  where: { id: o.id },
-                  data: {
-                    status: 'ARRIVED',
-                    comment: "Ombor zaxirasidan to'liq biriktirildi",
-                    fulfilledSetDetails: JSON.stringify({ fulfilledFromStock, orderedFromSupplier: [] }),
-                    updatedAt: today
-                  }
-                });
-              }
-              sentResults.push({ bookId, bookName: group.bookName, success: true, messageId: 0, note: "Ombordan to'liq biriktirildi" });
-              continue;
-            }
+            const setCaption = `📦 <b>Komplekt Nomi:</b> ${group.bookName} (Jami ${studentNames.length} ta talaba uchun)\n\n` +
+              `📋 <b>Darsliklar bo'yicha ehtiyoj:</b>\n${subBookListStr}\n\n` +
+              `👥 <b>Kimlar uchun:</b>\n${studentNames.join('\n')}`;
 
-            // Construct filtered Telegram media group with ONLY missing PDFs
-            const missingListStr = filesToOrder.map((f, idx) => `${idx + 1}. ${f.name}`).join('\n');
-            const stockNoteStr = fulfilledFromStock.length > 0
-              ? `\n📌 Ombordan biriktirildi (${fulfilledFromStock.length} ta): ${fulfilledFromStock.join(', ')}\n`
-              : '';
-
-            const setCaption = `kitob nomi: ${group.bookName} (${filesToOrder.length}/${files.length} ta darslik)\nSoni: ${studentNames.length}${stockNoteStr}\n📚 Yetkazilishi kerak bo'lgan darsliklar:\n${missingListStr}\n\nKimlar uchun:\n${studentNames.join('\n')}`;
-
-            const mediaGroup = filesToOrder.map((f, index) => ({
+            // Attach ALL PDF files of the set into the media group
+            const mediaGroup = files.map((f, index) => ({
               type: 'document' as const,
               media: f.fileId,
-              caption: index === filesToOrder.length - 1 ? setCaption : undefined
+              caption: index === files.length - 1 ? setCaption : undefined
             }));
 
             const sentMsgs = await bot.telegram.sendMediaGroup(targetPDFChatId, mediaGroup);
             primaryMsgId = sentMsgs[0]?.message_id || 0;
-            subBookFulfillmentInfo = JSON.stringify({ fulfilledFromStock, orderedFromSupplier: filesToOrder.map(f => f.name) });
+            subBookFulfillmentInfo = JSON.stringify(subBookRequirements);
           } else {
             const sentMsg = await bot.telegram.sendDocument(targetPDFChatId, group.tgFileId, { caption });
             primaryMsgId = sentMsg.message_id;
