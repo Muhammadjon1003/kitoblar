@@ -324,10 +324,16 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
           const stock = await prisma.warehouseStock.findFirst({
             where: { fileId: f.fileId, quantity: { gt: 0 } }
           });
-          if (stock && stock.quantity > 0) {
-            warehouseItemsMap[cleanName] = (warehouseItemsMap[cleanName] || 0) + count;
-          } else {
-            supplierItemsMap[cleanName] = (supplierItemsMap[cleanName] || 0) + count;
+          const availableStock = stock ? stock.quantity : 0;
+          const totalNeeded = count;
+          const fromStock = Math.min(availableStock, totalNeeded);
+          const fromSupplier = totalNeeded - fromStock;
+
+          if (fromStock > 0) {
+            warehouseItemsMap[cleanName] = (warehouseItemsMap[cleanName] || 0) + fromStock;
+          }
+          if (fromSupplier > 0) {
+            supplierItemsMap[cleanName] = (supplierItemsMap[cleanName] || 0) + fromSupplier;
           }
         }
       } else {
