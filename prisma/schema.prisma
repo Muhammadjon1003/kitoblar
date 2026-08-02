@@ -198,3 +198,13 @@ model DispatchedOrderLog {
   @@map("dispatched_order_logs")
 }
 
+// ─── Telegram Bot Whitelist / Access Control ────────────────────────────
+
+model AllowedTelegramUser {
+  chatId    String   @id
+  fullName  String?  @default("")
+  createdAt DateTime @default(now())
+
+  @@map("allowed_telegram_users")
+}
+

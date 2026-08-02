@@ -1,7 +1,7 @@
 import { Telegraf } from 'telegraf';
 import { clearSession, setSession } from './session';
 import { buildPersistentKeyboard, buildCategoriesMenu } from './keyboards';
-import { sendSupplierBreakdownList, sendBooksCSV, sendDeleteBooksMenu, sendEditBooksMenu } from './helpers';
+import { getAllowedTelegramUsers, allowTelegramUser, revokeTelegramUser } from './auth';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -81,5 +81,63 @@ export function setupCommands(bot: Telegraf<any>) {
       `Iltimos, qo'shmoqchi bo'lgan PDF faylingizni yuboring:`,
       { parse_mode: 'HTML' }
     );
+  });
+
+  bot.command('whitelist', async (ctx) => {
+    const { dbUsers, envList } = await getAllowedTelegramUsers();
+    let text = `🔐 <b>TELEGRAM BOT RUXSAT BERILGAN USERLAR RO'YXATI</b>\n\n`;
+
+    if (envList.length > 0) {
+      text += `<b>⚙️ .env faylidagilar:</b>\n`;
+      envList.forEach(id => {
+        text += `• <code>${id}</code>\n`;
+      });
+      text += `\n`;
+    }
+
+    if (dbUsers.length > 0) {
+      text += `<b>🗄 Ma'lumotlar bazasidagilar:</b>\n`;
+      dbUsers.forEach(u => {
+        text += `• <code>${u.chatId}</code> ${u.fullName ? `(${u.fullName})` : ''}\n`;
+      });
+    } else if (envList.length === 0) {
+      text += `<i>Hali hech kimga maxsus ruxsat berilmagan.</i>\n`;
+    }
+
+    text += `\n📌 <b>Yangi userga ruxsat berish:</b>\n<code>/allow &lt;chatId&gt; [ism]</code>\n\n📌 <b>Ruxsatni bekor qilish:</b>\n<code>/revoke &lt;chatId&gt;</code>`;
+    await ctx.reply(text, { parse_mode: 'HTML' });
+  });
+
+  bot.command('allow', async (ctx) => {
+    const text = ctx.message.text.trim();
+    const parts = text.split(/\s+/);
+    if (parts.length < 2) {
+      await ctx.reply("⚠️ Foydalanish: <code>/allow &lt;chatId&gt; [ism]</code>\nMasalan: <code>/allow 123456789 Alisher</code>", { parse_mode: 'HTML' });
+      return;
+    }
+    const targetChatId = parts[1];
+    const name = parts.slice(2).join(' ');
+    const ok = await allowTelegramUser(targetChatId, name);
+    if (ok) {
+      await ctx.reply(`✅ <code>${targetChatId}</code> ID egasiga botdan foydalanish uchun ruxsat berildi!`, { parse_mode: 'HTML' });
+    } else {
+      await ctx.reply(`❌ Ruxsat berishda xatolik yuz berdi.`);
+    }
+  });
+
+  bot.command('revoke', async (ctx) => {
+    const text = ctx.message.text.trim();
+    const parts = text.split(/\s+/);
+    if (parts.length < 2) {
+      await ctx.reply("⚠️ Foydalanish: <code>/revoke &lt;chatId&gt;</code>\nMasalan: <code>/revoke 123456789</code>", { parse_mode: 'HTML' });
+      return;
+    }
+    const targetChatId = parts[1];
+    const ok = await revokeTelegramUser(targetChatId);
+    if (ok) {
+      await ctx.reply(`🚫 <code>${targetChatId}</code> ID egasidan bot ruxsati bekor qilindi!`, { parse_mode: 'HTML' });
+    } else {
+      await ctx.reply(`❌ Ruxsatni bekor qilishda xatolik yuz berdi.`);
+    }
   });
 }
