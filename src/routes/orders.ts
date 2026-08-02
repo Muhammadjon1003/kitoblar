@@ -302,8 +302,9 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
     const supplierGroupId = getSupplierGroupId();
     const staffGroupId = getStaffGroupId();
 
-    // Prepare aggregated summary lists (Ta'minotchidan vs Ombor zaxirasidan)
-    const supplierItemsMap: Record<string, number> = {};
+    // Prepare aggregated summary lists (Full Sets, Individual Sub-books, and Warehouse Stock)
+    const fullSetsSupplierMap: Record<string, number> = {};
+    const individualSupplierMap: Record<string, number> = {};
     const warehouseItemsMap: Record<string, number> = {};
 
     for (const item of autoFulfilled) {
@@ -313,53 +314,83 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
 
     for (const bookId in groups) {
       const group = groups[bookId];
-      const count = group.orders.length;
+      const N = group.orders.length;
       const bookObj = bookMap.get(bookId);
 
       if (bookObj?.isSet && bookObj?.setDetails) {
         let files: Array<{ name: string; fileId: string }> = [];
         try { files = JSON.parse(bookObj.setDetails); } catch (e) {}
+
+        const subBookDeficits: Array<{ name: string; fileId: string; needed: number; inStock: number; deficit: number }> = [];
+
         for (const f of files) {
           const cleanName = cleanBookName(f.name);
           const stock = await prisma.warehouseStock.findFirst({
             where: { fileId: f.fileId, quantity: { gt: 0 } }
           });
           const availableStock = stock ? stock.quantity : 0;
-          const totalNeeded = count;
-          const fromStock = Math.min(availableStock, totalNeeded);
-          const fromSupplier = totalNeeded - fromStock;
+          const fromStock = Math.min(availableStock, N);
+          const deficit = N - fromStock;
 
-          if (fromStock > 0) {
-            warehouseItemsMap[cleanName] = (warehouseItemsMap[cleanName] || 0) + fromStock;
+          subBookDeficits.push({
+            name: cleanName,
+            fileId: f.fileId,
+            needed: N,
+            inStock: fromStock,
+            deficit: deficit
+          });
+        }
+
+        // Complete sets to order from supplier:
+        const fullSetsToOrder = Math.min(...subBookDeficits.map(d => d.deficit));
+        if (fullSetsToOrder > 0) {
+          const setName = cleanBookName(bookObj.name);
+          fullSetsSupplierMap[setName] = (fullSetsSupplierMap[setName] || 0) + fullSetsToOrder;
+        }
+
+        // Remaining individual sub-books & warehouse stock
+        for (const d of subBookDeficits) {
+          const remainingDeficit = d.deficit - fullSetsToOrder;
+          if (remainingDeficit > 0) {
+            individualSupplierMap[d.name] = (individualSupplierMap[d.name] || 0) + remainingDeficit;
           }
-          if (fromSupplier > 0) {
-            supplierItemsMap[cleanName] = (supplierItemsMap[cleanName] || 0) + fromSupplier;
+          if (d.inStock > 0) {
+            warehouseItemsMap[d.name] = (warehouseItemsMap[d.name] || 0) + d.inStock;
           }
         }
       } else {
         const cleanName = cleanBookName(group.bookName);
-        supplierItemsMap[cleanName] = (supplierItemsMap[cleanName] || 0) + count;
+        individualSupplierMap[cleanName] = (individualSupplierMap[cleanName] || 0) + N;
       }
     }
 
     // 1. Send the text breakdown summary to STAFF_GROUP_ID for internal staff
     if (staffGroupId) {
-      let summaryText = `🚚 <b>YETKAZILISHI KERAK BO'LGAN DARSLIKLAR RO'YXATI</b>\n\n`;
+      let summaryText = `🚚 <b>YETKAZILISHI KERAK BO'LGAN DARSLIKLAR VA KOMPLEKTLAR RO'YXATI</b>\n\n`;
 
-      const supplierEntries = Object.entries(supplierItemsMap);
-      if (supplierEntries.length > 0) {
-        summaryText += `<b>Ta'minotchidan:</b>\n`;
-        supplierEntries.forEach(([title, qty]) => {
-          summaryText += `${title} - ${qty}ta\n`;
+      const fullSetEntries = Object.entries(fullSetsSupplierMap);
+      if (fullSetEntries.length > 0) {
+        summaryText += `📦 <b>To'liq Komplektlar (Ta'minotchidan):</b>\n`;
+        fullSetEntries.forEach(([title, qty]) => {
+          summaryText += `• ${title} - ${qty}ta to'liq to'plam\n`;
+        });
+        summaryText += `\n`;
+      }
+
+      const individualEntries = Object.entries(individualSupplierMap);
+      if (individualEntries.length > 0) {
+        summaryText += `📖 <b>Alohida Darsliklar (Ta'minotchidan dona-dona):</b>\n`;
+        individualEntries.forEach(([title, qty]) => {
+          summaryText += `• ${title} - ${qty}ta\n`;
         });
         summaryText += `\n`;
       }
 
       const warehouseEntries = Object.entries(warehouseItemsMap);
       if (warehouseEntries.length > 0) {
-        summaryText += `<b>Ombor zaxirasidan:</b>\n`;
+        summaryText += `🏢 <b>Ombor zaxirasidan (Ombordan biriktirildi):</b>\n`;
         warehouseEntries.forEach(([title, qty]) => {
-          summaryText += `${title} - ${qty}ta\n`;
+          summaryText += `• ${title} - ${qty}ta\n`;
         });
       }
 
