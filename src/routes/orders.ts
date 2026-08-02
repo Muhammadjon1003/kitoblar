@@ -455,18 +455,28 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
               });
             }
 
-            const subBookListStr = subBookRequirements.map(r => {
-              const attachedStr = r.attachedFiles.length > 0 ? `\n    📎 <i>Ilovalar: ${r.attachedFiles.join(', ')}</i>` : '';
-              if (r.neededFromSupplier > 0) {
-                return `• <b>${r.name}</b>: <b>${r.neededFromSupplier} ta</b> (🖨 Chop etilishi kerak)${attachedStr}`;
-              } else {
-                return `• <b>${r.name}</b>: 0 ta (❌ Chop etilmasin — omborda bor)${attachedStr}`;
-              }
-            }).join('\n');
+            const missingFiles = subBookRequirements.filter(r => r.neededFromSupplier > 0);
+            const stockFiles = subBookRequirements.filter(r => r.fromStock > 0);
 
-            const setCaption = `📦 <b>Komplekt Nomi:</b> ${group.bookName} (Jami ${studentNames.length} ta talaba uchun)\n\n` +
-              `📋 <b>Darsliklar bo'yicha ehtiyoj:</b>\n${subBookListStr}\n\n` +
-              `👥 <b>Kimlar uchun:</b>\n${studentNames.join('\n')}`;
+            let setCaption = `📦 <b>Komplekt Nomi:</b> ${group.bookName}\n` +
+              `🔢 <b>Jami Buyurtma Soni:</b> ${studentNames.length} ta komplekt\n\n`;
+
+            if (missingFiles.length > 0) {
+              const missingStr = missingFiles.map(r => {
+                const attachedStr = r.attachedFiles.length > 0 ? ` <i>(ilovalari: ${r.attachedFiles.join(', ')})</i>` : '';
+                return `• <b>${r.name}</b>: <b>${r.neededFromSupplier} ta</b>${attachedStr}`;
+              }).join('\n');
+              setCaption += `🖨 <b>Chop etilishi kerak bo'lgan darsliklar:</b>\n${missingStr}\n\n`;
+            } else {
+              setCaption += `✅ <b>Barcha darsliklar ombor zaxirasidan to'liq biriktirildi!</b>\n\n`;
+            }
+
+            if (stockFiles.length > 0) {
+              const stockStr = stockFiles.map(r => `• <b>${r.name}</b>: ${r.fromStock} ta (ombordan biriktirildi)`).join('\n');
+              setCaption += `🏢 <b>Ombordan biriktirildi:</b>\n${stockStr}\n\n`;
+            }
+
+            setCaption += `👥 <b>Kimlar uchun:</b>\n${studentNames.join('\n')}`;
 
             // Attach ALL PDF files of the set into the media group
             const mediaGroup = files.map((f, index) => ({
