@@ -38,37 +38,18 @@ export const bot = new Telegraf(BOT_TOKEN);
  */
 export function getStaffGroupId(): string {
   const envId = process.env.STAFF_GROUP_ID || process.env.NEXT_PUBLIC_STAFF_GROUP_ID || '';
-  if (!envId.trim()) {
-    throw new Error("STAFF_GROUP_ID is missing in Vercel Environment Variables. Please add STAFF_GROUP_ID to Vercel Settings -> Environment Variables and redeploy.");
-  }
   return formatChatId(envId);
 }
 
-/**
- * Directly reads STORAGE_CHANNEL_ID from Vercel environment variables
- */
 export function getStorageChannelId(): string {
   const envId = process.env.STORAGE_CHANNEL_ID || process.env.NEXT_PUBLIC_STORAGE_CHANNEL_ID || '';
-  if (!envId.trim()) {
-    throw new Error("STORAGE_CHANNEL_ID is missing in Vercel Environment Variables.");
-  }
   return formatChatId(envId);
 }
 
-/**
- * Directly reads SUPPLIER_GROUP_ID from Vercel environment variables
- */
 export function getSupplierGroupId(): string {
   const envId = process.env.SUPPLIER_GROUP_ID || process.env.NEXT_PUBLIC_SUPPLIER_GROUP_ID || process.env.STAFF_GROUP_ID || '';
-  if (!envId.trim()) {
-    throw new Error("SUPPLIER_GROUP_ID is missing in Vercel Environment Variables.");
-  }
   return formatChatId(envId);
 }
-
-export const STAFF_GROUP_ID = process.env.STAFF_GROUP_ID ? formatChatId(process.env.STAFF_GROUP_ID) : '';
-export const STORAGE_CHANNEL_ID = process.env.STORAGE_CHANNEL_ID ? formatChatId(process.env.STORAGE_CHANNEL_ID) : '';
-export const SUPPLIER_GROUP_ID = process.env.SUPPLIER_GROUP_ID ? formatChatId(process.env.SUPPLIER_GROUP_ID) : (STAFF_GROUP_ID || '');
 
 /**
  * Uploads a file buffer directly to Telegram to save disk space.

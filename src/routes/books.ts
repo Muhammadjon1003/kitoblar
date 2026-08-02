@@ -1,12 +1,15 @@
 import { Router } from 'express';
 import { prisma } from '../prisma';
-import { bot, STORAGE_CHANNEL_ID } from '../telegram';
+import { bot, getStorageChannelId } from '../telegram';
 
 const router = Router();
 
 // Helper: Auto-sync storage channel message caption
 async function syncStorageChannel(bookId: number) {
   try {
+    const storageChannelId = getStorageChannelId();
+    if (!storageChannelId) return;
+
     const book = await prisma.telegramBook.findUnique({
       where: { id: bookId },
       include: { category: true }
@@ -23,10 +26,10 @@ async function syncStorageChannel(bookId: number) {
         return `${i + 1}. ${f.name}${tag}`;
       }).join('\n');
       const caption = `🆔 ID: ${book.id}\n📦 Nomi: ${book.name}\n📂 Kategoriya: ${categoryName}\n\n📚 Tarkibidagi darsliklar (${mainFiles.length} ta asosiy darslik):\n${fileListStr}`;
-      await bot.telegram.editMessageCaption(STORAGE_CHANNEL_ID, book.tgMessageId, undefined, caption);
+      await bot.telegram.editMessageCaption(storageChannelId, book.tgMessageId, undefined, caption);
     } else {
       const caption = `🆔 ID: ${book.id}\n📖 Nomi: ${book.name}\n📂 Kategoriya: ${categoryName}`;
-      await bot.telegram.editMessageCaption(STORAGE_CHANNEL_ID, book.tgMessageId, undefined, caption);
+      await bot.telegram.editMessageCaption(storageChannelId, book.tgMessageId, undefined, caption);
     }
   } catch (e: any) {
     console.warn('[Storage Channel Sync Warning]:', e.message);
@@ -146,7 +149,8 @@ export async function reuploadFileWithNewName(fileId: string, newCleanName: stri
     const buffer = Buffer.from(arrayBuffer);
 
     const sanitizedFilename = newCleanName.replace(/[^a-zA-Z0-9_\-\.]/g, '_') + '.pdf';
-    const sentMsg = await bot.telegram.sendDocument(STORAGE_CHANNEL_ID, {
+    const storageChannelId = getStorageChannelId();
+    const sentMsg = await bot.telegram.sendDocument(storageChannelId, {
       source: buffer,
       filename: sanitizedFilename
     }, {
@@ -224,7 +228,8 @@ router.delete('/backend/books/:id', async (req, res) => {
     const book = await prisma.telegramBook.findUnique({ where: { id } });
     if (book && book.tgMessageId) {
       try {
-        await bot.telegram.deleteMessage(STORAGE_CHANNEL_ID, book.tgMessageId);
+        const storageChannelId = getStorageChannelId();
+        await bot.telegram.deleteMessage(storageChannelId, book.tgMessageId);
       } catch (e: any) {
         console.warn('[Storage Channel Delete Warning]:', e.message);
       }
