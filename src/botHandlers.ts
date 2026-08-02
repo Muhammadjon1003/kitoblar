@@ -1,5 +1,5 @@
 import { bot, STORAGE_CHANNEL_ID, getStorageChannelId } from './telegram';
-import { cleanBookName } from './routes/books';
+import { cleanBookName, generateBooksCSVBuffer } from './routes/books';
 import { PrismaClient } from '@prisma/client';
 import { Markup } from 'telegraf';
 
@@ -158,6 +158,7 @@ export async function sendIndividualBooksTextList(ctx: any, postToStorageChannel
     }
 
     const buttons = [
+      [Markup.button.callback("📄 CSV Fayl ko'rinishida yuklab olish", "send_csv_books_file")],
       [Markup.button.callback("✈️ Ombor Kanaliga yuborish (Storage Channel)", "post_books_list_to_channel")]
     ];
 
@@ -169,6 +170,36 @@ export async function sendIndividualBooksTextList(ctx: any, postToStorageChannel
     }
   } catch (err: any) {
     if (ctx) await ctx.reply(`❌ Ro'yxat tuzishda xatolik: ${err.message}`);
+  }
+}
+
+export async function sendBooksCSV(ctx: any) {
+  try {
+    const books = await prisma.telegramBook.findMany({
+      include: { category: true },
+      orderBy: [
+        { categoryId: 'asc' },
+        { id: 'asc' }
+      ]
+    });
+
+    if (books.length === 0) {
+      if (ctx) await ctx.reply("❌ Hozircha bazada darsliklar mavjud emas.");
+      return;
+    }
+
+    const csvBuffer = generateBooksCSVBuffer(books);
+    if (ctx) {
+      await ctx.replyWithDocument({
+        source: csvBuffer,
+        filename: `Darsliklar_Royxati_SmartBook.csv`
+      }, {
+        caption: `📊 <b>Darsliklar va Komplektlar Excel CSV Fayli</b>\n\nJami: ${books.length} ta darslik to'plami`,
+        parse_mode: 'HTML'
+      });
+    }
+  } catch (err: any) {
+    if (ctx) await ctx.reply(`❌ CSV fayl yaratishda xatolik: ${err.message}`);
   }
 }
 
@@ -226,6 +257,11 @@ export function registerBotHandlers() {
     await sendIndividualBooksTextList(ctx, false);
   });
 
+  // Export CSV command
+  bot.command(['csv', 'csvbooks', 'exportcsv'], async (ctx) => {
+    await sendBooksCSV(ctx);
+  });
+
   // Edit Book command
   bot.command(['editbook'], async (ctx) => {
     await sendEditBooksMenu(ctx);
@@ -243,6 +279,15 @@ export function registerBotHandlers() {
 
   bot.hears(["📋 Barcha darsliklar (Matn)", "📋 Barcha darsliklar ro'yxati (Matn)"], async (ctx) => {
     await sendIndividualBooksTextList(ctx, false);
+  });
+
+  bot.hears(["📊 CSV fayl yuklash", "📊 CSV faylda yuklash"], async (ctx) => {
+    await sendBooksCSV(ctx);
+  });
+
+  bot.action("send_csv_books_file", async (ctx) => {
+    await ctx.answerCbQuery("CSV fayl tayyorlanmoqda...");
+    await sendBooksCSV(ctx);
   });
 
   bot.action("post_books_list_to_channel", async (ctx) => {

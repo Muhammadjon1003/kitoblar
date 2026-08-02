@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { BookOpen, Search, Edit3, CheckCircle2, X, Plus, Trash2, Layers, Send } from 'lucide-react';
+import { BookOpen, Search, Edit3, CheckCircle2, X, Plus, Trash2, Layers, Send, Download } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { TableShell, Th, Td, EmptyState, uzs } from '../../components/ui';
 import type { InventoryItem } from '../../types';
@@ -252,14 +252,24 @@ export default function LogisticsBooksCatalog() {
             Darsliklar va komplekt ichidagi kitoblar nomlarini bevosita veb-saytdan tahrirlash
           </p>
         </div>
-        <button
-          onClick={handlePostStorageList}
-          disabled={postingList}
-          className="py-2 px-3.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-2 transition-all self-start sm:self-auto"
-        >
-          <Send className="w-4 h-4" />
-          {postingList ? "Yuborilmoqda..." : "Ombor Kanaliga Matnli Ro'yxat Yuborish"}
-        </button>
+        <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+          <a
+            href={`${import.meta.env.VITE_API_URL || ''}/backend/books/export-csv`}
+            download="Darsliklar_Royxati_SmartBook.csv"
+            className="py-2 px-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all"
+          >
+            <Download className="w-4 h-4" />
+            CSV Excel Yuklash
+          </a>
+          <button
+            onClick={handlePostStorageList}
+            disabled={postingList}
+            className="py-2 px-3.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-2 transition-all"
+          >
+            <Send className="w-4 h-4" />
+            {postingList ? "Yuborilmoqda..." : "Ombor Kanaliga Matnli Ro'yxat Yuborish"}
+          </button>
+        </div>
       </div>
 
       {/* Filter / Search Bar */}

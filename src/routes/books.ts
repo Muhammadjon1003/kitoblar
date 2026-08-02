@@ -34,6 +34,56 @@ export function cleanBookName(rawName: string): string {
   return rawName.replace(/^(\s*📦\s*|\[Komplekt\]\s*)+/gi, '').trim();
 }
 
+// Helper to generate UTF-8 BOM CSV buffer of all books
+export function generateBooksCSVBuffer(books: any[]): Buffer {
+  const headers = ['ID', 'Kategoriya', 'Darslik Nomi', 'Darslik Turi', 'Sotuv Narxi (som)'];
+  const rows: string[][] = [headers];
+
+  for (const b of books) {
+    const catName = b.category ? b.category.name : 'Umumiy';
+    const price = b.price || 0;
+
+    if (b.isSet && b.setDetails) {
+      try {
+        const files: Array<{ name: string }> = JSON.parse(b.setDetails);
+        for (const f of files) {
+          const cleanName = cleanBookName(f.name);
+          if (cleanName) {
+            rows.push([
+              String(b.id),
+              `"${catName.replace(/"/g, '""')}"`,
+              `"${cleanName.replace(/"/g, '""')}"`,
+              '"Komplekt Darsligi"',
+              String(price)
+            ]);
+          }
+        }
+      } catch (e) {
+        const cleanName = cleanBookName(b.name);
+        rows.push([
+          String(b.id),
+          `"${catName.replace(/"/g, '""')}"`,
+          `"${cleanName.replace(/"/g, '""')}"`,
+          '"Alohida Darslik"',
+          String(price)
+        ]);
+      }
+    } else {
+      const cleanName = cleanBookName(b.name);
+      rows.push([
+        String(b.id),
+        `"${catName.replace(/"/g, '""')}"`,
+        `"${cleanName.replace(/"/g, '""')}"`,
+        '"Alohida Darslik"',
+        String(price)
+      ]);
+    }
+  }
+
+  const csvContent = rows.map(r => r.join(',')).join('\r\n');
+  return Buffer.from('\uFEFF' + csvContent, 'utf-8');
+}
+
 // GET /backend/books — Fetch all uploaded books (with optional categoryId filter)
 router.get('/backend/books', async (req, res) => {
   try {
@@ -185,6 +235,26 @@ router.post('/backend/books/post-storage-list', async (req, res) => {
     } else {
       res.status(400).json({ error: "STORAGE_CHANNEL_ID kiritilmagan." });
     }
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /backend/books/export-csv — Download full books catalog as CSV file
+router.get('/backend/books/export-csv', async (req, res) => {
+  try {
+    const books = await prisma.telegramBook.findMany({
+      include: { category: true },
+      orderBy: [
+        { categoryId: 'asc' },
+        { id: 'asc' }
+      ]
+    });
+
+    const csvBuffer = generateBooksCSVBuffer(books);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="Darsliklar_Royxati_SmartBook.csv"');
+    res.send(csvBuffer);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
