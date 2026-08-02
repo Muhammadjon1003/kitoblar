@@ -448,9 +448,9 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
 
             const subBookListStr = subBookRequirements.map(r => {
               if (r.neededFromSupplier > 0) {
-                return `• <b>${r.name}</b>: <b>${r.neededFromSupplier} ta</b> (Chop etilishi kerak)`;
+                return `• <b>${r.name}</b>: <b>${r.neededFromSupplier} ta</b> (🖨 Chop etilishi kerak)`;
               } else {
-                return `• <b>${r.name}</b>: 0 ta (Ombordan biriktirildi)`;
+                return `• <b>${r.name}</b>: 0 ta (❌ Chop etilmasin — omborda bor)`;
               }
             }).join('\n');
 
