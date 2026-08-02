@@ -28,6 +28,12 @@ async function syncStorageChannel(bookId: number) {
   }
 }
 
+// Helper to strip any legacy '[Komplekt]' or '📦 ' prefixes from book names
+export function cleanBookName(rawName: string): string {
+  if (!rawName) return '';
+  return rawName.replace(/^(\s*📦\s*|\[Komplekt\]\s*)+/gi, '').trim();
+}
+
 // GET /backend/books — Fetch all uploaded books (with optional categoryId filter)
 router.get('/backend/books', async (req, res) => {
   try {
@@ -41,6 +47,19 @@ router.get('/backend/books', async (req, res) => {
       include: { category: true },
       orderBy: { id: 'asc' }
     });
+
+    // Auto-clean any legacy '[Komplekt]' or '📦 ' prefixes from existing DB records
+    for (const b of books) {
+      const cleaned = cleanBookName(b.name);
+      if (cleaned !== b.name) {
+        await prisma.telegramBook.update({
+          where: { id: b.id },
+          data: { name: cleaned }
+        }).catch(() => {});
+        b.name = cleaned;
+      }
+    }
+
     res.json(books);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -55,7 +74,7 @@ router.patch('/backend/books/:id', async (req, res) => {
     
     const updateData: any = {};
     if (price !== undefined && !isNaN(Number(price))) updateData.price = Number(price);
-    if (name !== undefined && typeof name === 'string' && name.trim()) updateData.name = name.trim();
+    if (name !== undefined && typeof name === 'string' && name.trim()) updateData.name = cleanBookName(name);
     if (setDetails !== undefined) updateData.setDetails = typeof setDetails === 'string' ? setDetails : JSON.stringify(setDetails);
     if (categoryId !== undefined && !isNaN(Number(categoryId))) updateData.categoryId = Number(categoryId);
     if (isSet !== undefined) updateData.isSet = Boolean(isSet);

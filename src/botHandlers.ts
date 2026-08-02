@@ -829,7 +829,7 @@ export function registerBotHandlers() {
     }
 
     const { setTitle, files } = session.data;
-    const finalTitle = `📦 [Komplekt] ${setTitle}`;
+    const finalTitle = setTitle.trim();
 
     try {
       const bookRecord = await prisma.telegramBook.create({

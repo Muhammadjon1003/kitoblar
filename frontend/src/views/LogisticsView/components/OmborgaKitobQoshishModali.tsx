@@ -102,7 +102,7 @@ export default function OmborgaKitobQoshishModali({ onClose }: { onClose: () => 
                 >
                   {inventory.map(b => (
                     <option key={b.id} value={b.id}>
-                      {b.title} {b.isSet ? '(📦 Komplekt)' : ''} ({b.categoryName || 'Umumiy'})
+                      {b.title.replace(/^(\s*📦\s*|\[Komplekt\]\s*)+/gi, '').trim()} ({b.categoryName || 'Umumiy'})
                     </option>
                   ))}
                 </select>
