@@ -104,15 +104,28 @@ router.get('/backend/books', async (req, res) => {
       orderBy: { id: 'asc' }
     });
 
-    // Auto-clean any legacy '[Komplekt]' or '📦 ' prefixes from existing DB records
+    // Auto-clean any legacy '[Komplekt]' or '📦 ' prefixes from existing DB records & setDetails
     for (const b of books) {
       const cleaned = cleanBookName(b.name);
-      if (cleaned !== b.name) {
+      let cleanedDetails = b.setDetails;
+      let detailsChanged = false;
+
+      if (b.isSet && b.setDetails) {
+        try {
+          const files: Array<{ name: string; fileId: string; isMain?: boolean; fileType?: string; parentFileId?: string }> = JSON.parse(b.setDetails);
+          const cleanedFiles = files.map(f => ({ ...f, name: cleanBookName(f.name) }));
+          cleanedDetails = JSON.stringify(cleanedFiles);
+          if (cleanedDetails !== b.setDetails) detailsChanged = true;
+        } catch (e) {}
+      }
+
+      if (cleaned !== b.name || detailsChanged) {
         await prisma.telegramBook.update({
           where: { id: b.id },
-          data: { name: cleaned }
+          data: { name: cleaned, setDetails: cleanedDetails }
         }).catch(() => {});
         b.name = cleaned;
+        b.setDetails = cleanedDetails;
       }
     }
 
@@ -131,7 +144,13 @@ router.patch('/backend/books/:id', async (req, res) => {
     const updateData: any = {};
     if (price !== undefined && !isNaN(Number(price))) updateData.price = Number(price);
     if (name !== undefined && typeof name === 'string' && name.trim()) updateData.name = cleanBookName(name);
-    if (setDetails !== undefined) updateData.setDetails = typeof setDetails === 'string' ? setDetails : JSON.stringify(setDetails);
+    if (setDetails !== undefined) {
+      let parsed = typeof setDetails === 'string' ? JSON.parse(setDetails) : setDetails;
+      if (Array.isArray(parsed)) {
+        parsed = parsed.map(f => ({ ...f, name: cleanBookName(f.name) }));
+      }
+      updateData.setDetails = JSON.stringify(parsed);
+    }
     if (categoryId !== undefined && !isNaN(Number(categoryId))) updateData.categoryId = Number(categoryId);
     if (isSet !== undefined) updateData.isSet = Boolean(isSet);
 
