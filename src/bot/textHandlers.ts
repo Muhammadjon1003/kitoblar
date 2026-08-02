@@ -1,7 +1,7 @@
 import { Telegraf, Markup } from 'telegraf';
 import { clearSession, setSession, getSession } from './session';
 import { buildPersistentKeyboard, buildCategoriesMenu } from './keyboards';
-import { syncStorageChannel, sendSupplierBreakdownList, sendBooksCSV, sendDeleteBooksMenu, sendEditBooksMenu } from './helpers';
+import { syncStorageChannel, sendSupplierBreakdownList, sendBooksCSV, sendDeleteBooksMenu, sendEditBooksMenu, sendAllBooksMenu } from './helpers';
 import { cleanBookName, reuploadFileWithNewName } from '../routes/books';
 import { STORAGE_CHANNEL_ID } from '../telegram';
 import { PrismaClient } from '@prisma/client';
@@ -16,20 +16,7 @@ export function setupTextHandlers(bot: Telegraf<any>) {
     // Menu shortcuts
     if (text === "📚 Barcha kitoblar (PDF)") {
       await clearSession(ctx.from.id);
-      const books = await prisma.telegramBook.findMany({
-        include: { category: true },
-        orderBy: { id: 'asc' }
-      });
-      if (books.length === 0) {
-        await ctx.reply("❌ Bazada hamma darsliklar bo'sh.");
-        return;
-      }
-      let msgText = `📚 <b>BAZADAGI BARCHA DARSLIKLAR (${books.length} ta)</b>\n\n`;
-      books.forEach(b => {
-        const typeIcon = b.isSet ? '📦' : '📖';
-        msgText += `${typeIcon} <code>[ID ${b.id}]</code> <b>${b.name}</b> (${b.category?.name || 'Umumiy'})\n`;
-      });
-      await ctx.reply(msgText, { parse_mode: 'HTML' });
+      await sendAllBooksMenu(ctx, false);
       return;
     }
 

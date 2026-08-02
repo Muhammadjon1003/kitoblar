@@ -213,3 +213,33 @@ export async function sendEditBooksMenu(ctx: any, isEdit = false) {
     await ctx.reply(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) });
   }
 }
+
+export async function sendAllBooksMenu(ctx: any, isEdit = false) {
+  const categories = await prisma.category.findMany({
+    include: { books: true },
+    orderBy: { name: 'asc' }
+  });
+
+  if (categories.length === 0) {
+    const text = "❌ Hozircha bazada darsliklar kategoriyasi mavjud emas.";
+    if (isEdit && ctx.editMessageText) {
+      await ctx.editMessageText(text);
+    } else if (ctx.reply) {
+      await ctx.reply(text);
+    }
+    return;
+  }
+
+  const buttons = categories.map(c => [
+    Markup.button.callback(`📂 ${c.name} (${c.books.length} ta darslik)`, `browse_cat:${c.id}`)
+  ]);
+
+  buttons.push([Markup.button.callback("📚 Barcha darsliklar (Hamma ro'yxat)", "browse_cat:all")]);
+
+  const text = "📚 <b>PDF Darslik va Komplektlarni yuklab olish uchun kategoriyani tanlang:</b>";
+  if (isEdit && ctx.editMessageText) {
+    await ctx.editMessageText(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) });
+  } else if (ctx.reply) {
+    await ctx.reply(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) });
+  }
+}

@@ -1,7 +1,7 @@
 import { Telegraf, Markup } from 'telegraf';
 import { clearSession, setSession, getSession } from './session';
 import { buildCategoriesMenu } from './keyboards';
-import { syncStorageChannel, deleteStorageChannelMsg, sendSupplierBreakdownList, sendBooksCSV, sendDeleteBooksMenu, sendEditBooksMenu } from './helpers';
+import { syncStorageChannel, deleteStorageChannelMsg, sendSupplierBreakdownList, sendBooksCSV, sendDeleteBooksMenu, sendEditBooksMenu, sendAllBooksMenu } from './helpers';
 import { cleanBookName } from '../routes/books';
 import { PrismaClient } from '@prisma/client';
 
@@ -13,36 +13,91 @@ export function setupActions(bot: Telegraf<any>) {
   });
 
   bot.action('cat_action:browse', async (ctx) => {
-    const categories = await prisma.category.findMany({
-      include: { books: true },
-      orderBy: { name: 'asc' }
-    });
+    await sendAllBooksMenu(ctx, true);
+    await ctx.answerCbQuery();
+  });
 
-    if (categories.length === 0) {
-      await ctx.answerCbQuery("Kategoriyalar mavjud emas.", { show_alert: true });
+  // Browse Books in a Category
+  bot.action(/^browse_cat:(.+)$/, async (ctx) => {
+    const catIdStr = ctx.match[1];
+    let books: any[] = [];
+    let title = '';
+
+    if (catIdStr === 'all') {
+      books = await prisma.telegramBook.findMany({
+        include: { category: true },
+        orderBy: { id: 'asc' }
+      });
+      title = "📚 <b>BARCHA DARSLIKLAR VA KOMPLEKTLAR RO'YXATI:</b>";
+    } else {
+      const catId = parseInt(catIdStr);
+      const category = await prisma.category.findUnique({
+        where: { id: catId },
+        include: { books: true }
+      });
+      if (!category) {
+        await ctx.answerCbQuery("Kategoriya topilmadi.", { show_alert: true });
+        return;
+      }
+      books = category.books;
+      title = `📂 <b>${category.name}</b> kategoriyasidagi darsliklar:`;
+    }
+
+    if (books.length === 0) {
+      await ctx.answerCbQuery("Ushbu kategoriyada darsliklar yo'q.", { show_alert: true });
       return;
     }
 
-    let msgText = `📚 <b>KATEGORIYALARDAGI DARSLIKLAR RO'YXATI</b>\n\n`;
-
-    categories.forEach(cat => {
-      msgText += `📂 <b>${cat.name}</b> (${cat.books.length} ta darslik):\n`;
-      if (cat.books.length === 0) {
-        msgText += `   <i>(hali darsliklar mavjud emas)</i>\n`;
-      } else {
-        cat.books.forEach(b => {
-          const typeIcon = b.isSet ? '📦' : '📖';
-          msgText += `   ${typeIcon} <code>[ID ${b.id}]</code> ${b.name}\n`;
-        });
-      }
-      msgText += `\n`;
+    const buttons = books.map(b => {
+      const icon = b.isSet ? '📦' : '📖';
+      return [Markup.button.callback(`${icon} ${b.name}`, `send_book:${b.id}`)];
     });
+    buttons.push([Markup.button.callback("⬅️ Orqaga", "cat_action:browse")]);
 
-    await ctx.editMessageText(msgText, {
-      parse_mode: 'HTML',
-      ...Markup.inlineKeyboard([[Markup.button.callback("⬅️ Orqaga", "cat_action:back")]])
-    });
+    await ctx.editMessageText(
+      `${title}\n\n<i>(Yuklab olish uchun darslik tugmasini bosing)</i>`,
+      { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) }
+    );
     await ctx.answerCbQuery();
+  });
+
+  // Send PDF document or media group to user
+  bot.action(/^send_book:(\d+)$/, async (ctx) => {
+    const bookId = parseInt(ctx.match[1]);
+    const book = await prisma.telegramBook.findUnique({
+      where: { id: bookId },
+      include: { category: true }
+    });
+
+    if (!book) {
+      await ctx.answerCbQuery("Darslik topilmadi.", { show_alert: true });
+      return;
+    }
+
+    await ctx.answerCbQuery("📥 PDF fayllar yuborilmoqda...");
+
+    try {
+      if (book.isSet && book.setDetails) {
+        let files: Array<{ name: string; fileId: string; isMain?: boolean; fileType?: string; parentFileId?: string }> = [];
+        try { files = JSON.parse(book.setDetails); } catch (e) {}
+
+        const caption = `📦 <b>Komplekt Nomi:</b> ${book.name}\n📂 <b>Kategoriya:</b> ${book.category?.name || 'Umumiy'}`;
+
+        const mediaGroup = files.map((f, index) => ({
+          type: 'document' as const,
+          media: f.fileId,
+          caption: index === files.length - 1 ? caption : undefined,
+          parse_mode: 'HTML' as const
+        }));
+
+        await ctx.replyWithMediaGroup(mediaGroup);
+      } else {
+        const caption = `📖 <b>Darslik Nomi:</b> ${book.name}\n📂 <b>Kategoriya:</b> ${book.category?.name || 'Umumiy'}`;
+        await ctx.replyWithDocument(book.tgFileId, { caption, parse_mode: 'HTML' });
+      }
+    } catch (err: any) {
+      await ctx.reply(`❌ PDF yuborishda xatolik: ${err.message}`);
+    }
   });
 
   bot.action('cat_action:add', async (ctx) => {
