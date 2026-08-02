@@ -39,6 +39,23 @@ export function registerBotHandlers() {
     return next();
   });
 
+  // Global Error Handler: Replies directly with error message to chat if any error occurs
+  bot.catch(async (err: any, ctx: any) => {
+    const errMsg = err.message || String(err);
+    console.error(`[Telegraf Global Error Catch] Update ${ctx.updateType}:`, errMsg);
+    try {
+      if (ctx.callbackQuery) {
+        await ctx.answerCbQuery(`❌ Bot xatoligi: ${errMsg.slice(0, 100)}`, { show_alert: true });
+      }
+      if (ctx.reply) {
+        await ctx.reply(
+          `❌ <b>Botda xatolik yuz berdi:</b>\n<code>${errMsg}</code>`,
+          { parse_mode: 'HTML' }
+        );
+      }
+    } catch (_) {}
+  });
+
   // Initialize all Telegram Bot handlers
   setupCommands(bot);
   setupActions(bot);
