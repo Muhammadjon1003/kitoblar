@@ -421,68 +421,41 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
             let files: Array<{ name: string; fileId: string; isMain?: boolean; fileType?: string; parentFileId?: string }> = [];
             try { files = JSON.parse(bookObj.setDetails); } catch (e) {}
 
-            const subBookRequirements: Array<{ name: string; neededFromSupplier: number; fromStock: number; attachedFiles: string[] }> = [];
-
+            // 1. Order PDF files sequentially: Main File 1 -> its supplementary files -> Main File 2 -> its supplementary files
             const mainFiles = files.filter(f => f.isMain !== false && f.fileType !== 'COVER' && f.fileType !== 'SUPPLEMENT');
             const compFiles = files.filter(f => f.isMain === false || f.fileType === 'COVER' || f.fileType === 'SUPPLEMENT');
 
-            for (const f of mainFiles) {
-              const cleanName = cleanBookName(f.name);
-              const stock = await prisma.warehouseStock.findFirst({
-                where: { fileId: f.fileId, quantity: { gt: 0 } }
-              });
-              const available = stock ? stock.quantity : 0;
-              const fromStock = Math.min(available, studentNames.length);
-              const neededFromSupplier = studentNames.length - fromStock;
+            const orderedFiles: Array<{ name: string; fileId: string; isMain?: boolean; fileType?: string; parentFileId?: string }> = [];
 
-              if (stock && fromStock > 0) {
-                await prisma.warehouseStock.update({
-                  where: { id: stock.id },
-                  data: { quantity: stock.quantity - fromStock }
-                });
+            for (const mf of mainFiles) {
+              orderedFiles.push(mf);
+              const supplements = compFiles.filter(cf => cf.parentFileId === mf.fileId || cf.parentFileId === mf.name);
+              orderedFiles.push(...supplements);
+            }
+            const unattachedCompFiles = compFiles.filter(cf => !orderedFiles.some(of => of.fileId === cf.fileId));
+            orderedFiles.push(...unattachedCompFiles);
+
+            // 2. Build Caption matching exact user requested structure
+            const mainBooksStr = mainFiles.map((mf, idx) => {
+              const cleanMfName = cleanBookName(mf.name);
+              const supplements = compFiles.filter(cf => cf.parentFileId === mf.fileId || cf.parentFileId === mf.name);
+              let line = `${idx + 1}. ${cleanMfName}`;
+              if (supplements.length > 0) {
+                const suppNames = supplements.map(s => cleanBookName(s.name)).join(', ');
+                line += `\n   Ilovalar: ${suppNames}`;
               }
+              return line;
+            }).join('\n');
 
-              // Find non-main files attached to this main book
-              const attached = compFiles
-                .filter(cf => cf.parentFileId === f.fileId || cf.parentFileId === f.name)
-                .map(cf => cf.name);
+            const setCaption = `📦 <b>Komplekt Nomi:</b> ${cleanBookName(group.bookName)} - ${studentNames.length} ta buyurtma\n\n` +
+              `📚 <b>Darsliklar: (${mainFiles.length} ta)</b>\n${mainBooksStr}\n\n` +
+              `👥 <b>Kimlar uchun:</b>\n${studentNames.join('\n')}`;
 
-              subBookRequirements.push({
-                name: cleanName,
-                neededFromSupplier,
-                fromStock,
-                attachedFiles: attached
-              });
-            }
-
-            const missingFiles = subBookRequirements.filter(r => r.neededFromSupplier > 0);
-            const stockFiles = subBookRequirements.filter(r => r.fromStock > 0);
-
-            let setCaption = `📦 <b>Komplekt Nomi:</b> ${group.bookName}\n` +
-              `🔢 <b>Jami Buyurtma Soni:</b> ${studentNames.length} ta komplekt\n\n`;
-
-            if (missingFiles.length > 0) {
-              const missingStr = missingFiles.map(r => {
-                const attachedStr = r.attachedFiles.length > 0 ? ` <i>(ilovalari: ${r.attachedFiles.join(', ')})</i>` : '';
-                return `• <b>${r.name}</b>: <b>${r.neededFromSupplier} ta</b>${attachedStr}`;
-              }).join('\n');
-              setCaption += `🖨 <b>Chop etilishi kerak bo'lgan darsliklar:</b>\n${missingStr}\n\n`;
-            } else {
-              setCaption += `✅ <b>Barcha darsliklar ombor zaxirasidan to'liq biriktirildi!</b>\n\n`;
-            }
-
-            if (stockFiles.length > 0) {
-              const stockStr = stockFiles.map(r => `• <b>${r.name}</b>: ${r.fromStock} ta (ombordan biriktirildi)`).join('\n');
-              setCaption += `🏢 <b>Ombordan biriktirildi:</b>\n${stockStr}\n\n`;
-            }
-
-            setCaption += `👥 <b>Kimlar uchun:</b>\n${studentNames.join('\n')}`;
-
-            // Attach ALL PDF files of the set into the media group
-            const mediaGroup = files.map((f, index) => ({
+            // 3. Attach PDF files into media group with sequential ordering
+            const mediaGroup = (orderedFiles.length > 0 ? orderedFiles : files).map((f, index) => ({
               type: 'document' as const,
               media: f.fileId,
-              caption: index === files.length - 1 ? setCaption : undefined
+              caption: index === (orderedFiles.length || files.length) - 1 ? setCaption : undefined
             }));
 
             const sentMsgs = await bot.telegram.sendMediaGroup(targetPDFChatId, mediaGroup);
