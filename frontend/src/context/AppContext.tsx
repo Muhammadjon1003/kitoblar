@@ -68,6 +68,7 @@ interface AppContextType {
   updateOrderAdmin: (orderId: string, patch: { status?: string; amountPaid?: number; bookCost?: number; sotuvNarxi?: number; comment?: string }) => Promise<void>;
   updateOrderBook: (orderId: string, payload: { bookId: string; bookCost?: number; sotuvNarxi?: number }) => Promise<boolean>;
   updateBookPrice: (bookId: string, price: number) => Promise<boolean>;
+  updateBookDetails: (bookId: string, payload: { name?: string; price?: number; setDetails?: string }) => Promise<boolean>;
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
   dismissNotification: (id: string) => void;
@@ -527,6 +528,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return true;
     } catch (err: any) {
       fireToast(`Narx saqlashda xatolik: ${err.message}`, 'error');
+      return false;
+    }
+  }, [checkAuth, fireToast]);
+
+  /** Logistics/Manager updates book title, price, or set details → PATCH /backend/books/:id */
+  const updateBookDetails = useCallback(async (
+    bookId: string,
+    payload: { name?: string; price?: number; setDetails?: string }
+  ): Promise<boolean> => {
+    if (!checkAuth()) return false;
+    try {
+      const res = await fetch(`${API}/backend/books/${bookId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const updatedBook = await res.json();
+
+      setInventory(prev => prev.map(inv =>
+        inv.id === String(updatedBook.id)
+          ? {
+              ...inv,
+              title: updatedBook.name,
+              price: updatedBook.price ?? inv.price,
+              setDetails: updatedBook.setDetails ?? inv.setDetails,
+            }
+          : inv
+      ));
+
+      fireToast("Darslik va komplekt ma'lumotlari muvaffaqiyatli saqlandi!", 'success');
+      return true;
+    } catch (err: any) {
+      fireToast(`Saqlashda xatolik: ${err.message}`, 'error');
       return false;
     }
   }, [checkAuth, fireToast]);
@@ -1038,7 +1073,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       fireToast,
       createBulkOrders, collectCash, markCoursePayment, cancelOrder, addManualInventoryStock,
       dispatchToSupplier, markArrived, deliverBook, decoupleBook,
-      allocateFromWarehouse, addInventoryItem, updateOrderAdmin, updateOrderBook, updateBookPrice, deleteOrderAdmin,
+      allocateFromWarehouse, addInventoryItem, updateOrderAdmin, updateOrderBook, updateBookPrice, updateBookDetails, deleteOrderAdmin,
       markNotificationAsRead, markAllNotificationsAsRead, dismissNotification, dismissToast,
       refreshGroups, refreshStudents, refreshOrders, refreshSettings, refreshWarehouseStock,
       sendToTelegram, returnOrderWithStock, addWarehouseStockItem,

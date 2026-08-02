@@ -1,24 +1,51 @@
 /**
  * views/LogisticsView/LogisticsBooksCatalog.tsx — O'zbek tili
- * Logistika uchun darsliklar katalogi va alohida sotuv narxlarini belgilash sahifasi.
+ * Logistika uchun darsliklar va komplektlar nomi va narxlarini tahrirlash sahifasi.
  */
 
-import { useState } from 'react';
-import { BookOpen, Search, Edit3, CheckCircle2, X, Tag } from 'lucide-react';
+import React, { useState } from 'react';
+import { BookOpen, Search, Edit3, CheckCircle2, X, Plus, Trash2, Layers } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { TableShell, Th, Td, EmptyState, uzs } from '../../components/ui';
 import type { InventoryItem } from '../../types';
 
-function DarslikNarxModali({ book, onClose }: { book: InventoryItem; onClose: () => void }) {
-  const { updateBookPrice, sotuvNarxi } = useApp();
+function DarslikTahrirlashModali({ book, onClose }: { book: InventoryItem; onClose: () => void }) {
+  const { updateBookDetails, sotuvNarxi } = useApp();
   const currentPrice = (book.price && book.price > 0) ? book.price : sotuvNarxi;
 
+  const [titleInput, setTitleInput] = useState(book.title || '');
   const [priceInput, setPriceInput] = useState(String(currentPrice || ''));
-  const [saving, setSaving]         = useState(false);
-  const [xato, setXato]             = useState('');
+
+  let parsedSubFiles: Array<{ name: string; fileId: string }> = [];
+  if (book.isSet && book.setDetails) {
+    try { parsedSubFiles = JSON.parse(book.setDetails); } catch (e) {}
+  }
+
+  const [subBooks, setSubBooks] = useState<Array<{ name: string; fileId: string }>>(parsedSubFiles);
+  const [saving, setSaving]     = useState(false);
+  const [xato, setXato]         = useState('');
+
+  const handleSubBookNameChange = (index: number, newName: string) => {
+    setSubBooks(prev => prev.map((item, idx) => idx === index ? { ...item, name: newName } : item));
+  };
+
+  const handleAddSubBook = () => {
+    setSubBooks(prev => [
+      ...prev,
+      { name: `Darslik ${prev.length + 1}`, fileId: `sub_book_${Date.now()}` }
+    ]);
+  };
+
+  const handleRemoveSubBook = (index: number) => {
+    setSubBooks(prev => prev.filter((_, idx) => idx !== index));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!titleInput.trim()) {
+      setXato("Iltimos, darslik nomini kiriting.");
+      return;
+    }
     const val = parseFloat(priceInput);
     if (isNaN(val) || val < 0) {
       setXato("Iltimos, to'g'ri sotuv narxi kiriting.");
@@ -29,10 +56,14 @@ function DarslikNarxModali({ book, onClose }: { book: InventoryItem; onClose: ()
     setXato('');
 
     try {
-      const ok = await updateBookPrice(book.id, val);
+      const ok = await updateBookDetails(book.id, {
+        name: titleInput.trim(),
+        price: val,
+        setDetails: book.isSet ? JSON.stringify(subBooks) : undefined
+      });
       if (ok) onClose();
     } catch (err: any) {
-      setXato(err.message || "Narx saqlashda xatolik.");
+      setXato(err.message || "Saqlashda xatolik.");
     } finally {
       setSaving(false);
     }
@@ -41,13 +72,13 @@ function DarslikNarxModali({ book, onClose }: { book: InventoryItem; onClose: ()
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-2xl z-10 overflow-hidden">
+      <div className="relative w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-2xl z-10 overflow-hidden">
         
         {/* Header */}
-        <div className="px-6 py-4 bg-gradient-to-r from-amber-500 to-teal-600 text-white flex items-center justify-between">
+        <div className="px-6 py-4 bg-gradient-to-r from-amber-500 to-indigo-600 text-white flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Tag className="w-5 h-5" />
-            <h3 className="text-base font-bold">Darslik Sotuv Narxini Belgilash</h3>
+            <Edit3 className="w-5 h-5" />
+            <h3 className="text-base font-bold">Darslik va Komplekt Nomi / Narxini Tahrirlash</h3>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/15 text-white transition-colors">
             <X className="w-4.5 h-4.5" />
@@ -55,31 +86,37 @@ function DarslikNarxModali({ book, onClose }: { book: InventoryItem; onClose: ()
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
           {xato && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-red-600">
               {xato}
             </div>
           )}
 
-          <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1.5">
-            <div className="flex justify-between">
-              <span className="text-slate-500 font-semibold">Fan / Kategoriya:</span>
-              <span className="font-bold text-slate-800">{book.categoryName || 'Umumiy'}</span>
-            </div>
-            <div className="flex justify-between pt-1 border-t border-slate-200/60">
-              <span className="text-slate-500 font-semibold">Darslik Nomi:</span>
-              <span className="font-bold text-slate-900">{book.title}</span>
-            </div>
-            <div className="flex justify-between pt-1 border-t border-slate-200/60">
-              <span className="text-slate-500 font-semibold">Menejer standart narxi:</span>
-              <span className="font-mono font-bold text-slate-700">{uzs(sotuvNarxi)}</span>
-            </div>
+          <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs flex items-center justify-between">
+            <span className="text-slate-500 font-semibold">Fan / Kategoriya:</span>
+            <span className="font-bold text-slate-800">{book.categoryName || 'Umumiy'}</span>
           </div>
 
+          {/* Main Title Input */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
-              Ushbu darslik sotuv narxi (so'm)
+            <label className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wide">
+              {book.isSet ? '📦 Komplekt Nomi' : '📖 Darslik Nomi'}
+            </label>
+            <input
+              type="text"
+              value={titleInput}
+              onChange={e => { setTitleInput(e.target.value); setXato(''); }}
+              placeholder="Masalan: Primary Starter (PDF & Audio)"
+              required
+              className="w-full h-10 px-3 text-sm font-bold text-slate-900 bg-white border border-slate-300 focus:border-amber-500 focus:outline-none rounded-xl"
+            />
+          </div>
+
+          {/* Price Input */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wide">
+              Sotuv narxi (so'm)
             </label>
             <input
               type="number"
@@ -89,13 +126,57 @@ function DarslikNarxModali({ book, onClose }: { book: InventoryItem; onClose: ()
               onChange={e => { setPriceInput(e.target.value); setXato(''); }}
               placeholder="Masalan: 120000"
               required
-              className="w-full h-11 px-3 text-base font-bold text-slate-900 bg-white border-2 border-slate-300 focus:border-amber-500 focus:outline-none rounded-xl font-mono"
-              autoFocus
+              className="w-full h-10 px-3 text-sm font-bold text-slate-900 bg-white border border-slate-300 focus:border-amber-500 focus:outline-none rounded-xl font-mono"
             />
-            <p className="text-[10px] text-slate-400 mt-1">
-              * Ushbu narx o'qituvchilar buyurtma berganida avtomatik belgilanadi.
-            </p>
           </div>
+
+          {/* If Set: Sub-books list editor */}
+          {book.isSet && (
+            <div className="bg-purple-50/70 border border-purple-200 p-4 rounded-xl space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                  <Layers className="w-4 h-4 text-purple-600" />
+                  Komplekt Ichidagi Darsliklar ({subBooks.length} ta):
+                </label>
+                <button
+                  type="button"
+                  onClick={handleAddSubBook}
+                  className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold rounded-lg flex items-center gap-1 transition-all shadow-xs"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Darslik Qo'shish
+                </button>
+              </div>
+
+              {subBooks.length === 0 ? (
+                <p className="text-xs text-purple-600 italic">Komplektda darsliklar yo'q.</p>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {subBooks.map((sb, idx) => (
+                    <div key={idx} className="flex items-center gap-2 bg-white p-2 border border-purple-200 rounded-lg shadow-2xs">
+                      <span className="text-[11px] font-mono font-bold text-purple-700 w-5 text-center">
+                        {idx + 1}.
+                      </span>
+                      <input
+                        type="text"
+                        value={sb.name}
+                        onChange={e => handleSubBookNameChange(idx, e.target.value)}
+                        placeholder="Darslik nomi..."
+                        className="flex-1 h-8 px-2.5 text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-md focus:border-purple-500 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSubBook(idx)}
+                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                        title="O'chirish"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
             <button
@@ -108,7 +189,7 @@ function DarslikNarxModali({ book, onClose }: { book: InventoryItem; onClose: ()
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-colors"
+              className="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-colors"
             >
               {saving ? (
                 <>
@@ -118,7 +199,7 @@ function DarslikNarxModali({ book, onClose }: { book: InventoryItem; onClose: ()
               ) : (
                 <>
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  Narxni Saqlash
+                  Saqlash
                 </>
               )}
             </button>
@@ -149,10 +230,10 @@ export default function LogisticsBooksCatalog() {
         <div>
           <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-amber-600" />
-            Darsliklar Katalogi va Sotuv Narxlari
+            Darsliklar Katalogi, Nomlari va Narxlari
           </h2>
           <p className="text-xs font-semibold text-slate-600 mt-0.5">
-            Logistika bo'limi uchun darslik turlari bo'yicha sotuv narxlarini oldindan belgilash
+            Darsliklar va komplekt ichidagi kitoblar nomlarini bevosita veb-saytdan tahrirlash
           </p>
         </div>
       </div>
@@ -191,7 +272,7 @@ export default function LogisticsBooksCatalog() {
                 <Th>Fan / Kategoriya</Th>
                 <Th>Darslik Nomi</Th>
                 <Th>Sotuv Narxi (so'm)</Th>
-                <Th>Holat / Narx Manbasi</Th>
+                <Th>Tarkibi</Th>
                 <Th right>Amallar</Th>
               </tr>
             </thead>
@@ -199,6 +280,14 @@ export default function LogisticsBooksCatalog() {
               {filteredBooks.map((book, idx) => {
                 const hasCustomPrice = Boolean(book.price && book.price > 0);
                 const activePrice = hasCustomPrice ? book.price! : sotuvNarxi;
+
+                let subCount = 1;
+                if (book.isSet && book.setDetails) {
+                  try {
+                    const files = JSON.parse(book.setDetails);
+                    subCount = files.length;
+                  } catch (e) {}
+                }
 
                 return (
                   <tr key={book.id} className="hover:bg-slate-50/80 transition-colors">
@@ -209,29 +298,36 @@ export default function LogisticsBooksCatalog() {
                       </span>
                     </Td>
                     <Td>
-                      <span className="font-bold text-slate-800 text-xs">{book.title}</span>
+                      <div>
+                        <span className="font-bold text-slate-800 text-xs">{book.title}</span>
+                        {book.isSet && (
+                          <span className="ml-2 px-2 py-0.5 text-[10px] font-extrabold bg-purple-100 text-purple-700 rounded-full border border-purple-200">
+                            📦 Komplekt ({subCount} ta)
+                          </span>
+                        )}
+                      </div>
                     </Td>
                     <Td mono>
                       <span className="font-bold text-emerald-700 text-xs font-mono">{uzs(activePrice)}</span>
                     </Td>
                     <Td>
-                      {hasCustomPrice ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 border border-amber-300 text-amber-800">
-                          <Tag className="w-3 h-3" /> Logistika maxsus narxi
+                      {book.isSet ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-50 border border-purple-200 text-purple-800">
+                          <Layers className="w-3 h-3 text-purple-600" /> {subCount} ta darslik to'plami
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 border border-slate-200 text-slate-600">
-                          Menejer standart narxi
+                          Alohida 1 ta darslik
                         </span>
                       )}
                     </Td>
                     <Td right>
                       <button
                         onClick={() => setSelectedBook(book)}
-                        className="py-1 px-3 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold ml-auto"
+                        className="py-1.5 px-3 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 rounded-xl transition-all flex items-center gap-1.5 text-xs font-bold ml-auto shadow-xs"
                       >
                         <Edit3 className="w-3.5 h-3.5 text-amber-600" />
-                        <span>Narxni o'zgartirish</span>
+                        <span>Nomi va Narxni Tahrirlash</span>
                       </button>
                     </Td>
                   </tr>
@@ -243,9 +339,9 @@ export default function LogisticsBooksCatalog() {
         )}
       </div>
 
-      {/* Edit Price Modal */}
+      {/* Edit Book Modal */}
       {selectedBook && (
-        <DarslikNarxModali book={selectedBook} onClose={() => setSelectedBook(null)} />
+        <DarslikTahrirlashModali book={selectedBook} onClose={() => setSelectedBook(null)} />
       )}
 
     </div>
