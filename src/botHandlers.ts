@@ -646,7 +646,7 @@ export function registerBotHandlers() {
     );
   });
 
-  // Rename File list inside Set
+  // Rename & Type File list inside Set
   bot.action(/^edit_set_renfile_list:(\d+)$/, async (ctx) => {
     const bookId = parseInt(ctx.match[1]);
     const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
@@ -655,19 +655,179 @@ export function registerBotHandlers() {
       return;
     }
 
-    let files: Array<{ name: string; fileId: string }> = [];
+    let files: Array<{ name: string; fileId: string; isMain?: boolean; fileType?: string; parentFileId?: string }> = [];
     try { files = JSON.parse(book.setDetails); } catch (e) {}
 
-    const buttons = files.map((f, index) => [
-      Markup.button.callback(`✏️ Tahrirlash: ${index + 1}. ${f.name}`, `edit_set_renfile_ask:${book.id}:${index}`)
-    ]);
+    const buttons = files.map((f, index) => {
+      const isComp = f.isMain === false || f.fileType === 'COVER' || f.fileType === 'SUPPLEMENT';
+      const icon = isComp ? (f.fileType === 'COVER' ? '🖼' : '📄') : '📖';
+      const parentTag = isComp && f.parentFileId ? ` (-> ${f.parentFileId})` : '';
+      return [
+        Markup.button.callback(`${icon} ${index + 1}. ${f.name}${parentTag}`, `edit_set_file_opts:${book.id}:${index}`)
+      ];
+    });
     buttons.push([Markup.button.callback("⬅️ Orqaga", `edit_book_select:${book.id}`)]);
 
     await ctx.editMessageText(
-      `✏️ <b>Nomini tahrirlamoqchi bo'lgan darslikni tanlang:</b>`,
+      `⚙️ <b>Tahrirlamoqchi bo'lgan faylni tanlang:</b>`,
       { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) }
     );
     await ctx.answerCbQuery();
+  });
+
+  // Options for a specific file inside Set
+  bot.action(/^edit_set_file_opts:(\d+):(\d+)$/, async (ctx) => {
+    const bookId = parseInt(ctx.match[1]);
+    const fileIdx = parseInt(ctx.match[2]);
+
+    const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
+    if (!book || !book.isSet || !book.setDetails) {
+      await ctx.answerCbQuery("Komplekt topilmadi.", { show_alert: true });
+      return;
+    }
+
+    let files: Array<{ name: string; fileId: string; isMain?: boolean; fileType?: string; parentFileId?: string }> = [];
+    try { files = JSON.parse(book.setDetails); } catch (e) {}
+
+    const targetFile = files[fileIdx];
+    if (!targetFile) {
+      await ctx.answerCbQuery("Fayl topilmadi.", { show_alert: true });
+      return;
+    }
+
+    const currentType = targetFile.fileType || (targetFile.isMain === false ? 'SUPPLEMENT' : 'MAIN');
+
+    const buttons = [
+      [Markup.button.callback("✏️ Nomini o'zgartirish", `edit_set_renfile_ask:${book.id}:${fileIdx}`)],
+      [Markup.button.callback(currentType === 'MAIN' ? "📖 [Hozirgi: Asosiy Darslik]" : "📖 Asosiy Darslik qilish", `set_file_type:${book.id}:${fileIdx}:MAIN`)],
+      [Markup.button.callback(currentType === 'COVER' ? "🖼 [Hozirgi: Muqova]" : "🖼 Muqova qilish", `set_file_type:${book.id}:${fileIdx}:COVER`)],
+      [Markup.button.callback(currentType === 'SUPPLEMENT' ? "📄 [Hozirgi: Qo'shimcha]" : "📄 Qo'shimcha qilish", `set_file_type:${book.id}:${fileIdx}:SUPPLEMENT`)],
+      [Markup.button.callback("⬅️ Orqaga", `edit_set_renfile_list:${book.id}`)]
+    ];
+
+    await ctx.editMessageText(
+      `⚙️ <b>Fayl:</b> ${targetFile.name}\n` +
+      `📌 <b>Hozirgi turi:</b> ${currentType === 'MAIN' ? '📖 Asosiy Darslik' : (currentType === 'COVER' ? '🖼 Muqova' : '📄 Qo\'shimcha')}\n` +
+      (targetFile.parentFileId ? `🔗 <b>Biriktirilgan darslik:</b> ${targetFile.parentFileId}\n` : '') +
+      `\nAmalni tanlang:`,
+      { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) }
+    );
+    await ctx.answerCbQuery();
+  });
+
+  // Set file type callback
+  bot.action(/^set_file_type:(\d+):(\d+):(MAIN|COVER|SUPPLEMENT)$/, async (ctx) => {
+    const bookId = parseInt(ctx.match[1]);
+    const fileIdx = parseInt(ctx.match[2]);
+    const newType = ctx.match[3] as 'MAIN' | 'COVER' | 'SUPPLEMENT';
+
+    const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
+    if (!book || !book.isSet || !book.setDetails) {
+      await ctx.answerCbQuery("Komplekt topilmadi.", { show_alert: true });
+      return;
+    }
+
+    let files: Array<{ name: string; fileId: string; isMain?: boolean; fileType?: string; parentFileId?: string }> = [];
+    try { files = JSON.parse(book.setDetails); } catch (e) {}
+
+    if (!files[fileIdx]) {
+      await ctx.answerCbQuery("Fayl topilmadi.", { show_alert: true });
+      return;
+    }
+
+    const isMain = newType === 'MAIN';
+    files[fileIdx].fileType = newType;
+    files[fileIdx].isMain = isMain;
+
+    if (isMain) {
+      files[fileIdx].parentFileId = undefined;
+      await prisma.telegramBook.update({
+        where: { id: bookId },
+        data: { setDetails: JSON.stringify(files) }
+      });
+      await syncStorageChannel(book.id);
+      await ctx.answerCbQuery("📖 Asosiy Darslik qilib belgilandi!");
+      await ctx.editMessageText(
+        `✅ <b>'${files[fileIdx].name}'</b> "Asosiy Darslik" qilib belgilandi!`,
+        {
+          parse_mode: 'HTML',
+          ...Markup.inlineKeyboard([[Markup.button.callback("⬅️ Orqaga", `edit_set_file_opts:${book.id}:${fileIdx}`)]])
+        }
+      );
+      return;
+    }
+
+    // If COVER or SUPPLEMENT: ask which main book to bind to
+    const mainBooks = files.filter((f, idx) => idx !== fileIdx && (f.isMain !== false && f.fileType !== 'COVER' && f.fileType !== 'SUPPLEMENT'));
+
+    if (mainBooks.length === 0) {
+      // Auto-assign to first file if no main books
+      files[fileIdx].parentFileId = files[0]?.name || '';
+      await prisma.telegramBook.update({
+        where: { id: bookId },
+        data: { setDetails: JSON.stringify(files) }
+      });
+      await syncStorageChannel(book.id);
+      await ctx.answerCbQuery("Turi saqlandi!");
+      await ctx.editMessageText(
+        `✅ <b>'${files[fileIdx].name}'</b> turi o'zgartirildi!`,
+        {
+          parse_mode: 'HTML',
+          ...Markup.inlineKeyboard([[Markup.button.callback("⬅️ Orqaga", `edit_set_file_opts:${book.id}:${fileIdx}`)]])
+        }
+      );
+      return;
+    }
+
+    const parentButtons = mainBooks.map((mb, mIdx) => [
+      Markup.button.callback(`📖 ${mb.name}`, `set_file_parent:${bookId}:${fileIdx}:${files.indexOf(mb)}`)
+    ]);
+    parentButtons.push([Markup.button.callback("⬅️ Orqaga", `edit_set_file_opts:${bookId}:${fileIdx}`)]);
+
+    await ctx.editMessageText(
+      `🔗 <b>'${files[fileIdx].name}' (${newType === 'COVER' ? 'Muqova' : 'Qo\'shimcha'}) qaysi darslikka biriktirilsin?</b>`,
+      { parse_mode: 'HTML', ...Markup.inlineKeyboard(parentButtons) }
+    );
+    await ctx.answerCbQuery();
+  });
+
+  // Set file parent binding callback
+  bot.action(/^set_file_parent:(\d+):(\d+):(\d+)$/, async (ctx) => {
+    const bookId = parseInt(ctx.match[1]);
+    const fileIdx = parseInt(ctx.match[2]);
+    const parentIdx = parseInt(ctx.match[3]);
+
+    const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
+    if (!book || !book.isSet || !book.setDetails) {
+      await ctx.answerCbQuery("Komplekt topilmadi.", { show_alert: true });
+      return;
+    }
+
+    let files: Array<{ name: string; fileId: string; isMain?: boolean; fileType?: string; parentFileId?: string }> = [];
+    try { files = JSON.parse(book.setDetails); } catch (e) {}
+
+    if (!files[fileIdx] || !files[parentIdx]) {
+      await ctx.answerCbQuery("Fayl topilmadi.", { show_alert: true });
+      return;
+    }
+
+    files[fileIdx].parentFileId = files[parentIdx].name;
+
+    await prisma.telegramBook.update({
+      where: { id: bookId },
+      data: { setDetails: JSON.stringify(files) }
+    });
+
+    await syncStorageChannel(book.id);
+
+    await ctx.answerCbQuery("Biriktirildi!");
+    await ctx.editMessageText(
+      `✅ <b>'${files[fileIdx].name}'</b> darslik <b>'${files[parentIdx].name}'</b> ga biriktirildi!`,
+      {
+        parse_mode: 'HTML',
+        ...Markup.inlineKeyboard([[Markup.button.callback("⬅️ Orqaga", `edit_set_file_opts:${book.id}:${fileIdx}`)]])
+      }
+    );
   });
 
   bot.action(/^edit_set_renfile_ask:(\d+):(\d+)$/, async (ctx) => {
@@ -1044,10 +1204,18 @@ export function registerBotHandlers() {
         return;
       }
 
-      let files: Array<{ name: string; fileId: string }> = [];
+      let files: Array<{ name: string; fileId: string; isMain?: boolean; fileType?: string; parentFileId?: string }> = [];
       try { files = JSON.parse(book.setDetails || '[]'); } catch (e) {}
 
-      files.push({ name: text, fileId: pendingFileId });
+      const cleanName = cleanBookName(text);
+      const newFileId = await reuploadFileWithNewName(pendingFileId, cleanName);
+
+      files.push({
+        name: cleanName,
+        fileId: newFileId,
+        isMain: true,
+        fileType: 'MAIN'
+      });
 
       const updated = await prisma.telegramBook.update({
         where: { id: bookId },
@@ -1056,11 +1224,19 @@ export function registerBotHandlers() {
 
       await syncStorageChannel(updated.id);
 
+      const addedFileIdx = files.length - 1;
       await clearSession(ctx.from.id);
+
+      const typeButtons = [
+        [Markup.button.callback("📖 Asosiy Darslik", `set_file_type:${bookId}:${addedFileIdx}:MAIN`)],
+        [Markup.button.callback("🖼 Muqova", `set_file_type:${bookId}:${addedFileIdx}:COVER`)],
+        [Markup.button.callback("📄 Qo'shimcha", `set_file_type:${bookId}:${addedFileIdx}:SUPPLEMENT`)]
+      ];
+
       await ctx.reply(
-        `✅ <b>'${text}'</b> fayli muvaffaqiyatli qo'shildi!\n\n` +
-        `📦 <b>${updated.name}</b> tarkibidagi jami darsliklar: <b>${files.length} ta</b>`,
-        { parse_mode: 'HTML', ...buildPersistentKeyboard() }
+        `✅ <b>'${cleanName}'</b> fayli muvaffaqiyatli qo'shildi!\n\n` +
+        `🏷 <b>Ushbu fayl turini tanlang:</b>`,
+        { parse_mode: 'HTML', ...Markup.inlineKeyboard(typeButtons) }
       );
     }
     // 2. Renaming a specific file inside a Set
