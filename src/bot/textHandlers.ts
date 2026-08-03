@@ -3,7 +3,7 @@ import { clearSession, setSession, getSession } from './session';
 import { buildPersistentKeyboard, buildCategoriesMenu } from './keyboards';
 import { syncStorageChannel, sendSupplierBreakdownList, sendBooksCSV, sendDeleteBooksMenu, sendEditBooksMenu, sendAllBooksMenu } from './helpers';
 import { cleanBookName, reuploadFileWithNewName } from '../routes/books';
-import { STORAGE_CHANNEL_ID } from '../telegram';
+import { getStorageChannelId } from '../telegram';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -271,15 +271,25 @@ export function setupTextHandlers(bot: Telegraf<any>) {
 
       try {
         const tempCaption = `🆔 (saqlanmoqda...)\n📖 Nomi: ${cleanName}\n📂 Kategoriya: ${categoryName}`;
-        const sentMsg = await bot.telegram.sendDocument(STORAGE_CHANNEL_ID, newFileId, {
-          caption: tempCaption
-        });
+        const storageChannelId = getStorageChannelId();
+        let tgMessageId = 0;
+
+        if (storageChannelId) {
+          try {
+            const sentMsg = await bot.telegram.sendDocument(storageChannelId, newFileId, {
+              caption: tempCaption
+            });
+            tgMessageId = sentMsg.message_id;
+          } catch (e: any) {
+            console.warn('[Storage Channel Post Warning]:', e.message);
+          }
+        }
 
         const record = await prisma.telegramBook.create({
           data: {
             name: cleanName,
             tgFileId: newFileId,
-            tgMessageId: sentMsg.message_id,
+            tgMessageId,
             categoryId,
             isSet: false
           }

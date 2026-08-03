@@ -3,6 +3,7 @@ import { clearSession, setSession, getSession } from './session';
 import { buildCategoriesMenu } from './keyboards';
 import { syncStorageChannel, deleteStorageChannelMsg, sendSupplierBreakdownList, sendBooksCSV, sendDeleteBooksMenu, sendEditBooksMenu, sendAllBooksMenu } from './helpers';
 import { cleanBookName } from '../routes/books';
+import { getStorageChannelId } from '../telegram';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -681,15 +682,25 @@ export function setupActions(bot: Telegraf<any>) {
       const fileListStr = files.map((f: any, i: number) => `${i + 1}. ${f.name}`).join('\n');
       const tempCaption = `🆔 (saqlanmoqda...)\n📦 Nomi: ${setTitle}\n📂 Kategoriya: ${category.name}\n\n📚 Tarkibidagi darsliklar (${files.length} ta):\n${fileListStr}`;
       
-      const sentMsg = await bot.telegram.sendDocument(STORAGE_CHANNEL_ID, files[0].fileId, {
-        caption: tempCaption
-      });
+      const storageChannelId = getStorageChannelId();
+      let tgMessageId = 0;
+
+      if (storageChannelId) {
+        try {
+          const sentMsg = await bot.telegram.sendDocument(storageChannelId, files[0].fileId, {
+            caption: tempCaption
+          });
+          tgMessageId = sentMsg.message_id;
+        } catch (e: any) {
+          console.warn('[Storage Channel Post Warning]:', e.message);
+        }
+      }
 
       const record = await prisma.telegramBook.create({
         data: {
           name: setTitle,
           tgFileId: files[0].fileId,
-          tgMessageId: sentMsg.message_id,
+          tgMessageId,
           categoryId,
           isSet: true,
           setDetails: JSON.stringify(files)
