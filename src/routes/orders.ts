@@ -13,6 +13,10 @@ router.get('/backend/orders', async (req, res) => {
   try {
     const orders = await prisma.erpOrder.findMany({
       orderBy: { createdAt: 'desc' },
+      include: {
+        student: true,
+        group: true,
+      }
     });
     res.json(orders.map(o => ({
       id: o.id,
@@ -25,6 +29,13 @@ router.get('/backend/orders', async (req, res) => {
       sotuvNarxi: o.sotuvNarxi,
       comment: o.comment,
       updatedAt: o.updatedAt,
+      createdAt: o.createdAt,
+      student: o.student,
+      group: o.group,
+      studentName: o.student?.fullName || '',
+      groupName: o.group?.groupName || '',
+      teacherName: o.group?.teacherName || '',
+      fulfilledSetDetails: o.fulfilledSetDetails,
     })));
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -146,7 +157,13 @@ router.post('/backend/orders', async (req, res) => {
       });
     }));
 
-    res.status(201).json(created.map(o => ({
+    const createdIds = created.map(c => c.id);
+    const fetchCreated = await prisma.erpOrder.findMany({
+      where: { id: { in: createdIds } },
+      include: { student: true, group: true }
+    });
+
+    res.status(201).json(fetchCreated.map(o => ({
       id: o.id,
       studentId: o.studentId,
       groupId: o.groupId,
@@ -157,6 +174,13 @@ router.post('/backend/orders', async (req, res) => {
       sotuvNarxi: o.sotuvNarxi,
       comment: o.comment,
       updatedAt: o.updatedAt,
+      createdAt: o.createdAt,
+      student: o.student,
+      group: o.group,
+      studentName: o.student?.fullName || '',
+      groupName: o.group?.groupName || '',
+      teacherName: o.group?.teacherName || '',
+      fulfilledSetDetails: o.fulfilledSetDetails,
     })));
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -181,6 +205,10 @@ router.patch('/backend/orders/:id', async (req, res) => {
         ...(bookId     !== undefined && { bookId }),
         updatedAt: today,
       },
+      include: {
+        student: true,
+        group: true,
+      }
     });
 
     res.json({
@@ -194,6 +222,13 @@ router.patch('/backend/orders/:id', async (req, res) => {
       sotuvNarxi: updated.sotuvNarxi,
       comment: updated.comment,
       updatedAt: updated.updatedAt,
+      createdAt: updated.createdAt,
+      student: updated.student,
+      group: updated.group,
+      studentName: updated.student?.fullName || '',
+      groupName: updated.group?.groupName || '',
+      teacherName: updated.group?.teacherName || '',
+      fulfilledSetDetails: updated.fulfilledSetDetails,
     });
   } catch (e: any) {
     res.status(404).json({ error: e.message });
