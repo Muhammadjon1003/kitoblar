@@ -17,6 +17,7 @@ router.get('/backend/students', async (req, res) => {
     res.json(students.map(s => ({
       id: s.id,
       fullName: s.fullName,
+      name: s.fullName,
       phoneNumber: s.phoneNumber,
       groupId: s.groupId,
       groupName: s.group ? s.group.groupName : '—',

@@ -281,8 +281,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ── Computed Helpers ──────────────────────────────────────────────────────────
 
   const getTeacherName    = (id: string) => teachers.find(t => t.id === id)?.name   ?? '—';
-  const getStudentName    = (id: string) => students.find(s => s.id === id)?.name   ?? '—';
-  const getGroupName      = (id: string) => groups.find(g => g.id === id)?.groupName ?? '—';
+
+  const getStudentName = useCallback((id: string) => {
+    const s = students.find(s => s.id === id);
+    if (s && (s.fullName || s.name)) return s.fullName || s.name;
+    const order = orders.find(o => o.studentId === id);
+    if (order && (order as any).studentName) return (order as any).studentName;
+    if (order && (order as any).student?.fullName) return (order as any).student.fullName;
+    return '—';
+  }, [students, orders]);
+
+  const getGroupName = useCallback((id: string) => {
+    const g = groups.find(g => g.id === id);
+    if (g && g.groupName) return g.groupName;
+    const order = orders.find(o => o.groupId === id);
+    if (order && (order as any).groupName) return (order as any).groupName;
+    if (order && (order as any).group?.groupName) return (order as any).group.groupName;
+    return '—';
+  }, [groups, orders]);
   const getInventoryItem  = (id: string) => inventory.find(i => i.id === id);
 
   const getStudentOrders  = (studentId: string) =>
