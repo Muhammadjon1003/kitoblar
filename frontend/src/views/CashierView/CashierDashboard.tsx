@@ -32,18 +32,11 @@ function PipelineView() {
       accentLeft: 'border-l-emerald-600',
       countColor: 'bg-emerald-600 text-white font-bold',
     },
-    {
-      statuses: ['GIVEN'] as OrderStatus[],
-      title: 'Topshirilgan (Yakunlangan)',
-      subtitle: 'Talabalarga topshirilgan kitoblar',
-      accentLeft: 'border-l-purple-600',
-      countColor: 'bg-purple-600 text-white font-bold',
-    },
   ];
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 p-3.5 sm:p-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full items-start">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full items-start">
         {USTUNLAR.map(col => (
           <PipelineColumn key={col.title} {...col} />
         ))}
