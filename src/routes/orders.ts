@@ -187,22 +187,46 @@ router.post('/backend/orders', async (req, res) => {
   }
 });
 
-// PATCH /backend/orders/:id — partial update: status, amountPaid, bookCost, sotuvNarxi, comment, bookId
+// PATCH /backend/orders/:id — partial update: status, amountPaid, amountPaidDelta, bookCost, sotuvNarxi, comment, bookId, isCoursePaid
 router.patch('/backend/orders/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, amountPaid, bookCost, sotuvNarxi, comment, bookId } = req.body;
+    const { status, amountPaid, amountPaidDelta, bookCost, sotuvNarxi, comment, bookId, isCoursePaid } = req.body;
     const today = new Date().toISOString().slice(0, 10);
+
+    const existing = await prisma.erpOrder.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: 'Order not found' });
+
+    let finalAmountPaid = existing.amountPaid;
+    if (amountPaid !== undefined) {
+      finalAmountPaid = Number(amountPaid);
+    } else if (amountPaidDelta !== undefined) {
+      finalAmountPaid = Math.max(0, existing.amountPaid + Number(amountPaidDelta));
+    }
+
+    let finalSotuvNarxi = sotuvNarxi !== undefined ? Number(sotuvNarxi) : existing.sotuvNarxi;
+    if (isCoursePaid) {
+      finalSotuvNarxi = 0;
+    }
+
+    let finalStatus = status !== undefined ? status : existing.status;
+
+    // Automatic state transition: CREATED -> PAID when payment requirement is satisfied
+    if (existing.status === 'CREATED' && status === undefined) {
+      if (finalSotuvNarxi === 0 || finalAmountPaid >= finalSotuvNarxi) {
+        finalStatus = 'PAID';
+      }
+    }
 
     const updated = await prisma.erpOrder.update({
       where: { id },
       data: {
-        ...(status     !== undefined && { status }),
-        ...(amountPaid !== undefined && { amountPaid }),
-        ...(bookCost   !== undefined && { bookCost }),
-        ...(sotuvNarxi !== undefined && { sotuvNarxi }),
+        status: finalStatus,
+        amountPaid: finalAmountPaid,
+        sotuvNarxi: finalSotuvNarxi,
+        ...(bookCost   !== undefined && { bookCost: Number(bookCost) }),
         ...(comment    !== undefined && { comment }),
-        ...(bookId     !== undefined && { bookId }),
+        ...(bookId     !== undefined && { bookId: String(bookId) }),
         updatedAt: today,
       },
       include: {
@@ -231,7 +255,7 @@ router.patch('/backend/orders/:id', async (req, res) => {
       fulfilledSetDetails: updated.fulfilledSetDetails,
     });
   } catch (e: any) {
-    res.status(404).json({ error: e.message });
+    res.status(500).json({ error: e.message });
   }
 });
 

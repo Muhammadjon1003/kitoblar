@@ -38,11 +38,12 @@ export function useOrderMutations(
   /** Cashier collects cash payment for book */
   const collectCash = useCallback(async (orderId: string, amount: number) => {
     if (!checkAuth()) return;
-    setOrders(prev => prev.map(o =>
-      o.id === orderId
-        ? { ...o, amountPaid: o.amountPaid + amount, updatedAt: todayISO() }
-        : o
-    ));
+    setOrders(prev => prev.map(o => {
+      if (o.id !== orderId) return o;
+      const newPaid = o.amountPaid + amount;
+      const newStatus = (o.status === 'CREATED' && (o.sotuvNarxi === 0 || newPaid >= o.sotuvNarxi)) ? 'PAID' : o.status;
+      return { ...o, amountPaid: newPaid, status: newStatus, updatedAt: todayISO() };
+    }));
 
     try {
       const res = await fetch(`${API}/backend/orders/${orderId}`, {
@@ -58,22 +59,22 @@ export function useOrderMutations(
       fireToast(`To'lov saqlashda xatolik: ${err.message}`, 'error');
       await refreshOrders();
     }
-  }, [checkAuth, refreshOrders, fireToast]);
+  }, [checkAuth, setOrders, refreshOrders, fireToast]);
 
   /** Cashier marks course payment as collected */
   const markCoursePayment = useCallback(async (orderId: string) => {
     if (!checkAuth()) return;
-    setOrders(prev => prev.map(o =>
-      o.id === orderId
-        ? { ...o, isCoursePaid: true, updatedAt: todayISO() }
-        : o
-    ));
+    setOrders(prev => prev.map(o => {
+      if (o.id !== orderId) return o;
+      const newStatus = o.status === 'CREATED' ? 'PAID' : o.status;
+      return { ...o, status: newStatus, sotuvNarxi: 0, updatedAt: todayISO() };
+    }));
 
     try {
       const res = await fetch(`${API}/backend/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isCoursePaid: true }),
+        body: JSON.stringify({ status: 'PAID', isCoursePaid: true, sotuvNarxi: 0 }),
       });
 
       if (!res.ok) throw new Error(await res.text());
@@ -83,7 +84,7 @@ export function useOrderMutations(
       fireToast(`To'lov saqlashda xatolik: ${err.message}`, 'error');
       await refreshOrders();
     }
-  }, [checkAuth, refreshOrders, fireToast]);
+  }, [checkAuth, setOrders, refreshOrders, fireToast]);
 
   /** Cancel an order */
   const cancelOrder = useCallback(async (orderId: string, reason?: string) => {
