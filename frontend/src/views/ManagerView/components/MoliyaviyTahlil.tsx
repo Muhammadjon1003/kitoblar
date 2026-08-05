@@ -31,7 +31,7 @@ export default function MoliyaviyTahlil() {
 
   // 4th KPI: Physical books in company hands (Ombordagi kitoblar) & total valuation
   const arrivedOrders = orders.filter(o => o.status === 'ARRIVED');
-  const stockOrders   = orders.filter(o => o.status === 'CANCELLED' || o.status === 'RETURNED');
+  const stockOrders   = orders.filter(o => o.status === 'RETURNED');
   const returnedInvs  = inventory.filter(i => i.isReturned);
 
   const physicalCompanyBooksCount = arrivedOrders.length + stockOrders.length + returnedInvs.length;

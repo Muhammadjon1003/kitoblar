@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { Archive, Send, ChevronDown, Package, XCircle, RotateCcw, CheckCircle2, PlusCircle } from 'lucide-react';
+import { Archive, Send, ChevronDown, Package, RotateCcw, CheckCircle2, PlusCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { EmptyState, TableShell, Th, Td, uzs } from '../../components/ui';
 import TalabadanKitobQaytarishModali from './components/TalabadanKitobQaytarishModali';
@@ -22,7 +22,7 @@ export default function WarehouseInventory() {
     getGroupName,
     getInventoryItem,
     sotuvNarxi,
-    cancelOrder,
+    decoupleBook,
   } = useApp();
 
   const [allocations, setAllocations] = useState<Record<string, string>>({});
@@ -42,7 +42,7 @@ export default function WarehouseInventory() {
     setAllocations(prev => { const next = { ...prev }; delete next[itemKey]; return next; });
   };
 
-  // 1. Books in company hands that can be allocated/re-assigned (Returned, Cancelled, Free stock, Sub-book stock)
+  // 1. Physical unassigned books in warehouse available for allocation
   const allocatableItems: Array<{
     key: string;
     bookId: string;
@@ -94,25 +94,7 @@ export default function WarehouseInventory() {
     });
   });
 
-  // Cancelled orders where a physical book actually arrived or was in transit
-  orders.filter(o => o.status === 'CANCELLED' && !o.comment?.includes("hali buyurtma qilinmagan")).forEach(o => {
-    const inv = getInventoryItem(o.bookId);
-    const studentName = getStudentName(o.studentId);
-    const displayReason = o.comment
-      ? o.comment
-      : `Bekor qilingan buyurtma (${studentName})`;
-
-    allocatableItems.push({
-      key: `ord-cancel-${o.id}`,
-      bookId: o.bookId,
-      title: inv?.title ?? 'Kitob',
-      categoryName: inv?.categoryName,
-      reason: displayReason,
-      badgeColor: 'bg-rose-100 border-rose-200 text-rose-700',
-    });
-  });
-
-  // 2. Comprehensive Company Possession Inventory (All books physically in company hands)
+  // 2. Comprehensive Company Possession Inventory (All physical books at learning center)
   const companyBooksList = [
     ...(warehouseStock || []).filter(ws => ws.quantity > 0).map(ws => ({
       id: `stock-${ws.id}`,
@@ -152,16 +134,6 @@ export default function WarehouseInventory() {
       groupName: getGroupName(o.groupId),
       statusLabel: "Qaytarilgan (Omborda)",
       statusType: 'RETURNED' as const,
-      price: o.sotuvNarxi > 0 ? o.sotuvNarxi : sotuvNarxi,
-    })),
-    ...orders.filter(o => o.status === 'CANCELLED' && !o.comment?.includes("hali buyurtma qilinmagan")).map(o => ({
-      id: o.id,
-      title: getInventoryItem(o.bookId)?.title ?? 'Kitob',
-      categoryName: getInventoryItem(o.bookId)?.categoryName ?? '—',
-      studentName: getStudentName(o.studentId),
-      groupName: getGroupName(o.groupId),
-      statusLabel: "Bekor qilingan (Omborda)",
-      statusType: 'CANCELLED' as const,
       price: o.sotuvNarxi > 0 ? o.sotuvNarxi : sotuvNarxi,
     })),
   ];
@@ -342,10 +314,6 @@ export default function WarehouseInventory() {
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-100 border border-amber-200 text-amber-800 rounded-full text-[10px] font-bold">
                           <Package className="w-3 h-3" /> Kelgan (Topshirilmagan)
                         </span>
-                      ) : item.statusType === 'CANCELLED' ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-rose-100 border border-rose-200 text-rose-700 rounded-full text-[10px] font-bold">
-                          <XCircle className="w-3 h-3" /> Bekor qilingan (Omborda)
-                        </span>
                       ) : item.statusType === 'RETURNED' ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-purple-100 border border-purple-200 text-purple-700 rounded-full text-[10px] font-bold">
                           <RotateCcw className="w-3 h-3" /> Qaytarilgan (Omborda)
@@ -359,7 +327,7 @@ export default function WarehouseInventory() {
                     <Td>
                       {item.statusType === 'ARRIVED' ? (
                         <button
-                          onClick={() => cancelOrder(item.id, 'O\'qituvchi xato buyurtmani ombor zaxirasiga qaytardi')}
+                          onClick={() => decoupleBook(item.id)}
                           className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 font-bold text-[10px] rounded-lg flex items-center gap-1 transition-colors"
                         >
                           <RotateCcw className="w-3 h-3" /> Ombor zaxirasiga o'tkazish

@@ -363,7 +363,7 @@ const handleSendTelegram = async (req: any, res: any) => {
     const autoFulfilled: Array<{ orderId: string; studentName: string; bookName: string }> = [];
     const ordersToSendTelegram: typeof orders = [];
 
-    // Check inventory for matching unassigned physical books (CANCELLED or RETURNED status)
+    // Check inventory for matching unassigned physical books (RETURNED status in warehouse)
     for (const o of orders) {
       const book = bookMap.get(o.bookId);
       const bookName = book?.name || 'Kitob';
@@ -371,7 +371,7 @@ const handleSendTelegram = async (req: any, res: any) => {
       const stockOrder = await prisma.erpOrder.findFirst({
         where: {
           bookId: o.bookId,
-          status: { in: ['CANCELLED', 'RETURNED'] },
+          status: 'RETURNED',
           id: { not: o.id }
         }
       });
