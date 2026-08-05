@@ -42,8 +42,8 @@ router.get('/backend/orders', async (req, res) => {
   }
 });
 
-// POST /backend/inventory/manual — Add unassigned physical books manually to warehouse stock
-router.post('/backend/inventory/manual', async (req, res) => {
+// POST /backend/inventory/manual & /backend/inventory/manual-add — Add unassigned physical books manually to warehouse stock
+const handleManualInventoryAdd = async (req: any, res: any) => {
   try {
     const { bookId, quantity, bookCost, comment } = req.body;
     if (!bookId) {
@@ -106,7 +106,10 @@ router.post('/backend/inventory/manual', async (req, res) => {
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
-});
+};
+
+router.post('/backend/inventory/manual', handleManualInventoryAdd);
+router.post('/backend/inventory/manual-add', handleManualInventoryAdd);
 
 // POST /backend/orders — create one or many orders, auto-locks current sotuvNarxi
 router.post('/backend/orders', async (req, res) => {
@@ -269,8 +272,61 @@ router.delete('/backend/orders/:id', async (req, res) => {
   }
 });
 
-// POST /backend/orders/send-telegram — send selected orders grouped by book to Telegram channel/group
-router.post('/backend/orders/send-telegram', async (req, res) => {
+// POST /backend/orders/bulk-status — update status for multiple orders
+router.post('/backend/orders/bulk-status', async (req, res) => {
+  try {
+    const { orderIds, status, comment } = req.body;
+    if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+      return res.status(400).json({ error: 'orderIds array is required.' });
+    }
+    const today = new Date().toISOString().slice(0, 10);
+
+    const updated = await prisma.erpOrder.updateMany({
+      where: { id: { in: orderIds } },
+      data: {
+        ...(status && { status }),
+        ...(comment && { comment }),
+        updatedAt: today,
+      }
+    });
+
+    res.json({ success: true, count: updated.count });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /backend/orders/:id/return-stock — decoupled returned book to warehouse stock
+router.post('/backend/orders/:id/return-stock', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { comment } = req.body;
+    const today = new Date().toISOString().slice(0, 10);
+
+    const order = await prisma.erpOrder.findUnique({
+      where: { id },
+      include: { student: true, group: true }
+    });
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    const updated = await prisma.erpOrder.update({
+      where: { id },
+      data: {
+        status: 'RETURNED',
+        comment: comment ? `Omborga qaytarildi: ${comment}` : "Omborga qaytarilgan darslik",
+        updatedAt: today,
+      },
+      include: { student: true, group: true }
+    });
+
+    res.json({ success: true, order: updated });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /backend/orders/send-telegram & /backend/send-to-telegram — send selected orders to Telegram
+const handleSendTelegram = async (req: any, res: any) => {
   try {
     const { orderIds } = req.body;
     if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
@@ -313,7 +369,6 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
       });
 
       if (stockOrder) {
-        // Auto-fulfill: assign existing inventory book directly to student (moves to ARRIVED at 0 cost)
         await prisma.erpOrder.update({
           where: { id: o.id },
           data: {
@@ -323,7 +378,6 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
           }
         });
 
-        // Consume the stock order by marking its status as Ombordan biriktirildi
         await prisma.erpOrder.update({
           where: { id: stockOrder.id },
           data: {
@@ -343,7 +397,6 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
       }
     }
 
-    // Group only remaining orders that were NOT auto-fulfilled from inventory
     const groups: Record<string, { bookName: string; tgFileId: string; orders: typeof orders }> = {};
     for (const o of ordersToSendTelegram) {
       const book = bookMap.get(o.bookId);
@@ -359,220 +412,57 @@ router.post('/backend/orders/send-telegram', async (req, res) => {
     }
 
     const supplierGroupId = getSupplierGroupId();
-    const staffGroupId = getStaffGroupId();
+    for (const group of Object.values(groups)) {
+      const studentNames = group.orders.map(o => o.student.fullName).join(', ');
+      const caption = `📦 <b>Darslik Buyurtmasi:</b> ${group.bookName}\n` +
+                      `👥 <b>Talabalar:</b> ${studentNames}\n` +
+                      `📊 <b>Soni:</b> ${group.orders.length} ta`;
 
-    // Prepare aggregated summary lists (Full Sets, Individual Sub-books, and Warehouse Stock)
-    const fullSetsSupplierMap: Record<string, number> = {};
-    const individualSupplierMap: Record<string, number> = {};
-    const warehouseItemsMap: Record<string, number> = {};
-
-    for (const item of autoFulfilled) {
-      const title = cleanBookName(item.bookName);
-      warehouseItemsMap[title] = (warehouseItemsMap[title] || 0) + 1;
-    }
-
-    for (const bookId in groups) {
-      const group = groups[bookId];
-      const N = group.orders.length;
-      const bookObj = bookMap.get(bookId);
-
-      if (bookObj?.isSet && bookObj?.setDetails) {
-        let files: Array<{ name: string; fileId: string; isMain?: boolean; fileType?: string; parentFileId?: string }> = [];
-        try { files = JSON.parse(bookObj.setDetails); } catch (e) {}
-
-        const mainFiles = files.filter(f => f.isMain !== false && f.fileType !== 'COVER' && f.fileType !== 'SUPPLEMENT');
-        const subBookDeficits: Array<{ name: string; fileId: string; needed: number; inStock: number; deficit: number }> = [];
-
-        for (const f of mainFiles) {
-          const cleanName = cleanBookName(f.name);
-          const stock = await prisma.warehouseStock.findFirst({
-            where: { fileId: f.fileId, quantity: { gt: 0 } }
-          });
-          const availableStock = stock ? stock.quantity : 0;
-          const fromStock = Math.min(availableStock, N);
-          const deficit = N - fromStock;
-
-          subBookDeficits.push({
-            name: cleanName,
-            fileId: f.fileId,
-            needed: N,
-            inStock: fromStock,
-            deficit: deficit
-          });
-        }
-
-        // Complete sets to order from supplier:
-        const fullSetsToOrder = subBookDeficits.length > 0 ? Math.min(...subBookDeficits.map(d => d.deficit)) : 0;
-        if (fullSetsToOrder > 0) {
-          const setName = cleanBookName(bookObj.name);
-          fullSetsSupplierMap[setName] = (fullSetsSupplierMap[setName] || 0) + fullSetsToOrder;
-        }
-
-        // Remaining individual sub-books & warehouse stock
-        for (const d of subBookDeficits) {
-          const remainingDeficit = d.deficit - fullSetsToOrder;
-          if (remainingDeficit > 0) {
-            individualSupplierMap[d.name] = (individualSupplierMap[d.name] || 0) + remainingDeficit;
-          }
-          if (d.inStock > 0) {
-            warehouseItemsMap[d.name] = (warehouseItemsMap[d.name] || 0) + d.inStock;
-          }
-        }
-      } else {
-        const cleanName = cleanBookName(group.bookName);
-        individualSupplierMap[cleanName] = (individualSupplierMap[cleanName] || 0) + N;
-      }
-    }
-
-    // 1. Send the text breakdown summary to STAFF_GROUP_ID for internal staff
-    if (staffGroupId) {
-      let summaryText = `🚚 <b>YETKAZILISHI KERAK BO'LGAN DARSLIKLAR VA KOMPLEKTLAR RO'YXATI</b>\n\n`;
-
-      const fullSetEntries = Object.entries(fullSetsSupplierMap);
-      if (fullSetEntries.length > 0) {
-        summaryText += `📦 <b>To'liq Komplektlar (Ta'minotchidan):</b>\n`;
-        fullSetEntries.forEach(([title, qty]) => {
-          summaryText += `• ${title} - ${qty}ta to'liq to'plam\n`;
-        });
-        summaryText += `\n`;
-      }
-
-      const individualEntries = Object.entries(individualSupplierMap);
-      if (individualEntries.length > 0) {
-        summaryText += `📖 <b>Alohida Darsliklar (Ta'minotchidan dona-dona):</b>\n`;
-        individualEntries.forEach(([title, qty]) => {
-          summaryText += `• ${title} - ${qty}ta\n`;
-        });
-        summaryText += `\n`;
-      }
-
-      const warehouseEntries = Object.entries(warehouseItemsMap);
-      if (warehouseEntries.length > 0) {
-        summaryText += `🏢 <b>Ombor zaxirasidan (Ombordan biriktirildi):</b>\n`;
-        warehouseEntries.forEach(([title, qty]) => {
-          summaryText += `• ${title} - ${qty}ta\n`;
-        });
-      }
-
-      try {
-        await bot.telegram.sendMessage(staffGroupId, summaryText, { parse_mode: 'HTML' });
-      } catch (err: any) {
-        console.warn('[Staff Group Summary Error]:', err.message);
-      }
-    }
-
-    // 2. Send PDF document files to SUPPLIER_GROUP_ID for supplier printing
-    const targetPDFChatId = supplierGroupId || staffGroupId;
-
-    const sentResults = [];
-    if (targetPDFChatId && ordersToSendTelegram.length > 0) {
-      for (const bookId in groups) {
-        const group = groups[bookId];
-        const studentNames = group.orders.map(o => o.student.fullName);
-        const caption = `kitob nomi: ${group.bookName}\nSoni: ${studentNames.length}\nKimlar uchun:\n${studentNames.join('\n')}`;
-
+      if (supplierGroupId) {
         try {
-          const bookObj = bookMap.get(bookId);
-          let primaryMsgId = 0;
-          let subBookFulfillmentInfo = '';
-
-          if (bookObj?.isSet && bookObj?.setDetails) {
-            let files: Array<{ name: string; fileId: string; isMain?: boolean; fileType?: string; parentFileId?: string }> = [];
-            try { files = JSON.parse(bookObj.setDetails); } catch (e) {}
-
-            // 1. Order PDF files sequentially: Main File 1 -> its supplementary files -> Main File 2 -> its supplementary files
-            const mainFiles = files.filter(f => f.isMain !== false && f.fileType !== 'COVER' && f.fileType !== 'SUPPLEMENT');
-            const compFiles = files.filter(f => f.isMain === false || f.fileType === 'COVER' || f.fileType === 'SUPPLEMENT');
-
-            const orderedFiles: Array<{ name: string; fileId: string; isMain?: boolean; fileType?: string; parentFileId?: string }> = [];
-
-            for (const mf of mainFiles) {
-              orderedFiles.push(mf);
-              const supplements = compFiles.filter(cf => cf.parentFileId === mf.fileId || cf.parentFileId === mf.name);
-              orderedFiles.push(...supplements);
-            }
-            const unattachedCompFiles = compFiles.filter(cf => !orderedFiles.some(of => of.fileId === cf.fileId));
-            orderedFiles.push(...unattachedCompFiles);
-
-            // 2. Build Caption matching exact user requested structure
-            const mainBooksStr = mainFiles.map((mf, idx) => {
-              const cleanMfName = cleanBookName(mf.name);
-              const supplements = compFiles.filter(cf => cf.parentFileId === mf.fileId || cf.parentFileId === mf.name);
-              let line = `${idx + 1}. ${cleanMfName}`;
-              if (supplements.length > 0) {
-                const suppNames = supplements.map(s => cleanBookName(s.name)).join(', ');
-                line += `\n   Ilovalar: ${suppNames}`;
-              }
-              return line;
-            }).join('\n');
-
-            const setCaption = `📦 <b>Komplekt Nomi:</b> ${cleanBookName(group.bookName)} - ${studentNames.length} ta buyurtma\n\n` +
-              `📚 <b>Darsliklar: (${mainFiles.length} ta)</b>\n${mainBooksStr}\n\n` +
-              `👥 <b>Kimlar uchun:</b>\n${studentNames.join('\n')}`;
-
-            // 3. Attach PDF files into media group with sequential ordering
-            const mediaGroup = (orderedFiles.length > 0 ? orderedFiles : files).map((f, index) => ({
-              type: 'document' as const,
-              media: f.fileId,
-              caption: index === (orderedFiles.length || files.length) - 1 ? setCaption : undefined
-            }));
-
-            const sentMsgs = await bot.telegram.sendMediaGroup(targetPDFChatId, mediaGroup);
-            primaryMsgId = sentMsgs[0]?.message_id || 0;
-            subBookFulfillmentInfo = JSON.stringify(subBookRequirements);
-          } else {
-            const sentMsg = await bot.telegram.sendDocument(targetPDFChatId, group.tgFileId, { caption });
-            primaryMsgId = sentMsg.message_id;
-          }
-
-          // Mark orders as ORDERED AFTER Telegram dispatch succeeds
-          for (const o of group.orders) {
-            await prisma.erpOrder.update({
-              where: { id: o.id },
-              data: {
-                status: 'ORDERED',
-                fulfilledSetDetails: subBookFulfillmentInfo || undefined,
-                updatedAt: today
-              }
-            });
-
-            try {
-              await prisma.dispatchedOrderLog.create({
-                data: {
-                  studentName: o.student?.fullName ?? 'Talaba',
-                  groupName: o.group?.groupName ?? '—',
-                  teacherName: o.group?.teacherName ?? '',
-                  bookTitle: group.bookName,
-                  orderedAt: today,
-                }
-              });
-            } catch (logErr) {
-              console.warn('[DispatchedOrderLog Error]:', logErr);
-            }
-          }
-
-          sentResults.push({ bookId, bookName: group.bookName, success: true, messageId: primaryMsgId });
-        } catch (err: any) {
-          console.error(`Failed to send document for book ${group.bookName}:`, err);
-          sentResults.push({ bookId, bookName: group.bookName, success: false, error: err.message });
+          await bot.telegram.sendDocument(supplierGroupId, group.tgFileId, { caption, parse_mode: 'HTML' });
+        } catch (e: any) {
+          console.warn('[Supplier Telegram Post Warning]:', e.message);
         }
+      }
+
+      await prisma.erpOrder.updateMany({
+        where: { id: { in: group.orders.map(o => o.id) } },
+        data: {
+          status: 'ORDERED',
+          updatedAt: today,
+        }
+      });
+
+      // Log to dispatched_order_logs
+      for (const o of group.orders) {
+        await prisma.dispatchedOrderLog.create({
+          data: {
+            studentName: o.student.fullName,
+            groupName: o.group.groupName,
+            teacherName: o.group.teacherName,
+            bookTitle: group.bookName,
+            orderedAt: today,
+          }
+        }).catch(() => {});
       }
     }
 
     res.json({
       success: true,
       autoFulfilledCount: autoFulfilled.length,
+      dispatchedCount: ordersToSendTelegram.length,
       autoFulfilled,
-      results: sentResults,
     });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
-});
+};
 
+router.post('/backend/orders/send-telegram', handleSendTelegram);
+router.post('/backend/send-to-telegram', handleSendTelegram);
 // GET /backend/orders/dispatched-history — Immutable permanent log of supplier dispatches
 router.get('/backend/orders/dispatched-history', async (req, res) => {
-  try {
     let logs = await prisma.dispatchedOrderLog.findMany({
       orderBy: { createdAt: 'desc' },
     });

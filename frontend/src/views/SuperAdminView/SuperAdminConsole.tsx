@@ -20,17 +20,30 @@ const STATUS_LIST = [
   'Ombordan biriktirildi',
 ];
 
-export default function SuperAdminConsole() {
-  const { orders, updateOrderAdmin, deleteOrderAdmin, refreshOrders, getStudentName, getGroupName, getInventoryItem, fireToast } = useApp();
+import { API } from '../../context/contextHelpers';
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL');
-  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
-  const [editStatus, setEditStatus] = useState<string>('');
-  const [editCost, setEditCost] = useState<string>('');
-  const [editPrice, setEditPrice] = useState<string>('');
+export default function SuperAdminConsole() {
+  const {
+    orders,
+    getStudentName,
+    getGroupName,
+    getInventoryItem,
+    updateOrderAdmin,
+    deleteOrderAdmin,
+    refreshOrders,
+    fireToast,
+  } = useApp();
+
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery]                   = useState<string>('');
+  const [editingOrderId, setEditingOrderId]             = useState<string | null>(null);
+
+  // Edit fields
+  const [editStatus, setEditStatus]   = useState<string>('CREATED');
+  const [editCost, setEditCost]       = useState<string>('0');
+  const [editPrice, setEditPrice]     = useState<string>('0');
   const [editComment, setEditComment] = useState<string>('');
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSaving, setIsSaving]       = useState<boolean>(false);
 
   const [envInfo, setEnvInfo] = useState<{ envStaffGroupId: string; activeStaffGroupId: string }>({
     envStaffGroupId: '',
@@ -38,7 +51,7 @@ export default function SuperAdminConsole() {
   });
 
   useEffect(() => {
-    fetch('/backend/settings')
+    fetch(`${API}/backend/settings`)
       .then(res => res.json())
       .then(data => {
         setEnvInfo({
@@ -99,7 +112,7 @@ export default function SuperAdminConsole() {
 
   const handleTestStaffGroup = async () => {
     try {
-      const res = await fetch('/backend/system/test-staff-group', { method: 'POST' });
+      const res = await fetch(`${API}/backend/system/test-staff-group`, { method: 'POST' });
       const data = await res.json();
       if (res.ok) {
         fireToast(`✅ ${data.text} (Chat: ${data.chatId})`, 'success');

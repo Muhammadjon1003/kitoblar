@@ -17,6 +17,8 @@ interface DispatchedLog {
   createdAt: string;
 }
 
+import { API } from '../../context/contextHelpers';
+
 export default function SupplierOrderHistory() {
   const [logs, setLogs]             = useState<DispatchedLog[]>([]);
   const [loading, setLoading]       = useState<boolean>(true);
@@ -27,7 +29,7 @@ export default function SupplierOrderHistory() {
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/backend/orders/dispatched-history');
+      const res = await fetch(`${API}/backend/orders/dispatched-history`);
       if (res.ok) {
         const data = await res.json();
         setLogs(data);
