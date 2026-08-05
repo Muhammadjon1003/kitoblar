@@ -411,7 +411,66 @@ const handleSendTelegram = async (req: any, res: any) => {
       groups[o.bookId].orders.push(o);
     }
 
-    const supplierGroupId = getSupplierGroupId();
+    const staffTargetGroupId = getStaffGroupId() || getSupplierGroupId();
+    if (staffTargetGroupId) {
+      let summaryText = `🚚 <b>YETKAZILISHI KERAK BO'LGAN DARSLIKLAR VA KOMPLEKTLAR RO'YXATI</b>\n\n`;
+
+      const fullSetsSupplierMap: Record<string, number> = {};
+      const individualSupplierMap: Record<string, number> = {};
+      const warehouseItemsMap: Record<string, number> = {};
+
+      for (const item of autoFulfilled) {
+        const title = cleanBookName(item.bookName);
+        warehouseItemsMap[title] = (warehouseItemsMap[title] || 0) + 1;
+      }
+
+      for (const [bookId, group] of Object.entries(groups)) {
+        const N = group.orders.length;
+        const bookObj = bookMap.get(bookId);
+
+        if (bookObj?.isSet && bookObj?.setDetails) {
+          const setName = cleanBookName(bookObj.name);
+          fullSetsSupplierMap[setName] = (fullSetsSupplierMap[setName] || 0) + N;
+        } else {
+          const cleanName = cleanBookName(group.bookName);
+          individualSupplierMap[cleanName] = (individualSupplierMap[cleanName] || 0) + N;
+        }
+      }
+
+      const fullSetEntries = Object.entries(fullSetsSupplierMap);
+      if (fullSetEntries.length > 0) {
+        summaryText += `📦 <b>To'liq Komplektlar (Ta'minotchidan):</b>\n`;
+        fullSetEntries.forEach(([title, qty]) => {
+          summaryText += `• ${title} - ${qty} ta to'liq to'plam\n`;
+        });
+        summaryText += `\n`;
+      }
+
+      const individualEntries = Object.entries(individualSupplierMap);
+      if (individualEntries.length > 0) {
+        summaryText += `📖 <b>Alohida Darsliklar (Ta'minotchidan):</b>\n`;
+        individualEntries.forEach(([title, qty]) => {
+          summaryText += `• ${title} - ${qty} ta\n`;
+        });
+        summaryText += `\n`;
+      }
+
+      const warehouseEntries = Object.entries(warehouseItemsMap);
+      if (warehouseEntries.length > 0) {
+        summaryText += `🏢 <b>Ombor zaxirasidan biriktirilgan:</b>\n`;
+        warehouseEntries.forEach(([title, qty]) => {
+          summaryText += `• ${title} - ${qty} ta\n`;
+        });
+      }
+
+      try {
+        await bot.telegram.sendMessage(staffTargetGroupId, summaryText, { parse_mode: 'HTML' });
+      } catch (err: any) {
+        console.warn('[Staff Group Summary Warning]:', err.message);
+      }
+    }
+
+    const supplierGroupId = getSupplierGroupId() || getStaffGroupId();
     const sentResults = [];
 
     for (const [bookId, group] of Object.entries(groups)) {
