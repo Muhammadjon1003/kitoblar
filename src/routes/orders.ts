@@ -1,9 +1,17 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { prisma } from '../prisma';
-import { bot, uploadToTelegramChannel, getStaffGroupId, getSupplierGroupId } from '../telegram';
+import { bot, uploadToTelegramChannel, getStaffGroupId, getSupplierGroupId, formatChatId } from '../telegram';
 import { createSmartOrder } from '../orderService';
 import { cleanBookName } from './books';
+
+function escapeHtml(str: string): string {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -411,9 +419,14 @@ const handleSendTelegram = async (req: any, res: any) => {
       groups[o.bookId].orders.push(o);
     }
 
-    const staffTargetGroupId = getStaffGroupId() || getSupplierGroupId();
+    const dbSettings = await prisma.erpSettings.findUnique({ where: { id: 'global' } }).catch(() => null);
+    const dbStaffGroupId = dbSettings?.staffGroupId ? formatChatId(dbSettings.staffGroupId) : '';
+    const staffTargetGroupId = dbStaffGroupId || getStaffGroupId() || getSupplierGroupId();
+    const supplierGroupId   = dbStaffGroupId || getSupplierGroupId() || getStaffGroupId();
+
     if (staffTargetGroupId) {
       let summaryText = `🚚 <b>YETKAZILISHI KERAK BO'LGAN DARSLIKLAR VA KOMPLEKTLAR RO'YXATI</b>\n\n`;
+      let plainSummaryText = `🚚 YETKAZILISHI KERAK BO'LGAN DARSLIKLAR VA KOMPLEKTLAR RO'YXATI\n\n`;
 
       const fullSetsSupplierMap: Record<string, number> = {};
       const individualSupplierMap: Record<string, number> = {};
@@ -440,37 +453,46 @@ const handleSendTelegram = async (req: any, res: any) => {
       const fullSetEntries = Object.entries(fullSetsSupplierMap);
       if (fullSetEntries.length > 0) {
         summaryText += `📦 <b>To'liq Komplektlar (Ta'minotchidan):</b>\n`;
+        plainSummaryText += `📦 To'liq Komplektlar (Ta'minotchidan):\n`;
         fullSetEntries.forEach(([title, qty]) => {
-          summaryText += `• ${title} - ${qty} ta to'liq to'plam\n`;
+          summaryText += `• ${escapeHtml(title)} - ${qty} ta to'liq to'plam\n`;
+          plainSummaryText += `• ${title} - ${qty} ta to'liq to'plam\n`;
         });
         summaryText += `\n`;
+        plainSummaryText += `\n`;
       }
 
       const individualEntries = Object.entries(individualSupplierMap);
       if (individualEntries.length > 0) {
         summaryText += `📖 <b>Alohida Darsliklar (Ta'minotchidan):</b>\n`;
+        plainSummaryText += `📖 Alohida Darsliklar (Ta'minotchidan):\n`;
         individualEntries.forEach(([title, qty]) => {
-          summaryText += `• ${title} - ${qty} ta\n`;
+          summaryText += `• ${escapeHtml(title)} - ${qty} ta\n`;
+          plainSummaryText += `• ${title} - ${qty} ta\n`;
         });
         summaryText += `\n`;
+        plainSummaryText += `\n`;
       }
 
       const warehouseEntries = Object.entries(warehouseItemsMap);
       if (warehouseEntries.length > 0) {
         summaryText += `🏢 <b>Ombor zaxirasidan biriktirilgan:</b>\n`;
+        plainSummaryText += `🏢 Ombor zaxirasidan biriktirilgan:\n`;
         warehouseEntries.forEach(([title, qty]) => {
-          summaryText += `• ${title} - ${qty} ta\n`;
+          summaryText += `• ${escapeHtml(title)} - ${qty} ta\n`;
+          plainSummaryText += `• ${title} - ${qty} ta\n`;
         });
       }
 
       try {
         await bot.telegram.sendMessage(staffTargetGroupId, summaryText, { parse_mode: 'HTML' });
       } catch (err: any) {
-        console.warn('[Staff Group Summary Warning]:', err.message);
+        console.warn('[Staff Group Summary HTML Error, retrying plain text]:', err.message);
+        await bot.telegram.sendMessage(staffTargetGroupId, plainSummaryText).catch(e => {
+          console.error('[Staff Group Summary Fatal Error]:', e.message);
+        });
       }
     }
-
-    const supplierGroupId = getSupplierGroupId() || getStaffGroupId();
     const sentResults = [];
 
     for (const [bookId, group] of Object.entries(groups)) {
