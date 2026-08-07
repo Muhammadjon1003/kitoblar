@@ -149,4 +149,41 @@ router.post('/backend/warehouse-stock/add', async (req, res) => {
   }
 });
 
+// POST /backend/warehouse-stock/remove — Delete/write off damaged physical books from warehouse stock
+router.post('/backend/warehouse-stock/remove', async (req, res) => {
+  try {
+    const { stockId, quantity, reason } = req.body;
+    if (!stockId) {
+      return res.status(400).json({ error: "stockId parametr kiritilishi shart." });
+    }
+
+    const qtyToRemove = Math.max(1, parseInt(String(quantity || 1)));
+    const stock = await prisma.warehouseStock.findUnique({
+      where: { id: parseInt(String(stockId)) }
+    });
+
+    if (!stock) {
+      return res.status(404).json({ error: "Ombor zaxirasi topilmadi." });
+    }
+
+    const newQty = Math.max(0, stock.quantity - qtyToRemove);
+    if (newQty === 0) {
+      await prisma.warehouseStock.delete({ where: { id: stock.id } });
+    } else {
+      await prisma.warehouseStock.update({
+        where: { id: stock.id },
+        data: { quantity: newQty }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `"${stock.title}" kitobidan ${qtyToRemove} ta yaroqsiz deb ombordan o'chirildi.`,
+      newQuantity: newQty,
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;

@@ -77,6 +77,7 @@ interface AppContextType {
   sendToTelegram: (orderIds: string[]) => Promise<boolean>;
   returnOrderWithStock: (orderId: string, returnedFileIds?: string[], comment?: string) => Promise<boolean>;
   addWarehouseStockItem: (payload: { bookId: string; selectedFileIds?: string[]; quantity?: number; bookCost?: number; comment?: string }) => Promise<boolean>;
+  removeWarehouseStockItem: (stockId: number, quantity?: number, reason?: string) => Promise<boolean>;
   deleteOrderAdmin: (orderId: string) => Promise<boolean>;
 
   sotuvNarxi: number;

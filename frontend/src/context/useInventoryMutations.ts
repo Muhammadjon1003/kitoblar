@@ -171,6 +171,26 @@ export function useInventoryMutations(
     }
   }, [checkAuth, refreshWarehouseStock, fireToast]);
 
+  /** Delete/write off damaged physical warehouse stock item */
+  const removeWarehouseStockItem = useCallback(async (stockId: number, quantity = 1, reason?: string): Promise<boolean> => {
+    if (!checkAuth()) return false;
+    try {
+      const res = await fetch(`${API}/backend/warehouse-stock/remove`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stockId, quantity, reason }),
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+      await refreshWarehouseStock();
+      fireToast(reason || "Yaroqsiz darslik ombor zaxirasidan o'chirildi.", 'info');
+      return true;
+    } catch (err: any) {
+      fireToast(`O'chirishda xatolik: ${err.message}`, 'error');
+      return false;
+    }
+  }, [checkAuth, refreshWarehouseStock, fireToast]);
+
   return {
     addManualInventoryStock,
     allocateFromWarehouse,
@@ -178,5 +198,6 @@ export function useInventoryMutations(
     updateBookPrice,
     updateBookDetails,
     addWarehouseStockItem,
+    removeWarehouseStockItem,
   };
 }

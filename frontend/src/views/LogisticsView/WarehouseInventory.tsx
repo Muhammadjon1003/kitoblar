@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { Archive, Send, ChevronDown, Package, RotateCcw, CheckCircle2, PlusCircle } from 'lucide-react';
+import { Archive, Send, ChevronDown, Package, RotateCcw, CheckCircle2, PlusCircle, Trash2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { EmptyState, TableShell, Th, Td, uzs } from '../../components/ui';
 import TalabadanKitobQaytarishModali from './components/TalabadanKitobQaytarishModali';
@@ -23,6 +23,8 @@ export default function WarehouseInventory() {
     getInventoryItem,
     sotuvNarxi,
     decoupleBook,
+    removeWarehouseStockItem,
+    deleteOrderAdmin,
   } = useApp();
 
   const [allocations, setAllocations] = useState<Record<string, string>>({});
@@ -42,6 +44,19 @@ export default function WarehouseInventory() {
     setAllocations(prev => { const next = { ...prev }; delete next[itemKey]; return next; });
   };
 
+  /** Delete / write off damaged physical book from warehouse */
+  const handleDeleteDamagedBook = async (title: string, rawStockId?: number, rawOrderId?: string) => {
+    if (!window.confirm(`Rostdan ham "${title}" darsligini yaroqsiz/yomon holatda deb hisobdan chiqarib, ombordan O'CHIRMOQCHIMISIZ?\n\n(Bu darslik yaroqsiz deb o'chiriladi va ortga qaytarib bo'lmaydi!)`)) {
+      return;
+    }
+
+    if (rawStockId) {
+      await removeWarehouseStockItem(rawStockId, 1, `"${title}" darsligi yaroqsiz/yomon holati sababli ombordan o'chirildi`);
+    } else if (rawOrderId) {
+      await deleteOrderAdmin(rawOrderId);
+    }
+  };
+
   // 1. Physical unassigned books in warehouse available for allocation
   const allocatableItems: Array<{
     key: string;
@@ -50,6 +65,8 @@ export default function WarehouseInventory() {
     categoryName?: string;
     reason: string;
     badgeColor: string;
+    rawStockId?: number;
+    rawOrderId?: string;
   }> = [];
 
   // Individual physical sub-books / books in warehouse (warehouse_stock table)
@@ -61,6 +78,7 @@ export default function WarehouseInventory() {
       categoryName: 'Darslik Zaxirasi',
       reason: `Jismoniy Ombor Zaxirasi (${ws.quantity} ta darslik)`,
       badgeColor: 'bg-emerald-100 border-emerald-300 text-emerald-800 font-bold',
+      rawStockId: ws.id,
     });
   });
 
@@ -91,6 +109,7 @@ export default function WarehouseInventory() {
       categoryName: inv?.categoryName,
       reason: displayReason,
       badgeColor: 'bg-purple-100 border-purple-200 text-purple-700',
+      rawOrderId: o.id,
     });
   });
 
@@ -105,6 +124,8 @@ export default function WarehouseInventory() {
       statusLabel: `Ombor Zaxirasi (${ws.quantity} ta)`,
       statusType: 'STOCK' as const,
       price: sotuvNarxi,
+      rawStockId: ws.id,
+      rawOrderId: undefined,
     })),
     ...orders.filter(o => o.status === 'ARRIVED').map(o => ({
       id: o.id,
@@ -115,6 +136,8 @@ export default function WarehouseInventory() {
       statusLabel: "Kelgan (Topshirilmagan)",
       statusType: 'ARRIVED' as const,
       price: o.sotuvNarxi > 0 ? o.sotuvNarxi : sotuvNarxi,
+      rawStockId: undefined,
+      rawOrderId: o.id,
     })),
     ...inventory.filter(inv => inv.isReturned).map(inv => ({
       id: `inv-${inv.id}`,
@@ -125,6 +148,8 @@ export default function WarehouseInventory() {
       statusLabel: "Ombor inventari (Qaytarilgan)",
       statusType: 'STOCK' as const,
       price: sotuvNarxi,
+      rawStockId: undefined,
+      rawOrderId: undefined,
     })),
     ...orders.filter(o => o.status === 'RETURNED').map(o => ({
       id: o.id,
@@ -135,6 +160,8 @@ export default function WarehouseInventory() {
       statusLabel: "Qaytarilgan (Omborda)",
       statusType: 'RETURNED' as const,
       price: o.sotuvNarxi > 0 ? o.sotuvNarxi : sotuvNarxi,
+      rawStockId: undefined,
+      rawOrderId: o.id,
     })),
   ];
 
@@ -170,7 +197,7 @@ export default function WarehouseInventory() {
         </div>
       </div>
 
-      {/* ── Section 1: Biriktiriladigan kitoblar (Returned, Cancelled, Free Stock) ── */}
+      {/* ── Section 1: Biriktiriladigan kitoblar (Returned, Free Stock) ── */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 bg-slate-100/60 border-b border-slate-200 gap-2">
           <div>
@@ -179,7 +206,7 @@ export default function WarehouseInventory() {
               Talabalarga Biriktirilishi Mumkin Bo'lgan Kitoblar
             </p>
             <p className="text-[11px] font-semibold text-slate-600 mt-0.5">
-              Bekor qilingan buyurtmalar va omborga qaytarilgan darsliklar — yangi talabaga biriktirilsa, darhol Keldi holatiga o'tadi.
+              Omborga qaytarilgan darsliklar — yangi talabaga biriktirilsa, darhol Keldi holatiga o'tadi. Yaroqsiz darsliklarni o'chirish mumkin.
             </p>
           </div>
           <span className="text-xs font-bold px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl shadow-2xs self-start sm:self-auto shrink-0">
@@ -218,11 +245,11 @@ export default function WarehouseInventory() {
                     </div>
                   </div>
 
-                  {/* Talaba tanlash + biriktirish */}
-                  <div className="flex items-center gap-3 shrink-0">
+                  {/* Talaba tanlash + biriktirish + yaroqsiz deb o'chirish */}
+                  <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
                     <div className="relative">
                       <select
-                        className="sb-input appearance-none pr-8 text-xs min-w-[220px] bg-white border-slate-300 rounded-xl font-medium"
+                        className="sb-input appearance-none pr-8 text-xs min-w-[200px] bg-white border-slate-300 rounded-xl font-medium"
                         value={selectedStudentId}
                         onChange={e => setAllocation(item.key, e.target.value)}
                       >
@@ -244,12 +271,23 @@ export default function WarehouseInventory() {
                     <button
                       onClick={() => handleAllocate(item.bookId, item.key)}
                       disabled={!selectedStudentId}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold sb-btn-primary disabled:opacity-40 whitespace-nowrap shadow-sm"
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold sb-btn-primary disabled:opacity-40 whitespace-nowrap shadow-sm"
                     >
                       <Send className="w-3.5 h-3.5" />
                       Biriktirish
                       {selectedStudent && ` → ${selectedStudent.name.split(' ')[0]}`}
                     </button>
+
+                    {(item.rawStockId || item.rawOrderId) && (
+                      <button
+                        onClick={() => handleDeleteDamagedBook(item.title, item.rawStockId, item.rawOrderId)}
+                        title="Yaroqsiz/yomon holatda bo'lgani uchun ombordan o'chirish"
+                        className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 transition-colors shadow-2xs"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="hidden lg:inline">Yaroqsiz deb o'chirish</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -264,7 +302,7 @@ export default function WarehouseInventory() {
           <div>
             <p className="text-sm font-bold text-slate-800">Kompaniya Qo'lidagi Barcha Jismoniy Kitoblar Ro'yxati</p>
             <p className="text-[11px] font-semibold text-slate-600 mt-0.5">
-              Markazga kelgan, hali topshirilmagan, bekor qilingan va omborda turgan barcha kitoblar statistikasi.
+              Markazga kelgan, hali topshirilmagan va omborda turgan barcha kitoblar statistikasi. Yaroqsizlarini o'chirish mumkin.
             </p>
           </div>
           <span className="text-xs font-bold px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-800 rounded-xl shadow-2xs self-start sm:self-auto shrink-0">
@@ -325,18 +363,31 @@ export default function WarehouseInventory() {
                       )}
                     </Td>
                     <Td>
-                      {item.statusType === 'ARRIVED' ? (
-                        <button
-                          onClick={() => decoupleBook(item.id)}
-                          className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 font-bold text-[10px] rounded-lg flex items-center gap-1 transition-colors"
-                        >
-                          <RotateCcw className="w-3 h-3" /> Ombor zaxirasiga o'tkazish
-                        </button>
-                      ) : (
-                        <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Bo'sh zaxirada
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {item.statusType === 'ARRIVED' ? (
+                          <button
+                            onClick={() => decoupleBook(item.id)}
+                            className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 font-bold text-[10px] rounded-lg flex items-center gap-1 transition-colors"
+                          >
+                            <RotateCcw className="w-3 h-3" /> Ombor zaxirasiga o'tkazish
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Bo'sh zaxirada
+                          </span>
+                        )}
+
+                        {(item.rawStockId || item.rawOrderId) && (
+                          <button
+                            onClick={() => handleDeleteDamagedBook(item.title, item.rawStockId, item.rawOrderId)}
+                            title="Yaroqsiz/yomon holatda bo'lgani uchun ombordan o'chirish"
+                            className="px-2 py-1 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold text-[10px] rounded-lg flex items-center gap-1 transition-colors"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>Yaroqsiz deb o'chirish</span>
+                          </button>
+                        )}
+                      </div>
                     </Td>
                   </tr>
                 ))}
