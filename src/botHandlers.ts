@@ -16,7 +16,18 @@ export function registerBotHandlers() {
   if (handlersRegistered) return;
   handlersRegistered = true;
 
-  // Middleware: Global Whitelist Access Control
+  // Middleware 1: Ignore ALL incoming updates from Groups, Supergroups, and Channels.
+  // The bot MUST ONLY interact in private 1-on-1 chats (`ctx.chat?.type === 'private'`).
+  bot.use(async (ctx, next) => {
+    const chatType = ctx.chat?.type;
+    if (chatType && chatType !== 'private') {
+      // Completely ignore group/supergroup/channel updates — do not reply or process
+      return;
+    }
+    return next();
+  });
+
+  // Middleware 2: Global Whitelist Access Control (Private Chats Only)
   bot.use(async (ctx, next) => {
     const userId = ctx.from?.id;
     if (!userId) return;
@@ -39,11 +50,12 @@ export function registerBotHandlers() {
     return next();
   });
 
-  // Global Error Handler: Replies directly with error message to chat if any error occurs
+  // Global Error Handler: Replies directly with error message ONLY in private chat
   bot.catch(async (err: any, ctx: any) => {
     const errMsg = err.message || String(err);
     console.error(`[Telegraf Global Error Catch] Update ${ctx.updateType}:`, errMsg);
     try {
+      if (ctx.chat?.type !== 'private') return;
       if (ctx.callbackQuery) {
         await ctx.answerCbQuery(`❌ Bot xatoligi: ${errMsg.slice(0, 100)}`, { show_alert: true });
       }
