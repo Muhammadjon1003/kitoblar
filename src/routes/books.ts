@@ -138,30 +138,9 @@ router.get('/backend/books', async (req, res) => {
   }
 });
 
-// Helper to re-upload PDF buffer to Telegram with new filename so file_name on Telegram matches updated book title
-export async function reuploadFileWithNewName(fileId: string, newCleanName: string): Promise<string> {
-  if (!fileId || !newCleanName || fileId.startsWith('sub_file_') || fileId.startsWith('sub_book_')) return fileId;
-  try {
-    const fileUrl = await bot.telegram.getFileLink(fileId);
-    const res = await fetch(fileUrl.toString());
-    if (!res.ok) return fileId;
-    const arrayBuffer = await res.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    const sanitizedFilename = newCleanName.replace(/[^a-zA-Z0-9_\-\.]/g, '_') + '.pdf';
-    const storageChannelId = getStorageChannelId();
-    const sentMsg = await bot.telegram.sendDocument(storageChannelId, {
-      source: buffer,
-      filename: sanitizedFilename
-    }, {
-      caption: `🔄 Auto-renamed PDF: ${newCleanName}`
-    });
-
-    return sentMsg.document.file_id;
-  } catch (e: any) {
-    console.warn(`[Reupload Rename Warning]: Failed for fileId ${fileId}:`, e.message);
-    return fileId;
-  }
+// Helper to return original fileId without renaming or re-uploading file to Telegram
+export async function reuploadFileWithNewName(fileId: string, _newCleanName: string): Promise<string> {
+  return fileId;
 }
 
 // PATCH /backend/books/:id — Update book name, price, setDetails, or categoryId
@@ -178,27 +157,16 @@ router.patch('/backend/books/:id', async (req, res) => {
     if (name !== undefined && typeof name === 'string' && name.trim()) {
       const cleanName = cleanBookName(name);
       updateData.name = cleanName;
-      if (existing && existing.tgFileId && existing.name !== cleanName) {
-        updateData.tgFileId = await reuploadFileWithNewName(existing.tgFileId, cleanName);
-      }
     }
 
     if (setDetails !== undefined) {
       let parsed: Array<{ name: string; fileId: string; isMain?: boolean; fileType?: string; parentFileId?: string }> = 
         typeof setDetails === 'string' ? JSON.parse(setDetails) : setDetails;
       if (Array.isArray(parsed)) {
-        let existingFiles: typeof parsed = [];
-        try { existingFiles = JSON.parse(existing?.setDetails || '[]'); } catch (e) {}
-
         const updatedFiles = [];
         for (const f of parsed) {
           const cleanFname = cleanBookName(f.name);
-          const oldFile = existingFiles.find(ef => ef.fileId === f.fileId);
-          let fileId = f.fileId;
-          if (oldFile && oldFile.name !== cleanFname && f.fileId) {
-            fileId = await reuploadFileWithNewName(f.fileId, cleanFname);
-          }
-          updatedFiles.push({ ...f, name: cleanFname, fileId });
+          updatedFiles.push({ ...f, name: cleanFname, fileId: f.fileId });
         }
         parsed = updatedFiles;
       }

@@ -2,7 +2,7 @@ import { Telegraf, Markup } from 'telegraf';
 import { clearSession, setSession, getSession } from './session';
 import { buildPersistentKeyboard, buildCategoriesMenu } from './keyboards';
 import { syncStorageChannel, sendSupplierBreakdownList, sendBooksCSV, sendDeleteBooksMenu, sendEditBooksMenu, sendAllBooksMenu } from './helpers';
-import { cleanBookName, reuploadFileWithNewName } from '../routes/books';
+import { cleanBookName } from '../routes/books';
 import { getStorageChannelId } from '../telegram';
 import { PrismaClient } from '@prisma/client';
 
@@ -93,11 +93,9 @@ export function setupTextHandlers(bot: Telegraf<any>) {
       try { files = JSON.parse(book.setDetails || '[]'); } catch (e) {}
 
       const cleanName = cleanBookName(text);
-      const newFileId = await reuploadFileWithNewName(pendingFileId, cleanName);
-
       files.push({
         name: cleanName,
-        fileId: newFileId,
+        fileId: pendingFileId,
         isMain: true,
         fileType: 'MAIN'
       });
@@ -140,9 +138,7 @@ export function setupTextHandlers(bot: Telegraf<any>) {
 
       if (files[fileIndex]) {
         const cleanName = cleanBookName(text);
-        const newFileId = await reuploadFileWithNewName(files[fileIndex].fileId, cleanName);
         files[fileIndex].name = cleanName;
-        files[fileIndex].fileId = newFileId;
       }
 
       await prisma.telegramBook.update({
@@ -162,16 +158,11 @@ export function setupTextHandlers(bot: Telegraf<any>) {
     else if (session.state === 'WAITING_FOR_RENAME_BOOK') {
       const bookId = session.data.bookId;
       try {
-        const existing = await prisma.telegramBook.findUnique({ where: { id: bookId } });
         const cleanName = cleanBookName(text);
-        let newFileId = existing?.tgFileId;
-        if (existing?.tgFileId && existing.name !== cleanName) {
-          newFileId = await reuploadFileWithNewName(existing.tgFileId, cleanName);
-        }
 
         const updated = await prisma.telegramBook.update({
           where: { id: bookId },
-          data: { name: cleanName, tgFileId: newFileId }
+          data: { name: cleanName }
         });
 
         await syncStorageChannel(updated.id);
@@ -190,8 +181,7 @@ export function setupTextHandlers(bot: Telegraf<any>) {
     else if (session.state === 'WAITING_FOR_SET_ITEM_NAME') {
       const files = session.data.files || [];
       const cleanName = cleanBookName(text);
-      const newFileId = await reuploadFileWithNewName(session.data.pendingFileId, cleanName);
-      const updatedFiles = [...files, { name: cleanName, fileId: newFileId, isMain: true, fileType: 'MAIN' }];
+      const updatedFiles = [...files, { name: cleanName, fileId: session.data.pendingFileId, isMain: true, fileType: 'MAIN' }];
 
       await setSession(ctx.from.id, 'SET_UPLOAD_ACTIVE', {
         files: updatedFiles
@@ -267,7 +257,6 @@ export function setupTextHandlers(bot: Telegraf<any>) {
     else if (session.state === 'WAITING_FOR_BOOK_NAME') {
       const { fileId, categoryId, categoryName } = session.data;
       const cleanName = cleanBookName(text);
-      const newFileId = await reuploadFileWithNewName(fileId, cleanName);
 
       try {
         const tempCaption = `🆔 (saqlanmoqda...)\n📖 Nomi: ${cleanName}\n📂 Kategoriya: ${categoryName}`;
@@ -276,7 +265,7 @@ export function setupTextHandlers(bot: Telegraf<any>) {
 
         if (storageChannelId) {
           try {
-            const sentMsg = await bot.telegram.sendDocument(storageChannelId, newFileId, {
+            const sentMsg = await bot.telegram.sendDocument(storageChannelId, fileId, {
               caption: tempCaption
             });
             tgMessageId = sentMsg.message_id;
@@ -288,7 +277,7 @@ export function setupTextHandlers(bot: Telegraf<any>) {
         const record = await prisma.telegramBook.create({
           data: {
             name: cleanName,
-            tgFileId: newFileId,
+            tgFileId: fileId,
             tgMessageId,
             categoryId,
             isSet: false
