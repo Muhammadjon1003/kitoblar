@@ -17,7 +17,7 @@ function DarslikTahrirlashModali({ book, onClose }: { book: InventoryItem; onClo
   const [priceInput, setPriceInput] = useState(String(currentPrice || ''));
 
   let parsedSubFiles: Array<SubBookFile> = [];
-  if (book.isSet && book.setDetails) {
+  if (book.setDetails) {
     try { parsedSubFiles = JSON.parse(book.setDetails); } catch (e) {}
   }
 
@@ -69,7 +69,7 @@ function DarslikTahrirlashModali({ book, onClose }: { book: InventoryItem; onClo
       const ok = await updateBookDetails(book.id, {
         name: titleInput.trim(),
         price: val,
-        setDetails: book.isSet ? JSON.stringify(subBooks) : undefined
+        setDetails: (book.isSet || subBooks.length > 0) ? JSON.stringify(subBooks) : undefined
       });
       if (ok) onClose();
     } catch (err: any) {
@@ -140,14 +140,13 @@ function DarslikTahrirlashModali({ book, onClose }: { book: InventoryItem; onClo
             />
           </div>
 
-          {/* If Set: Sub-books list editor */}
-          {book.isSet && (
-            <div className="bg-purple-50/70 border border-purple-200 p-4 rounded-xl space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
-                  <Layers className="w-4 h-4 text-purple-600" />
-                  Komplekt Ichidagi Darsliklar ({mainBooksList.length} ta darslik, {subBooks.length - mainBooksList.length} ta ilova):
-                </label>
+          {/* Sub-books / Attached files list editor */}
+          <div className="bg-purple-50/70 border border-purple-200 p-4 rounded-xl space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                <Layers className="w-4 h-4 text-purple-600" />
+                {book.isSet ? 'Komplekt Darsliklari & Ilovalar:' : 'Biriktirilgan Muqova va Qo\'shimcha Fayllar:'}
+              </label>
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
@@ -253,7 +252,6 @@ function DarslikTahrirlashModali({ book, onClose }: { book: InventoryItem; onClo
                 </div>
               )}
             </div>
-          )}
 
           <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
             <button

@@ -237,13 +237,16 @@ export function setupActions(bot: Telegraf<any>) {
     }
 
     const buttons = [];
-    if (book.isSet) {
-      buttons.push([Markup.button.callback("✏️ Komplekt Nomini Tahrirlash", `edit_set_name_ask:${book.id}`)]);
-      buttons.push([Markup.button.callback("⚙️ Komplekt Ichidagi Fayllarni Tahrirlash", `edit_set_renfile_list:${book.id}`)]);
-      buttons.push([Markup.button.callback("➕ Yangi Fayl Qo'shish", `edit_set_addfile_start:${book.id}`)]);
-      buttons.push([Markup.button.callback("🗑 Faylni O'chirish", `edit_set_delfile_list:${book.id}`)]);
-    } else {
-      buttons.push([Markup.button.callback("✏️ Kitob Nomini Tahrirlash", `edit_book_rename_ask:${book.id}`)]);
+    buttons.push([Markup.button.callback(book.isSet ? "✏️ Komplekt Nomini Tahrirlash" : "✏️ Kitob Nomini Tahrirlash", `edit_book_rename_ask:${book.id}`)]);
+    buttons.push([Markup.button.callback("➕ Muqova / Qo'shimcha Fayl Qo'shish", `edit_set_addfile_start:${book.id}`)]);
+    if (book.setDetails) {
+      try {
+        const files = JSON.parse(book.setDetails);
+        if (files.length > 0) {
+          buttons.push([Markup.button.callback("⚙️ Biriktirilgan Fayllarni Tahrirlash", `edit_set_renfile_list:${book.id}`)]);
+          buttons.push([Markup.button.callback("🗑 Biriktirilgan Faylni O'chirish", `edit_set_delfile_list:${book.id}`)]);
+        }
+      } catch (e) {}
     }
     buttons.push([Markup.button.callback("⬅️ Orqaga", "edit_book_menu")]);
 
@@ -292,14 +295,14 @@ export function setupActions(bot: Telegraf<any>) {
   bot.action(/^edit_set_addfile_start:(\d+)$/, async (ctx) => {
     const bookId = parseInt(ctx.match[1]);
     const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
-    if (!book || !book.isSet) {
-      await ctx.answerCbQuery("Komplekt topilmadi.", { show_alert: true });
+    if (!book) {
+      await ctx.answerCbQuery("Kitob topilmadi.", { show_alert: true });
       return;
     }
 
     await setSession(ctx.from!.id, 'WAITING_FOR_SET_ADD_FILE', { bookId: book.id });
     await ctx.editMessageText(
-      `📥 <b>'${book.name}' komplektiga yangi fayl qo'shish:</b>\n\n` +
+      `📥 <b>'${book.name}' kitobiga muqova yoki qo'shimcha fayl qo'shish:</b>\n\n` +
       `Iltimos, qo'shmoqchi bo'lgan PDF faylingizni yuboring:`,
       { parse_mode: 'HTML' }
     );
@@ -309,8 +312,8 @@ export function setupActions(bot: Telegraf<any>) {
   bot.action(/^edit_set_delfile_list:(\d+)$/, async (ctx) => {
     const bookId = parseInt(ctx.match[1]);
     const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
-    if (!book || !book.isSet || !book.setDetails) {
-      await ctx.answerCbQuery("Komplekt topilmadi.", { show_alert: true });
+    if (!book || !book.setDetails) {
+      await ctx.answerCbQuery("Biriktirilgan fayllar topilmadi.", { show_alert: true });
       return;
     }
 
@@ -323,7 +326,7 @@ export function setupActions(bot: Telegraf<any>) {
     buttons.push([Markup.button.callback("⬅️ Orqaga", `edit_book_select:${book.id}`)]);
 
     await ctx.editMessageText(
-      `🗑 <b>O'chirmoqchi bo'lgan darslikni tanlang:</b>`,
+      `🗑 <b>O'chirmoqchi bo'lgan faylni tanlang:</b>`,
       { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) }
     );
     await ctx.answerCbQuery();
@@ -334,15 +337,15 @@ export function setupActions(bot: Telegraf<any>) {
     const fileIdx = parseInt(ctx.match[2]);
 
     const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
-    if (!book || !book.isSet || !book.setDetails) {
-      await ctx.answerCbQuery("Komplekt topilmadi.", { show_alert: true });
+    if (!book || !book.setDetails) {
+      await ctx.answerCbQuery("Kitob topilmadi.", { show_alert: true });
       return;
     }
 
     let files: Array<{ name: string; fileId: string }> = [];
     try { files = JSON.parse(book.setDetails); } catch (e) {}
 
-    if (files.length <= 1) {
+    if (files.length <= 1 && book.isSet) {
       await ctx.answerCbQuery("Komplektda kamida 1 ta darslik qolishi kerak!", { show_alert: true });
       return;
     }
@@ -351,25 +354,25 @@ export function setupActions(bot: Telegraf<any>) {
 
     const updated = await prisma.telegramBook.update({
       where: { id: bookId },
-      data: { setDetails: JSON.stringify(files) }
+      data: { setDetails: files.length > 0 ? JSON.stringify(files) : null }
     });
 
     await syncStorageChannel(book.id);
 
     await ctx.answerCbQuery(`'${removedFile.name}' o'chirildi!`);
     await ctx.editMessageText(
-      `✅ <b>'${removedFile.name}'</b> to'plamdan o'chirildi!\n` +
-      `📦 <b>${updated.name}</b> tarkibida qolgan kitoblar: <b>${files.length} ta</b>`,
+      `✅ <b>'${removedFile.name}'</b> fayli o'chirildi!\n` +
+      `📦 <b>${updated.name}</b> tarkibida qolgan fayllar: <b>${files.length} ta</b>`,
       { parse_mode: 'HTML', ...buildCategoriesMenu() }
     );
   });
 
-  // Rename & Type File list inside Set
+  // Rename & Type File list inside Book or Set
   bot.action(/^edit_set_renfile_list:(\d+)$/, async (ctx) => {
     const bookId = parseInt(ctx.match[1]);
     const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
-    if (!book || !book.isSet || !book.setDetails) {
-      await ctx.answerCbQuery("Komplekt topilmadi.", { show_alert: true });
+    if (!book || !book.setDetails) {
+      await ctx.answerCbQuery("Fayllar topilmadi.", { show_alert: true });
       return;
     }
 
@@ -393,14 +396,14 @@ export function setupActions(bot: Telegraf<any>) {
     await ctx.answerCbQuery();
   });
 
-  // Options for a specific file inside Set
+  // Options for a specific file inside Book or Set
   bot.action(/^edit_set_file_opts:(\d+):(\d+)$/, async (ctx) => {
     const bookId = parseInt(ctx.match[1]);
     const fileIdx = parseInt(ctx.match[2]);
 
     const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
-    if (!book || !book.isSet || !book.setDetails) {
-      await ctx.answerCbQuery("Komplekt topilmadi.", { show_alert: true });
+    if (!book || !book.setDetails) {
+      await ctx.answerCbQuery("Kitob topilmadi.", { show_alert: true });
       return;
     }
 
@@ -440,8 +443,8 @@ export function setupActions(bot: Telegraf<any>) {
     const newType = ctx.match[3] as 'MAIN' | 'COVER' | 'SUPPLEMENT';
 
     const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
-    if (!book || !book.isSet || !book.setDetails) {
-      await ctx.answerCbQuery("Komplekt topilmadi.", { show_alert: true });
+    if (!book || !book.setDetails) {
+      await ctx.answerCbQuery("Kitob topilmadi.", { show_alert: true });
       return;
     }
 
@@ -515,8 +518,8 @@ export function setupActions(bot: Telegraf<any>) {
     const parentIdx = parseInt(ctx.match[3]);
 
     const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
-    if (!book || !book.isSet || !book.setDetails) {
-      await ctx.answerCbQuery("Komplekt topilmadi.", { show_alert: true });
+    if (!book || !book.setDetails) {
+      await ctx.answerCbQuery("Kitob topilmadi.", { show_alert: true });
       return;
     }
 
@@ -552,8 +555,8 @@ export function setupActions(bot: Telegraf<any>) {
     const fileIdx = parseInt(ctx.match[2]);
 
     const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
-    if (!book || !book.isSet || !book.setDetails) {
-      await ctx.answerCbQuery("Komplekt topilmadi.", { show_alert: true });
+    if (!book || !book.setDetails) {
+      await ctx.answerCbQuery("Kitob topilmadi.", { show_alert: true });
       return;
     }
 

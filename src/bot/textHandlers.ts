@@ -83,14 +83,23 @@ export function setupTextHandlers(bot: Telegraf<any>) {
       const { bookId, pendingFileId } = session.data;
       const book = await prisma.telegramBook.findUnique({ where: { id: bookId } });
 
-      if (!book || !book.isSet) {
+      if (!book) {
         await clearSession(ctx.from.id);
-        await ctx.reply("❌ Komplekt topilmadi.");
+        await ctx.reply("❌ Kitob topilmadi.");
         return;
       }
 
       let files: Array<{ name: string; fileId: string; isMain?: boolean; fileType?: string; parentFileId?: string }> = [];
       try { files = JSON.parse(book.setDetails || '[]'); } catch (e) {}
+
+      if (files.length === 0 && book.tgFileId) {
+        files.push({
+          name: book.name,
+          fileId: book.tgFileId,
+          isMain: true,
+          fileType: 'MAIN'
+        });
+      }
 
       const cleanName = cleanBookName(text);
       files.push({
