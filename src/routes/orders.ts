@@ -334,7 +334,7 @@ router.post('/backend/orders/:id/return-stock', async (req, res) => {
 });
 
 // POST /backend/orders/send-telegram & /backend/send-to-telegram — send selected orders to Telegram
-const handleSendTelegram = async (req: any, res: any) => {
+export const handleSendTelegram = async (req: any, res: any) => {
   try {
     const { orderIds } = req.body;
     if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
@@ -502,48 +502,62 @@ const handleSendTelegram = async (req: any, res: any) => {
 
       if (supplierGroupId) {
         try {
-          if (bookObj?.isSet && bookObj?.setDetails) {
+          if (bookObj?.setDetails) {
             let files: Array<{ name: string; fileId: string; isMain?: boolean; fileType?: string; parentFileId?: string }> = [];
             try { files = JSON.parse(bookObj.setDetails); } catch (e) {}
 
-            const mainFiles = files.filter(f => f.isMain !== false && f.fileType !== 'COVER' && f.fileType !== 'SUPPLEMENT');
-            const compFiles = files.filter(f => f.isMain === false || f.fileType === 'COVER' || f.fileType === 'SUPPLEMENT');
-
-            const orderedFiles: Array<{ name: string; fileId: string; isMain?: boolean; fileType?: string; parentFileId?: string }> = [];
-
-            for (const mf of mainFiles) {
-              orderedFiles.push(mf);
-              const supplements = compFiles.filter(cf => cf.parentFileId === mf.fileId || cf.parentFileId === mf.name);
-              orderedFiles.push(...supplements);
-            }
-            const unattachedCompFiles = compFiles.filter(cf => !orderedFiles.some(of => of.fileId === cf.fileId));
-            orderedFiles.push(...unattachedCompFiles);
-
-            const mainBooksStr = mainFiles.map((mf, idx) => {
-              const cleanMfName = cleanBookName(mf.name);
-              const supplements = compFiles.filter(cf => cf.parentFileId === mf.fileId || cf.parentFileId === mf.name);
-              let line = `${idx + 1}. ${cleanMfName}`;
-              if (supplements.length > 0) {
-                const suppNames = supplements.map(s => cleanBookName(s.name)).join(', ');
-                line += `\n   Ilovalar: ${suppNames}`;
+            if (Array.isArray(files) && files.length > 0) {
+              if (bookObj.tgFileId && !files.some(f => f.fileId === bookObj.tgFileId)) {
+                files.unshift({
+                  name: cleanBookName(bookObj.name),
+                  fileId: bookObj.tgFileId,
+                  isMain: true,
+                  fileType: 'MAIN'
+                });
               }
-              return line;
-            }).join('\n');
 
-            const setCaption = `📦 <b>Komplekt Nomi:</b> ${cleanBookName(group.bookName)} - ${studentNamesList.length} ta buyurtma\n\n` +
-              `📚 <b>Darsliklar: (${mainFiles.length} ta)</b>\n${mainBooksStr}\n\n` +
-              `👥 <b>Kimlar uchun:</b>\n${studentNamesList.join('\n')}`;
+              const mainFiles = files.filter(f => f.isMain !== false && f.fileType !== 'COVER' && f.fileType !== 'SUPPLEMENT');
+              const compFiles = files.filter(f => f.isMain === false || f.fileType === 'COVER' || f.fileType === 'SUPPLEMENT');
 
-            const targetFiles = orderedFiles.length > 0 ? orderedFiles : files;
-            if (targetFiles.length > 0) {
-              const mediaGroup = targetFiles.map((f, index) => ({
-                type: 'document' as const,
-                media: f.fileId,
-                caption: index === targetFiles.length - 1 ? setCaption : undefined,
-                parse_mode: 'HTML' as const
-              }));
+              const orderedFiles: Array<{ name: string; fileId: string; isMain?: boolean; fileType?: string; parentFileId?: string }> = [];
 
-              await bot.telegram.sendMediaGroup(supplierGroupId, mediaGroup);
+              for (const mf of mainFiles) {
+                orderedFiles.push(mf);
+                const supplements = compFiles.filter(cf => cf.parentFileId === mf.fileId || cf.parentFileId === mf.name);
+                orderedFiles.push(...supplements);
+              }
+              const unattachedCompFiles = compFiles.filter(cf => !orderedFiles.some(of => of.fileId === cf.fileId));
+              orderedFiles.push(...unattachedCompFiles);
+
+              const mainBooksStr = (mainFiles.length > 0 ? mainFiles : files).map((mf, idx) => {
+                const cleanMfName = cleanBookName(mf.name);
+                const supplements = compFiles.filter(cf => cf.parentFileId === mf.fileId || cf.parentFileId === mf.name);
+                let line = `${idx + 1}. ${cleanMfName}`;
+                if (supplements.length > 0) {
+                  const suppNames = supplements.map(s => cleanBookName(s.name)).join(', ');
+                  line += `\n   Ilovalar: ${suppNames}`;
+                }
+                return line;
+              }).join('\n');
+
+              const setCaption = `📦 <b>${bookObj.isSet ? "Komplekt Nomi" : "Darslik Nomi"}:</b> ${cleanBookName(group.bookName)} - ${studentNamesList.length} ta buyurtma\n\n` +
+                `📚 <b>Darsliklar va Ilovalar: (${orderedFiles.length} ta fayl)</b>\n${mainBooksStr}\n\n` +
+                `👥 <b>Kimlar uchun:</b>\n${studentNamesList.join('\n')}`;
+
+              const targetFiles = orderedFiles.length > 0 ? orderedFiles : files;
+              if (targetFiles.length > 1) {
+                const mediaGroup = targetFiles.map((f, index) => ({
+                  type: 'document' as const,
+                  media: f.fileId,
+                  caption: index === targetFiles.length - 1 ? setCaption : undefined,
+                  parse_mode: 'HTML' as const
+                }));
+
+                await bot.telegram.sendMediaGroup(supplierGroupId, mediaGroup);
+              } else {
+                const caption = `📦 <b>Darslik Buyurtmasi:</b> ${group.bookName}\n👥 <b>Talabalar:</b> ${studentNames}\n📊 <b>Soni:</b> ${group.orders.length} ta`;
+                await bot.telegram.sendDocument(supplierGroupId, targetFiles[0]?.fileId || group.tgFileId, { caption, parse_mode: 'HTML' });
+              }
             } else {
               const caption = `📦 <b>Darslik Buyurtmasi:</b> ${group.bookName}\n👥 <b>Talabalar:</b> ${studentNames}\n📊 <b>Soni:</b> ${group.orders.length} ta`;
               await bot.telegram.sendDocument(supplierGroupId, group.tgFileId, { caption, parse_mode: 'HTML' });
@@ -596,6 +610,7 @@ router.post('/backend/orders/send-telegram', handleSendTelegram);
 router.post('/backend/send-to-telegram', handleSendTelegram);
 // GET /backend/orders/dispatched-history — Immutable permanent log of supplier dispatches
 router.get('/backend/orders/dispatched-history', async (req, res) => {
+  try {
     let logs = await prisma.dispatchedOrderLog.findMany({
       orderBy: { createdAt: 'desc' },
     });
