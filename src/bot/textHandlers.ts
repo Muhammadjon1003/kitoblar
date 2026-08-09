@@ -3,6 +3,7 @@ import { clearSession, setSession, getSession } from './session';
 import { buildPersistentKeyboard, buildCategoriesMenu } from './keyboards';
 import { syncStorageChannel, sendSupplierBreakdownList, sendBooksCSV, sendDeleteBooksMenu, sendEditBooksMenu, sendAllBooksMenu } from './helpers';
 import { cleanBookName } from '../routes/books';
+import { syncWarehouseStockTitles } from '../routes/warehouse';
 import { getStorageChannelId } from '../telegram';
 import { PrismaClient } from '@prisma/client';
 
@@ -156,6 +157,7 @@ export function setupTextHandlers(bot: Telegraf<any>) {
       });
 
       await syncStorageChannel(book.id);
+      await syncWarehouseStockTitles();
 
       await clearSession(ctx.from.id);
       await ctx.reply(
@@ -175,6 +177,7 @@ export function setupTextHandlers(bot: Telegraf<any>) {
         });
 
         await syncStorageChannel(updated.id);
+        await syncWarehouseStockTitles();
 
         await clearSession(ctx.from.id);
         await ctx.reply(

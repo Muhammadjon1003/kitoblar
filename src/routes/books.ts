@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../prisma';
 import { bot, getStorageChannelId } from '../telegram';
+import { syncWarehouseStockTitles } from './warehouse';
 
 const router = Router();
 
@@ -182,6 +183,7 @@ router.patch('/backend/books/:id', async (req, res) => {
     });
 
     await syncStorageChannel(updated.id);
+    await syncWarehouseStockTitles();
 
     res.json(updated);
   } catch (e: any) {

@@ -3,9 +3,47 @@ import { prisma } from '../prisma';
 
 const router = Router();
 
+// Auto-sync warehouse stock titles with latest telegramBook names & setDetails file names
+export async function syncWarehouseStockTitles() {
+  try {
+    const books = await prisma.telegramBook.findMany();
+    const fileToTitleMap = new Map<string, string>();
+
+    for (const b of books) {
+      if (b.tgFileId && b.name) {
+        fileToTitleMap.set(b.tgFileId, b.name);
+      }
+      if (b.setDetails) {
+        try {
+          const files: Array<{ name: string; fileId: string }> = JSON.parse(b.setDetails);
+          for (const f of files) {
+            if (f.fileId && f.name) {
+              fileToTitleMap.set(f.fileId, f.name);
+            }
+          }
+        } catch (e) {}
+      }
+    }
+
+    const warehouseItems = await prisma.warehouseStock.findMany();
+    for (const item of warehouseItems) {
+      const currentTitle = fileToTitleMap.get(item.fileId);
+      if (currentTitle && currentTitle !== item.title) {
+        await prisma.warehouseStock.update({
+          where: { id: item.id },
+          data: { title: currentTitle }
+        });
+      }
+    }
+  } catch (e: any) {
+    console.warn('[Sync Warehouse Stock Titles Warning]:', e.message);
+  }
+}
+
 // GET /backend/warehouse-stock — Fetch all individual sub-book stock items in physical warehouse
 router.get('/backend/warehouse-stock', async (req, res) => {
   try {
+    await syncWarehouseStockTitles();
     const stockItems = await prisma.warehouseStock.findMany({
       orderBy: { quantity: 'desc' }
     });
