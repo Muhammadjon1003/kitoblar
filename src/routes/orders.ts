@@ -359,7 +359,7 @@ export const handleSendTelegram = async (req: any, res: any) => {
     });
     const bookMap = new Map(books.map(b => [String(b.id), b]));
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Date().toISOString().replace('T', ' ').slice(0, 16);
     const autoFulfilled: Array<{ orderId: string; studentName: string; bookName: string }> = [];
     const ordersToSendTelegram: typeof orders = [];
 

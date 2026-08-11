@@ -71,14 +71,6 @@ export default function SupplierRouting() {
     });
   };
 
-  const toggleSelectAllYolda = () => {
-    setSelectedYoldaIds(prev =>
-      prev.size === yoldaBuyurtmalar.length
-        ? new Set()
-        : new Set(yoldaBuyurtmalar.map(o => o.id))
-    );
-  };
-
   /** Group selected or all paid orders by book and send to Telegram */
   const handleSendTelegram = async () => {
     const targetIds = selectedPaidIds.size > 0 
@@ -281,128 +273,192 @@ export default function SupplierRouting() {
             )}
           </div>
 
-          {/* ── Yo'lda buyurtmalar — Keldi deb belgilash ── */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-4 bg-slate-100/60 border-b border-slate-200 gap-3">
+          {/* ── Yo'lda buyurtmalar — Partiyalar bo'yicha ajratilgan ── */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between px-1">
               <div>
-                <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                  <Truck className="w-4.5 h-4.5 text-amber-500" />
-                  Yo'lda — Ta'minotchidan kutilmoqda
+                <p className="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                  <Truck className="w-5 h-5 text-amber-500" />
+                  Yo'lda — Ta'minot Partiyalari (Telegram bo'yicha)
                 </p>
-                <p className="text-[11px] font-semibold text-slate-600 mt-0.5">
-                  O'quv markaziga jismoniy kitoblar kelganda qabul qilish va tan narxini kiritish.
+                <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                  Telegramga yuborilgan har bir partiya alohida ajratilgan. Qabul qilishda partiyalar aralashib ketmaydi.
                 </p>
               </div>
-
-              {/* Bulk accept button for Yo'lda section */}
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={() => setShowBulkAcceptModal(true)}
-                  disabled={selectedYoldaIds.size === 0}
-                  className="flex items-center gap-1.5 text-xs py-2 px-3.5 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 text-white transition-all shadow-sm"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  {selectedYoldaIds.size > 0 
-                    ? `${selectedYoldaIds.size} ta kitobni ommaviy qabul qilish` 
-                    : 'Tanlanganlarini qabul qilish'}
-                </button>
-              </div>
+              <span className="text-xs font-bold px-3 py-1 bg-amber-100 text-amber-800 rounded-lg">
+                Jami: {yoldaBuyurtmalar.length} ta darslik
+              </span>
             </div>
-            
+
             {yoldaBuyurtmalar.length === 0 ? (
-              <div className="p-8">
-                <EmptyState label="Hozircha yo'lda bo'lgan kutilayotgan kitoblar yo'q." />
+              <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
+                <EmptyState label="Hozircha yo'lda bo'lgan kutilayotgan partiyalar yo'q." />
               </div>
             ) : (
-              <div className="w-full overflow-x-auto">
-                <TableShell>
-                <thead>
-                  <tr>
-                    <Th>
-                      <button onClick={toggleSelectAllYolda} className="text-slate-400 hover:text-slate-700 transition-colors">
-                        {selectedYoldaIds.size === yoldaBuyurtmalar.length && yoldaBuyurtmalar.length > 0
-                          ? <CheckSquare className="w-4 h-4 text-emerald-600 font-bold" />
-                          : <Square className="w-4 h-4" />
-                        }
-                      </button>
-                    </Th>
-                    <Th>Talaba / Guruh</Th>
-                    <Th>Kitob nomi</Th>
-                    <Th>Sotuv Narxi</Th>
-                    <Th>Yuborilgan sana</Th>
-                    <Th right>Amal</Th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {yoldaBuyurtmalar.map(o => {
-                    const inv = getInventoryItem(o.bookId);
-                    const narx = o.sotuvNarxi > 0 ? o.sotuvNarxi : sotuvNarxi;
-                    const sel = selectedYoldaIds.has(o.id);
+              (() => {
+                const yoldaBatchesMap = yoldaBuyurtmalar.reduce((acc, order) => {
+                  const batchKey = order.updatedAt || 'Partiya';
+                  if (!acc.has(batchKey)) acc.set(batchKey, []);
+                  acc.get(batchKey)!.push(order);
+                  return acc;
+                }, new Map<string, Order[]>());
 
-                    return (
-                      <tr 
-                        key={o.id} 
-                        className={`transition-colors cursor-pointer ${sel ? 'bg-emerald-50/50' : 'hover:bg-slate-50/80'}`}
-                        onClick={() => toggleSelectYolda(o.id)}
-                      >
-                        <Td>
-                          <div onClick={e => e.stopPropagation()}>
-                            <button onClick={() => toggleSelectYolda(o.id)} className="text-slate-400 hover:text-emerald-600 transition-colors">
-                              {sel
-                                ? <CheckSquare className="w-4 h-4 text-emerald-600 font-bold" />
-                                : <Square className="w-4 h-4" />
-                              }
-                            </button>
-                          </div>
-                        </Td>
-                        <Td>
-                          <p className="font-bold text-slate-800 text-xs">{getStudentName(o.studentId)}</p>
-                          <p className="text-[10px] text-slate-500 font-semibold mt-0.5">
-                            {getGroupName(o.groupId)} <span className="text-slate-400 font-normal">•</span> O'qituvchi: <span className="text-slate-700 font-bold">{groups.find(g => g.id === o.groupId)?.teacherName ?? '—'}</span>
-                          </p>
-                        </Td>
-                        <Td>{inv?.title ?? '—'}</Td>
-                        <Td mono>
-                          {o.sotuvNarxi === 0 ? (
-                            <span className="inline-flex items-center px-2 py-0.5 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] rounded-md font-sans">To'lov ichida</span>
-                          ) : (
-                            <span className="text-emerald-600 font-bold">{uzs(narx)}</span>
-                          )}
-                        </Td>
-                        <Td mono>
-                          <span className="inline-flex items-center gap-1 text-[11px] text-slate-600">
-                            <Clock className="w-3 h-3 text-slate-400" />
-                            {o.updatedAt}
+                const yoldaBatches = Array.from(yoldaBatchesMap.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+
+                return yoldaBatches.map(([batchTime, batchOrders], batchIdx) => {
+                  const selectedInBatch = batchOrders.filter(o => selectedYoldaIds.has(o.id));
+                  const isAllBatchSelected = batchOrders.length > 0 && selectedInBatch.length === batchOrders.length;
+
+                  const toggleSelectAllBatch = () => {
+                    setSelectedYoldaIds(prev => {
+                      const next = new Set(prev);
+                      if (isAllBatchSelected) {
+                        batchOrders.forEach(o => next.delete(o.id));
+                      } else {
+                        batchOrders.forEach(o => next.add(o.id));
+                      }
+                      return next;
+                    });
+                  };
+
+                  const ordersToAcceptForBatch = selectedInBatch.length > 0 ? selectedInBatch : batchOrders;
+
+                  return (
+                    <div key={batchTime} className="bg-white border-2 border-slate-200/90 rounded-2xl shadow-sm overflow-hidden">
+                      {/* Batch Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between px-5 py-3.5 bg-gradient-to-r from-amber-50 to-orange-50/60 border-b border-amber-200/80 gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-8 h-8 rounded-xl bg-amber-500 text-white font-extrabold text-xs flex items-center justify-center shadow-xs">
+                            #{yoldaBatches.length - batchIdx}
                           </span>
-                        </Td>
-                        <Td right>
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setSingleOrderToAccept(o); }}
-                              className="py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all duration-150 inline-flex items-center gap-1.5"
-                            >
-                              <Package className="w-3.5 h-3.5" /> Qabul qilish
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setCancellingTarget({
-                                  ids: [o.id],
-                                  targetName: getStudentName(o.studentId)
-                                });
-                              }}
-                              className="py-1.5 px-2.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-xs font-bold rounded-lg transition-colors inline-flex items-center gap-1"
-                            >
-                              Bekor qilish
-                            </button>
+                          <div>
+                            <p className="text-xs font-extrabold text-amber-950 flex items-center gap-2">
+                              <span>📦 Partiya</span>
+                              <span className="text-[11px] font-mono font-bold text-amber-700 bg-amber-100/90 px-2 py-0.5 rounded-md">
+                                {batchTime}
+                              </span>
+                            </p>
+                            <p className="text-[10px] text-amber-800/90 font-bold mt-0.5">
+                              Ta'minotchidan kelayotgan darsliklar: <span className="font-mono text-amber-950 font-black">{batchOrders.length} ta</span>
+                              {selectedInBatch.length > 0 && ` (${selectedInBatch.length} ta tanlandi)`}
+                            </p>
                           </div>
-                        </Td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </TableShell>
-              </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={toggleSelectAllBatch}
+                            className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5"
+                          >
+                            {isAllBatchSelected ? (
+                              <><CheckSquare className="w-3.5 h-3.5 text-amber-800" /> Barchasini bekor qilish</>
+                            ) : (
+                              <><Square className="w-3.5 h-3.5 text-amber-700" /> Partiyani tanlash ({batchOrders.length})</>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedYoldaIds(new Set(ordersToAcceptForBatch.map(o => o.id)));
+                              setShowBulkAcceptModal(true);
+                            }}
+                            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl shadow-sm transition-all flex items-center gap-1.5"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            {selectedInBatch.length > 0
+                              ? `Tanlangan ${selectedInBatch.length} ta kitobni qabul qilish`
+                              : `Partiyadagi barcha ${batchOrders.length} ta kitobni qabul qilish`}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Batch Table */}
+                      <div className="w-full overflow-x-auto">
+                        <TableShell>
+                          <thead>
+                            <tr>
+                              <Th>
+                                <button onClick={toggleSelectAllBatch} className="text-slate-400 hover:text-slate-700 transition-colors">
+                                  {isAllBatchSelected ? <CheckSquare className="w-4 h-4 text-emerald-600 font-bold" /> : <Square className="w-4 h-4" />}
+                                </button>
+                              </Th>
+                              <Th>Talaba / Guruh</Th>
+                              <Th>Kitob nomi</Th>
+                              <Th>Sotuv Narxi</Th>
+                              <Th>Yuborilgan sana va vaqt</Th>
+                              <Th right>Amal</Th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {batchOrders.map(o => {
+                              const inv = getInventoryItem(o.bookId);
+                              const narx = o.sotuvNarxi > 0 ? o.sotuvNarxi : sotuvNarxi;
+                              const sel = selectedYoldaIds.has(o.id);
+
+                              return (
+                                <tr
+                                  key={o.id}
+                                  className={`transition-colors cursor-pointer ${sel ? 'bg-emerald-50/50' : 'hover:bg-slate-50/80'}`}
+                                  onClick={() => toggleSelectYolda(o.id)}
+                                >
+                                  <Td>
+                                    <div onClick={e => e.stopPropagation()}>
+                                      <button onClick={() => toggleSelectYolda(o.id)} className="text-slate-400 hover:text-emerald-600 transition-colors">
+                                        {sel ? <CheckSquare className="w-4 h-4 text-emerald-600 font-bold" /> : <Square className="w-4 h-4" />}
+                                      </button>
+                                    </div>
+                                  </Td>
+                                  <Td>
+                                    <p className="font-bold text-slate-800 text-xs">{getStudentName(o.studentId)}</p>
+                                    <p className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                                      {getGroupName(o.groupId)} <span className="text-slate-400 font-normal">•</span> O'qituvchi: <span className="text-slate-700 font-bold">{groups.find(g => g.id === o.groupId)?.teacherName ?? '—'}</span>
+                                    </p>
+                                  </Td>
+                                  <Td><span className="font-bold text-slate-800 text-xs">{inv?.title ?? '—'}</span></Td>
+                                  <Td mono>
+                                    {o.sotuvNarxi === 0 ? (
+                                      <span className="inline-flex items-center px-2 py-0.5 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] rounded-md font-sans">To'lov ichida</span>
+                                    ) : (
+                                      <span className="text-emerald-600 font-bold">{uzs(narx)}</span>
+                                    )}
+                                  </Td>
+                                  <Td mono>
+                                    <span className="inline-flex items-center gap-1 text-[11px] text-slate-700 font-bold">
+                                      <Clock className="w-3 h-3 text-slate-400" />
+                                      {o.updatedAt}
+                                    </span>
+                                  </Td>
+                                  <Td right>
+                                    <div className="flex items-center justify-end gap-1.5">
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); setSingleOrderToAccept(o); }}
+                                        className="py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all duration-150 inline-flex items-center gap-1.5"
+                                      >
+                                        <Package className="w-3.5 h-3.5" /> Qabul qilish
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setCancellingTarget({
+                                            ids: [o.id],
+                                            targetName: getStudentName(o.studentId)
+                                          });
+                                        }}
+                                        className="py-1.5 px-2.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-xs font-bold rounded-lg transition-colors inline-flex items-center gap-1"
+                                      >
+                                        Bekor qilish
+                                      </button>
+                                    </div>
+                                  </Td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </TableShell>
+                      </div>
+                    </div>
+                  );
+                });
+              })()
             )}
           </div>
         </>
