@@ -1,7 +1,4 @@
-/**
- * views/CashierView/CashierDashboard.tsx — O'zbek tili
- */
-
+import { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import PipelineColumn from './PipelineColumn';
 import PaymentsHistoryView from './components/PaymentsHistoryView';
@@ -11,7 +8,7 @@ import SupplierRouting from '../LogisticsView/SupplierRouting';
 import type { OrderStatus } from '../../types';
 
 function PipelineView() {
-  const { setActiveSubPage } = useApp();
+  const [crmViewMode, setCrmViewMode] = useState<'columns' | 'yolda'>('columns');
 
   const USTUNLAR = [
     {
@@ -43,26 +40,38 @@ function PipelineView() {
       <div className="flex items-center justify-between border-b border-slate-200 pb-3">
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setActiveSubPage('pipeline')}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-600/20"
+            onClick={() => setCrmViewMode('columns')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              crmViewMode === 'columns'
+                ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-600/20 font-extrabold'
+                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+            }`}
           >
             📊 CRM Ustunlar Ko'rinishi
           </button>
 
           <button
-            onClick={() => setActiveSubPage('supplier')}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 transition-all"
+            onClick={() => setCrmViewMode('yolda')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              crmViewMode === 'yolda'
+                ? 'bg-amber-600 text-white shadow-sm ring-2 ring-amber-600/20 font-extrabold'
+                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+            }`}
           >
-            🚚 Ta'minot Partiyalari (Yo'lda)
+            🚚 Yo'ldagi Ta'minot Partiyalari
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full items-start">
-        {USTUNLAR.map(col => (
-          <PipelineColumn key={col.title} {...col} />
-        ))}
-      </div>
+      {crmViewMode === 'columns' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full items-start">
+          {USTUNLAR.map(col => (
+            <PipelineColumn key={col.title} {...col} />
+          ))}
+        </div>
+      ) : (
+        <SupplierRouting hideOrderingSection={true} />
+      )}
     </div>
   );
 }
@@ -70,7 +79,7 @@ function PipelineView() {
 export default function CashierDashboard() {
   const { activeSubPage } = useApp();
   if (activeSubPage === 'pipeline')  return <PipelineView />;
-  if (activeSubPage === 'supplier')  return <SupplierRouting />;
+  if (activeSubPage === 'supplier')  return <SupplierRouting hideOrderingSection={true} />;
   if (activeSubPage === 'warehouse') return <WarehouseInventory />;
   if (activeSubPage === 'payments')  return <PaymentsHistoryView />;
   return <BoshqaruvKorinishi />;
