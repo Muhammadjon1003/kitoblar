@@ -27,6 +27,11 @@ export function QabulQilishModali({ order, onClose, onSuccess }: SingleAcceptPro
   const [xato, setXato] = useState('');
   const inv = getInventoryItem(order.bookId);
 
+  let subFiles: Array<{ name: string; fileType?: string }> = [];
+  if (inv?.setDetails) {
+    try { subFiles = JSON.parse(inv.setDetails); } catch (e) {}
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const valCost = parseFloat(tanNarx);
@@ -66,10 +71,10 @@ export function QabulQilishModali({ order, onClose, onSuccess }: SingleAcceptPro
 
         <form onSubmit={handleSubmit} className="px-5 py-5 space-y-4">
           {/* Book info */}
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] space-y-1">
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] space-y-1.5">
             <div className="flex justify-between items-center">
               <span className="text-slate-500 font-semibold">Darslik:</span>
-              <span className="font-bold text-slate-800 truncate max-w-[180px]">{inv?.title ?? '—'}</span>
+              <span className="font-bold text-slate-800 truncate max-w-[200px]">{inv?.title ?? '—'}</span>
             </div>
             <div className="flex justify-between items-center pt-1 border-t border-slate-200/60">
               <span className="text-slate-500 font-semibold">Sotuv narxi (qulflangan):</span>
@@ -79,6 +84,22 @@ export function QabulQilishModali({ order, onClose, onSuccess }: SingleAcceptPro
                 <span className="font-mono font-bold text-emerald-600">{uzs(currentSellingPrice)}</span>
               )}
             </div>
+
+            {subFiles.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-slate-200/80 space-y-1.5">
+                <p className="text-[10px] font-extrabold text-indigo-900 uppercase tracking-wider flex items-center gap-1">
+                  <span>📦</span> To'plam ichidagi fayllar ({subFiles.length} ta):
+                </p>
+                <div className="space-y-1 pl-0.5 max-h-36 overflow-y-auto">
+                  {subFiles.map((sf, idx) => (
+                    <div key={idx} className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-700 bg-white p-1.5 rounded-lg border border-slate-200/70">
+                      <span className="shrink-0">{sf.fileType === 'COVER' ? '🖼' : (sf.fileType === 'SUPPLEMENT' ? '📄' : '📖')}</span>
+                      <span className="truncate">{sf.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Cost input */}
