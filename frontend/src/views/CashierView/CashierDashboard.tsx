@@ -4,7 +4,7 @@ import PipelineColumn from './PipelineColumn';
 import PaymentsHistoryView from './components/PaymentsHistoryView';
 import BoshqaruvKorinishi from './components/BoshqaruvKorinishi';
 import WarehouseInventory from '../LogisticsView/WarehouseInventory';
-import SupplierRouting from '../LogisticsView/SupplierRouting';
+import { YoldaPartiyalarSection } from '../LogisticsView/SupplierRouting';
 import type { OrderStatus } from '../../types';
 
 function PipelineView() {
@@ -70,7 +70,7 @@ function PipelineView() {
           ))}
         </div>
       ) : (
-        <SupplierRouting hideOrderingSection={true} />
+        <YoldaPartiyalarSection />
       )}
     </div>
   );
@@ -79,7 +79,7 @@ function PipelineView() {
 export default function CashierDashboard() {
   const { activeSubPage } = useApp();
   if (activeSubPage === 'pipeline')  return <PipelineView />;
-  if (activeSubPage === 'supplier')  return <SupplierRouting hideOrderingSection={true} />;
+  if (activeSubPage === 'supplier')  return <YoldaPartiyalarSection />;
   if (activeSubPage === 'warehouse') return <WarehouseInventory />;
   if (activeSubPage === 'payments')  return <PaymentsHistoryView />;
   return <BoshqaruvKorinishi />;
