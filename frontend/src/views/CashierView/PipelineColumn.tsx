@@ -28,7 +28,14 @@ export default function PipelineColumn({ statuses, title, subtitle, accentLeft, 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkAcceptModal, setShowBulkAcceptModal] = useState(false);
 
-  const statusBuyurtmalari = orders.filter(o => statuses.includes(o.status));
+  const statusBuyurtmalari = orders
+    .filter(o => statuses.includes(o.status))
+    .sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : (a.updatedAt ? new Date(a.updatedAt).getTime() : 0);
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : (b.updatedAt ? new Date(b.updatedAt).getTime() : 0);
+      if (timeA !== timeB) return timeA - timeB; // Older orders come first (top), new orders join last (bottom)
+      return a.id.localeCompare(b.id);
+    });
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -36,14 +43,6 @@ export default function PipelineColumn({ statuses, title, subtitle, accentLeft, 
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
-  };
-
-  const toggleSelectAll = () => {
-    setSelectedIds(prev =>
-      prev.size === statusBuyurtmalari.length
-        ? new Set()
-        : new Set(statusBuyurtmalari.map(o => o.id))
-    );
   };
 
   const filtered = qidiruv.trim() === ''
@@ -84,10 +83,13 @@ export default function PipelineColumn({ statuses, title, subtitle, accentLeft, 
                 </button>
               ) : (
                 <button
-                  onClick={toggleSelectAll}
+                  onClick={() => {
+                    setSelectedIds(new Set(statusBuyurtmalari.map(o => o.id)));
+                    setShowBulkAcceptModal(true);
+                  }}
                   className="w-full py-1.5 px-2 bg-slate-200/80 hover:bg-slate-200 text-slate-700 text-[10px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1"
                 >
-                  <CheckSquare className="w-3 h-3 text-slate-600" /> Barchasini tanlash / qabul qilish
+                  <CheckSquare className="w-3 h-3 text-slate-600" /> Barchasini tanlash va qabul qilish
                 </button>
               )}
             </div>

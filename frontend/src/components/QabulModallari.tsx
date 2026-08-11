@@ -133,15 +133,10 @@ interface BulkAcceptProps {
 }
 
 export function OmmaviyQabulModali({ orders, onClose, onSuccess }: BulkAcceptProps) {
-  const { markArrived, getInventoryItem, fireToast } = useApp();
+  const { markArrived, getInventoryItem, getStudentName, fireToast } = useApp();
   const [tanNarx, setTanNarx] = useState('');
   const [yuborish, setYuborish] = useState(false);
   const [xato, setXato] = useState('');
-
-  // Collect distinct book titles
-  const bookTitles = Array.from(
-    new Set(orders.map(o => getInventoryItem(o.bookId)?.title).filter(Boolean))
-  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -184,12 +179,48 @@ export function OmmaviyQabulModali({ orders, onClose, onSuccess }: BulkAcceptPro
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
-          {/* Books summary */}
-          <div className="p-3 bg-emerald-50/60 border border-emerald-200/80 rounded-xl text-xs space-y-1">
-            <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Qabul qilinadigan kitoblar:</p>
-            <p className="text-slate-700 font-semibold truncate">
-              {bookTitles.join(', ') || 'Tanlangan darsliklar'}
-            </p>
+          {/* Detailed Books and Sub-books list */}
+          <div className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-xl space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-extrabold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
+                <Package className="w-3.5 h-3.5 text-emerald-600" /> Qabul qilinayotgan darsliklar va to'plamlar:
+              </p>
+              <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
+                {orders.length} ta buyurtma
+              </span>
+            </div>
+
+            <div className="max-h-48 overflow-y-auto pr-1 space-y-2.5 divide-y divide-emerald-100">
+              {orders.map((o, idx) => {
+                const inv = getInventoryItem(o.bookId);
+                const studentName = getStudentName(o.studentId);
+                let subFiles: Array<{ name: string; fileType?: string }> = [];
+                if (inv?.setDetails) {
+                  try { subFiles = JSON.parse(inv.setDetails); } catch (e) {}
+                }
+
+                return (
+                  <div key={o.id || idx} className={idx > 0 ? "pt-2" : ""}>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-800 truncate">{inv?.title ?? 'Darslik'}</span>
+                      <span className="text-[10px] font-semibold text-slate-600 truncate max-w-[130px] ml-2">{studentName}</span>
+                    </div>
+
+                    {subFiles.length > 0 && (
+                      <div className="mt-1 pl-2 space-y-0.5 border-l-2 border-emerald-400">
+                        <p className="text-[10px] font-bold text-emerald-900">To'plam ichidagi fayllar ({subFiles.length} ta):</p>
+                        {subFiles.map((sf, sfIdx) => (
+                          <div key={sfIdx} className="text-[10px] text-slate-700 flex items-center gap-1 font-medium">
+                            <span>{sf.fileType === 'COVER' ? '🖼' : (sf.fileType === 'SUPPLEMENT' ? '📄' : '📖')}</span>
+                            <span>{sf.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Cost input */}
