@@ -1,11 +1,10 @@
 import { useState, useMemo } from 'react';
-import { BookOpen, CheckSquare, Square, ChevronDown, FolderPlus, Users, UserPlus, XCircle } from 'lucide-react';
+import { BookOpen, CheckSquare, Square, ChevronDown, FolderPlus, Users, UserPlus, Trash2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { StatusBadge, EmptyState, TableShell, Th, Td } from '../components/ui';
 import BulkOrderModal from './TeacherView/BulkOrderModal';
 import EditOrderBookModal from './TeacherView/EditOrderBookModal';
 import { CreateGroupModal, AddStudentModal, BulkAddStudentModal } from './CashierView/StudentModals';
-import BekorQilishModali from '../components/BekorQilishModali';
 
 export default function TeacherView() {
   const {
@@ -13,7 +12,7 @@ export default function TeacherView() {
     groups,
     students,
     getStudentOrders, getInventoryItem,
-    cancelOrder,
+    deleteOrderAdmin,
   } = useApp();
 
   // Filter groups strictly for currently logged-in teacher (if logged in as TEACHER)
@@ -41,7 +40,7 @@ export default function TeacherView() {
   const [showAddStudent,     setShowAddStudent]     = useState(false);
   const [showBulkAddStudent, setShowBulkAddStudent] = useState(false);
   const [editingOrder,       setEditingOrder]       = useState<{ orderId: string; currentBookId: string; studentName: string } | null>(null);
-  const [cancellingTarget,   setCancellingTarget]   = useState<{ id: string; name: string } | null>(null);
+  const [deletingTarget,     setDeletingTarget]     = useState<{ id: string; name: string } | null>(null);
 
   const groupStudents = students.filter(s => s.groupId === activeGroupId);
 
@@ -194,14 +193,14 @@ export default function TeacherView() {
                             <button
                               onClick={e => {
                                 e.stopPropagation();
-                                setCancellingTarget({
+                                setDeletingTarget({
                                   id: latestOrder.id,
                                   name: student.name
                                 });
                               }}
                               className="px-2.5 py-1 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold text-[11px] rounded-lg flex items-center gap-1 transition-colors"
                             >
-                              <XCircle className="w-3 h-3 text-red-600" /> Bekor qilish
+                              <Trash2 className="w-3 h-3 text-red-600" /> O'chirish
                             </button>
                           </div>
                         ) : (
@@ -269,16 +268,36 @@ export default function TeacherView() {
         />
       )}
 
-      {/* Teacher Order Cancellation Modal (for CREATED orders) */}
-      {cancellingTarget && (
-        <BekorQilishModali
-          targetName={cancellingTarget.name}
-          onClose={() => setCancellingTarget(null)}
-          onConfirm={async (reason) => {
-            await cancelOrder(cancellingTarget.id, reason);
-            setCancellingTarget(null);
-          }}
-        />
+      {/* Delete CREATED Order Confirmation Modal */}
+      {deletingTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setDeletingTarget(null)} />
+          <div className="relative w-full max-w-sm bg-white border border-slate-200 rounded-2xl shadow-2xl z-10 p-6 space-y-4">
+            <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-red-600" /> Buyurtmani O'chirib Tashlash
+            </h3>
+            <p className="text-xs text-slate-600 font-medium leading-relaxed">
+              <strong className="text-slate-800">"{deletingTarget.name}"</strong> uchun berilgan buyurtmani butunlay o'chirib tashlamoqchimisiz?
+            </p>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setDeletingTarget(null)}
+                className="sb-btn-secondary flex-1 text-xs"
+              >
+                Orqaga
+              </button>
+              <button
+                onClick={async () => {
+                  await deleteOrderAdmin(deletingTarget.id);
+                  setDeletingTarget(null);
+                }}
+                className="py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-sm flex-1"
+              >
+                Ha, O'chirish
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
