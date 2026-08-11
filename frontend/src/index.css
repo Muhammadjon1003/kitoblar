@@ -15,17 +15,33 @@
     line-height: 1.5;
   }
   ::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
+    width: 7px;
+    height: 7px;
   }
   ::-webkit-scrollbar-track {
-    @apply bg-transparent;
+    @apply bg-slate-100;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-slate-300 rounded-full;
+    @apply bg-slate-400 rounded-full;
   }
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-slate-400;
+  }
+}
+
+@layer utilities {
+  .visible-scrollbar::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+  .visible-scrollbar::-webkit-scrollbar-track {
+    @apply bg-slate-200/90 rounded-full;
+  }
+  .visible-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-indigo-500 rounded-full border-2 border-white;
+  }
+  .visible-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-indigo-600;
   }
 }
 

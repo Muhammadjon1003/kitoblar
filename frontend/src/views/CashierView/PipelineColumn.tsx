@@ -126,7 +126,7 @@ export default function PipelineColumn({ statuses, title, subtitle, accentLeft, 
         </div>
 
         {/* Scrollable card list */}
-        <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-2">
+        <div className="flex-1 overflow-y-auto visible-scrollbar px-3 pb-3 space-y-2">
           {filtered.length === 0
             ? <EmptyState label={qidiruv ? `"${qidiruv}" bo'yicha natija topilmadi.` : "Bu bosqichda buyurtmalar yo'q."} />
             : filtered.map(o => (
