@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
-import { BookOpen, CheckSquare, Square, ChevronDown, FolderPlus, Users, UserPlus } from 'lucide-react';
+import { BookOpen, CheckSquare, Square, ChevronDown, FolderPlus, Users, UserPlus, XCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { StatusBadge, EmptyState, TableShell, Th, Td } from '../components/ui';
 import BulkOrderModal from './TeacherView/BulkOrderModal';
 import EditOrderBookModal from './TeacherView/EditOrderBookModal';
 import { CreateGroupModal, AddStudentModal, BulkAddStudentModal } from './CashierView/StudentModals';
+import BekorQilishModali from '../components/BekorQilishModali';
 
 export default function TeacherView() {
   const {
@@ -12,6 +13,7 @@ export default function TeacherView() {
     groups,
     students,
     getStudentOrders, getInventoryItem,
+    cancelOrder,
   } = useApp();
 
   // Filter groups strictly for currently logged-in teacher (if logged in as TEACHER)
@@ -39,6 +41,7 @@ export default function TeacherView() {
   const [showAddStudent,     setShowAddStudent]     = useState(false);
   const [showBulkAddStudent, setShowBulkAddStudent] = useState(false);
   const [editingOrder,       setEditingOrder]       = useState<{ orderId: string; currentBookId: string; studentName: string } | null>(null);
+  const [cancellingTarget,   setCancellingTarget]   = useState<{ id: string; name: string } | null>(null);
 
   const groupStudents = students.filter(s => s.groupId === activeGroupId);
 
@@ -174,22 +177,36 @@ export default function TeacherView() {
                     <Td>
                       {latestOrder ? (
                         latestOrder.status === 'CREATED' ? (
-                          <button
-                            onClick={e => {
-                              e.stopPropagation();
-                              setEditingOrder({
-                                orderId: latestOrder.id,
-                                currentBookId: latestOrder.bookId,
-                                studentName: student.name
-                              });
-                            }}
-                            className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 font-bold text-[11px] rounded-lg flex items-center gap-1 transition-colors"
-                          >
-                            ✏️ Tahrirlash
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={e => {
+                                e.stopPropagation();
+                                setEditingOrder({
+                                  orderId: latestOrder.id,
+                                  currentBookId: latestOrder.bookId,
+                                  studentName: student.name
+                                });
+                              }}
+                              className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 font-bold text-[11px] rounded-lg flex items-center gap-1 transition-colors"
+                            >
+                              ✏️ Tahrirlash
+                            </button>
+                            <button
+                              onClick={e => {
+                                e.stopPropagation();
+                                setCancellingTarget({
+                                  id: latestOrder.id,
+                                  name: student.name
+                                });
+                              }}
+                              className="px-2.5 py-1 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold text-[11px] rounded-lg flex items-center gap-1 transition-colors"
+                            >
+                              <XCircle className="w-3 h-3 text-red-600" /> Bekor qilish
+                            </button>
+                          </div>
                         ) : (
                           <span
-                            title="Buyurtma ta'minotchiga yuborilgan. O'zgartirish uchun yangi buyurtma berib, eskisini omborda qaytarishni so'rang."
+                            title="Buyurtma to'langan yoki ta'minotchiga yuborilgan. O'zgartirish uchun yangi buyurtma berib, eskisini qaytarishni so'rang."
                             className="px-2.5 py-1 bg-slate-100 border border-slate-200 text-slate-500 font-semibold text-[10px] rounded-lg cursor-help inline-flex items-center gap-1"
                           >
                             🔒 Yuborilgan (Nodovom)
@@ -249,6 +266,18 @@ export default function TeacherView() {
           currentBookId={editingOrder.currentBookId}
           studentName={editingOrder.studentName}
           onClose={() => setEditingOrder(null)}
+        />
+      )}
+
+      {/* Teacher Order Cancellation Modal (for CREATED orders) */}
+      {cancellingTarget && (
+        <BekorQilishModali
+          targetName={cancellingTarget.name}
+          onClose={() => setCancellingTarget(null)}
+          onConfirm={async (reason) => {
+            await cancelOrder(cancellingTarget.id, reason);
+            setCancellingTarget(null);
+          }}
         />
       )}
     </div>
