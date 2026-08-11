@@ -23,6 +23,7 @@ export function QabulQilishModali({ order, onClose, onSuccess }: SingleAcceptPro
   const currentSellingPrice = order.sotuvNarxi > 0 ? order.sotuvNarxi : (sotuvNarxi > 0 ? sotuvNarxi : 0);
 
   const [tanNarx, setTanNarx] = useState('');
+  const [subCosts, setSubCosts] = useState<Record<number, string>>({});
   const [yuborish, setYuborish] = useState(false);
   const [xato, setXato] = useState('');
   const inv = getInventoryItem(order.bookId);
@@ -31,6 +32,25 @@ export function QabulQilishModali({ order, onClose, onSuccess }: SingleAcceptPro
   if (inv?.setDetails) {
     try { subFiles = JSON.parse(inv.setDetails); } catch (e) {}
   }
+
+  const handleSubCostChange = (idx: number, val: string) => {
+    const nextSubCosts = { ...subCosts, [idx]: val };
+    setSubCosts(nextSubCosts);
+
+    let totalSum = 0;
+    let hasVal = false;
+    Object.values(nextSubCosts).forEach(v => {
+      const parsed = parseFloat(v);
+      if (!isNaN(parsed) && parsed >= 0) {
+        totalSum += parsed;
+        hasVal = true;
+      }
+    });
+
+    if (hasVal) {
+      setTanNarx(String(totalSum));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,15 +106,27 @@ export function QabulQilishModali({ order, onClose, onSuccess }: SingleAcceptPro
             </div>
 
             {subFiles.length > 0 && (
-              <div className="mt-2 pt-2 border-t border-slate-200/80 space-y-1.5">
+              <div className="mt-2 pt-2 border-t border-slate-200/80 space-y-2">
                 <p className="text-[10px] font-extrabold text-indigo-900 uppercase tracking-wider flex items-center gap-1">
-                  <span>📦</span> To'plam ichidagi fayllar ({subFiles.length} ta):
+                  <span>📦</span> To'plam darsliklari xarajati (Tan narxlari):
                 </p>
-                <div className="space-y-1 pl-0.5 max-h-36 overflow-y-auto">
+                <div className="space-y-1.5 max-h-40 overflow-y-auto pr-0.5">
                   {subFiles.map((sf, idx) => (
-                    <div key={idx} className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-700 bg-white p-1.5 rounded-lg border border-slate-200/70">
-                      <span className="shrink-0">{sf.fileType === 'COVER' ? '🖼' : (sf.fileType === 'SUPPLEMENT' ? '📄' : '📖')}</span>
-                      <span className="truncate">{sf.name}</span>
+                    <div key={idx} className="bg-white p-2 rounded-lg border border-slate-200 space-y-1">
+                      <div className="flex items-center justify-between text-[10px] font-bold text-slate-800">
+                        <span className="flex items-center gap-1 truncate max-w-[170px]">
+                          <span>{sf.fileType === 'COVER' ? '🖼' : (sf.fileType === 'SUPPLEMENT' ? '📄' : '📖')}</span>
+                          <span>{sf.name}</span>
+                        </span>
+                      </div>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="Darslik xarajati (so'm)"
+                        value={subCosts[idx] || ''}
+                        onChange={e => handleSubCostChange(idx, e.target.value)}
+                        className="w-full h-7 px-2 text-xs font-bold text-slate-800 bg-slate-50 border border-slate-300 focus:border-indigo-500 focus:outline-none rounded-md font-mono"
+                      />
                     </div>
                   ))}
                 </div>

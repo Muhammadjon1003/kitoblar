@@ -303,11 +303,34 @@ export default function SupplierRouting() {
                   return acc;
                 }, new Map<string, Order[]>());
 
-                const yoldaBatches = Array.from(yoldaBatchesMap.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+                const yoldaBatches = Array.from(yoldaBatchesMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
 
                 return yoldaBatches.map(([batchTime, batchOrders], batchIdx) => {
                   const selectedInBatch = batchOrders.filter(o => selectedYoldaIds.has(o.id));
                   const isAllBatchSelected = batchOrders.length > 0 && selectedInBatch.length === batchOrders.length;
+
+                  // Compute sub-books and student groupings for this batch
+                  const bookGroupings: Record<string, { isSet?: boolean; count: number; subFiles: Array<{ name: string; fileType?: string }>; students: string[] }> = {};
+                  for (const o of batchOrders) {
+                    const inv = getInventoryItem(o.bookId);
+                    const title = inv?.title ?? 'Darslik';
+                    const studentName = getStudentName(o.studentId);
+
+                    if (!bookGroupings[title]) {
+                      let subFiles: Array<{ name: string; fileType?: string }> = [];
+                      if (inv?.setDetails) {
+                        try { subFiles = JSON.parse(inv.setDetails); } catch (e) {}
+                      }
+                      bookGroupings[title] = {
+                        isSet: inv?.isSet,
+                        count: 0,
+                        subFiles,
+                        students: []
+                      };
+                    }
+                    bookGroupings[title].count += 1;
+                    bookGroupings[title].students.push(studentName);
+                  }
 
                   const toggleSelectAllBatch = () => {
                     setSelectedYoldaIds(prev => {
@@ -324,16 +347,16 @@ export default function SupplierRouting() {
                   const ordersToAcceptForBatch = selectedInBatch.length > 0 ? selectedInBatch : batchOrders;
 
                   return (
-                    <div key={batchTime} className="bg-white border-2 border-slate-200/90 rounded-2xl shadow-sm overflow-hidden">
+                    <div key={batchTime} className="bg-white border-2 border-slate-200/90 rounded-2xl shadow-sm overflow-hidden space-y-0">
                       {/* Batch Header */}
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between px-5 py-3.5 bg-gradient-to-r from-amber-50 to-orange-50/60 border-b border-amber-200/80 gap-3">
                         <div className="flex items-center gap-2.5">
                           <span className="w-8 h-8 rounded-xl bg-amber-500 text-white font-extrabold text-xs flex items-center justify-center shadow-xs">
-                            #{yoldaBatches.length - batchIdx}
+                            #{batchIdx + 1}
                           </span>
                           <div>
                             <p className="text-xs font-extrabold text-amber-950 flex items-center gap-2">
-                              <span>📦 Partiya</span>
+                              <span>📦 {batchIdx + 1}-Partiya</span>
                               <span className="text-[11px] font-mono font-bold text-amber-700 bg-amber-100/90 px-2 py-0.5 rounded-md">
                                 {batchTime}
                               </span>
@@ -371,6 +394,51 @@ export default function SupplierRouting() {
                         </div>
                       </div>
 
+                      {/* Batch Items Summary Box */}
+                      <div className="p-3 bg-amber-50/40 border-b border-amber-100 px-5 space-y-2">
+                        <p className="text-[10px] font-extrabold text-amber-900 uppercase tracking-wider">
+                          📦 Partiyadagi darslik va to'plamlar tarkibi (Ta'minotchi va talabalar bo'yicha):
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {Object.entries(bookGroupings).map(([bTitle, info]) => (
+                            <div key={bTitle} className="bg-white p-2.5 rounded-xl border border-amber-200/80 text-xs space-y-1">
+                              <div className="flex items-center justify-between font-bold text-slate-800">
+                                <span className="flex items-center gap-1.5">
+                                  {info.isSet ? (
+                                    <span className="bg-purple-100 text-purple-800 text-[10px] px-1.5 py-0.5 rounded font-bold">📦 Komplekt</span>
+                                  ) : (
+                                    <span className="bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0.5 rounded font-bold">📖 Yakka</span>
+                                  )}
+                                  <span>{bTitle}</span>
+                                </span>
+                                <span className="font-mono text-amber-900 font-extrabold bg-amber-100 px-2 py-0.5 rounded-md text-[11px]">
+                                  {info.count} ta {info.isSet ? 'to\'plam' : 'kitob'}
+                                </span>
+                              </div>
+
+                              <p className="text-[10px] font-semibold text-slate-500">
+                                Talabalar: <span className="text-slate-800 font-bold">{info.students.join(', ')}</span>
+                              </p>
+
+                              {info.subFiles.length > 0 && (
+                                <div className="pt-1.5 mt-1 border-t border-slate-100 space-y-1">
+                                  <p className="text-[9px] font-bold text-purple-900 uppercase tracking-wider">Keladigan darsliklar va sahifalar (jami):</p>
+                                  {info.subFiles.map((sf, sfIdx) => (
+                                    <div key={sfIdx} className="flex items-center justify-between text-[10px] text-slate-700 bg-slate-50 px-2 py-1 rounded border border-slate-200/60 font-semibold">
+                                      <span className="flex items-center gap-1">
+                                        <span>{sf.fileType === 'COVER' ? '🖼' : (sf.fileType === 'SUPPLEMENT' ? '📄' : '📖')}</span>
+                                        <span>{sf.name}</span>
+                                      </span>
+                                      <span className="font-mono font-bold text-indigo-700">{info.count} ta</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
                       {/* Batch Table */}
                       <div className="w-full overflow-x-auto">
                         <TableShell>
@@ -382,7 +450,8 @@ export default function SupplierRouting() {
                                 </button>
                               </Th>
                               <Th>Talaba / Guruh</Th>
-                              <Th>Kitob nomi</Th>
+                              <Th>Turi</Th>
+                              <Th>Kitob nomi va Tarkibi</Th>
                               <Th>Sotuv Narxi</Th>
                               <Th>Yuborilgan sana va vaqt</Th>
                               <Th right>Amal</Th>
@@ -393,6 +462,10 @@ export default function SupplierRouting() {
                               const inv = getInventoryItem(o.bookId);
                               const narx = o.sotuvNarxi > 0 ? o.sotuvNarxi : sotuvNarxi;
                               const sel = selectedYoldaIds.has(o.id);
+                              let subFiles: Array<{ name: string; fileType?: string }> = [];
+                              if (inv?.setDetails) {
+                                try { subFiles = JSON.parse(inv.setDetails); } catch (e) {}
+                              }
 
                               return (
                                 <tr
@@ -413,7 +486,28 @@ export default function SupplierRouting() {
                                       {getGroupName(o.groupId)} <span className="text-slate-400 font-normal">•</span> O'qituvchi: <span className="text-slate-700 font-bold">{groups.find(g => g.id === o.groupId)?.teacherName ?? '—'}</span>
                                     </p>
                                   </Td>
-                                  <Td><span className="font-bold text-slate-800 text-xs">{inv?.title ?? '—'}</span></Td>
+                                  <Td>
+                                    {inv?.isSet ? (
+                                      <span className="inline-flex items-center px-2 py-0.5 bg-purple-100 text-purple-800 font-extrabold text-[10px] rounded-md">📦 Komplekt</span>
+                                    ) : (
+                                      <span className="inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-800 font-extrabold text-[10px] rounded-md">📖 Yakka</span>
+                                    )}
+                                  </Td>
+                                  <Td>
+                                    <div>
+                                      <p className="font-bold text-slate-800 text-xs">{inv?.title ?? '—'}</p>
+                                      {subFiles.length > 0 && (
+                                        <div className="mt-1 space-y-0.5">
+                                          {subFiles.map((sf, sfIdx) => (
+                                            <div key={sfIdx} className="text-[10px] text-slate-600 flex items-center gap-1 font-medium">
+                                              <span>{sf.fileType === 'COVER' ? '🖼' : (sf.fileType === 'SUPPLEMENT' ? '📄' : '📖')}</span>
+                                              <span>{sf.name}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </Td>
                                   <Td mono>
                                     {o.sotuvNarxi === 0 ? (
                                       <span className="inline-flex items-center px-2 py-0.5 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] rounded-md font-sans">To'lov ichida</span>
