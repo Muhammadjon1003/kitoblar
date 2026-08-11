@@ -309,29 +309,6 @@ export default function SupplierRouting() {
                   const selectedInBatch = batchOrders.filter(o => selectedYoldaIds.has(o.id));
                   const isAllBatchSelected = batchOrders.length > 0 && selectedInBatch.length === batchOrders.length;
 
-                  // Compute sub-books and student groupings for this batch
-                  const bookGroupings: Record<string, { isSet?: boolean; count: number; subFiles: Array<{ name: string; fileType?: string }>; students: string[] }> = {};
-                  for (const o of batchOrders) {
-                    const inv = getInventoryItem(o.bookId);
-                    const title = inv?.title ?? 'Darslik';
-                    const studentName = getStudentName(o.studentId);
-
-                    if (!bookGroupings[title]) {
-                      let subFiles: Array<{ name: string; fileType?: string }> = [];
-                      if (inv?.setDetails) {
-                        try { subFiles = JSON.parse(inv.setDetails); } catch (e) {}
-                      }
-                      bookGroupings[title] = {
-                        isSet: inv?.isSet,
-                        count: 0,
-                        subFiles,
-                        students: []
-                      };
-                    }
-                    bookGroupings[title].count += 1;
-                    bookGroupings[title].students.push(studentName);
-                  }
-
                   const toggleSelectAllBatch = () => {
                     setSelectedYoldaIds(prev => {
                       const next = new Set(prev);
@@ -391,51 +368,6 @@ export default function SupplierRouting() {
                               ? `Tanlangan ${selectedInBatch.length} ta kitobni qabul qilish`
                               : `Partiyadagi barcha ${batchOrders.length} ta kitobni qabul qilish`}
                           </button>
-                        </div>
-                      </div>
-
-                      {/* Batch Items Summary Box */}
-                      <div className="p-3 bg-amber-50/40 border-b border-amber-100 px-5 space-y-2">
-                        <p className="text-[10px] font-extrabold text-amber-900 uppercase tracking-wider">
-                          📦 Partiyadagi darslik va to'plamlar tarkibi (Ta'minotchi va talabalar bo'yicha):
-                        </p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          {Object.entries(bookGroupings).map(([bTitle, info]) => (
-                            <div key={bTitle} className="bg-white p-2.5 rounded-xl border border-amber-200/80 text-xs space-y-1">
-                              <div className="flex items-center justify-between font-bold text-slate-800">
-                                <span className="flex items-center gap-1.5">
-                                  {info.isSet ? (
-                                    <span className="bg-purple-100 text-purple-800 text-[10px] px-1.5 py-0.5 rounded font-bold">📦 Komplekt</span>
-                                  ) : (
-                                    <span className="bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0.5 rounded font-bold">📖 Yakka</span>
-                                  )}
-                                  <span>{bTitle}</span>
-                                </span>
-                                <span className="font-mono text-amber-900 font-extrabold bg-amber-100 px-2 py-0.5 rounded-md text-[11px]">
-                                  {info.count} ta {info.isSet ? 'to\'plam' : 'kitob'}
-                                </span>
-                              </div>
-
-                              <p className="text-[10px] font-semibold text-slate-500">
-                                Talabalar: <span className="text-slate-800 font-bold">{info.students.join(', ')}</span>
-                              </p>
-
-                              {info.subFiles.length > 0 && (
-                                <div className="pt-1.5 mt-1 border-t border-slate-100 space-y-1">
-                                  <p className="text-[9px] font-bold text-purple-900 uppercase tracking-wider">Keladigan darsliklar va sahifalar (jami):</p>
-                                  {info.subFiles.map((sf, sfIdx) => (
-                                    <div key={sfIdx} className="flex items-center justify-between text-[10px] text-slate-700 bg-slate-50 px-2 py-1 rounded border border-slate-200/60 font-semibold">
-                                      <span className="flex items-center gap-1">
-                                        <span>{sf.fileType === 'COVER' ? '🖼' : (sf.fileType === 'SUPPLEMENT' ? '📄' : '📖')}</span>
-                                        <span>{sf.name}</span>
-                                      </span>
-                                      <span className="font-mono font-bold text-indigo-700">{info.count} ta</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ))}
                         </div>
                       </div>
 
