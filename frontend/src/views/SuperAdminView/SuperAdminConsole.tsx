@@ -45,9 +45,16 @@ export default function SuperAdminConsole() {
   const [editComment, setEditComment] = useState<string>('');
   const [isSaving, setIsSaving]       = useState<boolean>(false);
 
-  const [envInfo, setEnvInfo] = useState<{ envStaffGroupId: string; activeStaffGroupId: string }>({
+  const [envInfo, setEnvInfo] = useState<{
+    envStaffGroupId: string;
+    activeStaffGroupId: string;
+    envSupplierGroupId?: string;
+    activeSupplierGroupId?: string;
+  }>({
     envStaffGroupId: '',
-    activeStaffGroupId: ''
+    activeStaffGroupId: '',
+    envSupplierGroupId: '',
+    activeSupplierGroupId: '',
   });
 
   useEffect(() => {
@@ -56,7 +63,9 @@ export default function SuperAdminConsole() {
       .then(data => {
         setEnvInfo({
           envStaffGroupId: data.envStaffGroupId || '',
-          activeStaffGroupId: data.activeStaffGroupId || ''
+          activeStaffGroupId: data.activeStaffGroupId || '',
+          envSupplierGroupId: data.envSupplierGroupId || '',
+          activeSupplierGroupId: data.activeSupplierGroupId || '',
         });
       })
       .catch(() => {});
@@ -124,6 +133,20 @@ export default function SuperAdminConsole() {
     }
   };
 
+  const handleTestSupplierGroup = async () => {
+    try {
+      const res = await fetch(`${API}/backend/system/test-supplier-group`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        fireToast(`✅ ${data.text} (Chat: ${data.chatId})`, 'success');
+      } else {
+        fireToast(`❌ Xatolik: ${data.error}`, 'error');
+      }
+    } catch (e: any) {
+      fireToast(`Xatolik: ${e.message}`, 'error');
+    }
+  };
+
   return (
     <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 space-y-6 bg-slate-900 text-slate-100 min-h-screen">
       {/* Top Banner */}
@@ -156,26 +179,34 @@ export default function SuperAdminConsole() {
         </div>
       </div>
 
-      {/* Telegram Staff Group Vercel Env Box */}
+      {/* Telegram Group Vercel Env Diagnostic Box */}
       <div className="bg-slate-800/90 border border-slate-700/80 p-5 rounded-2xl shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            📱 Vercel Telegram STAFF_GROUP_ID Diagnostikasi
+            📱 Vercel Telegram SUPPLIER_GROUP_ID Diagnostikasi
           </h3>
           <p className="text-xs text-slate-400 mt-1">
-            Vercel o'zgaruvchisi (STAFF_GROUP_ID): <code className="text-purple-300 font-mono font-bold">{envInfo.envStaffGroupId || 'Kiritilmagan'}</code>
-            {envInfo.activeStaffGroupId && (
-              <span className="ml-2 text-emerald-400 font-mono font-bold">(Formatlangan ID: {envInfo.activeStaffGroupId})</span>
+            Vercel o'zgaruvchisi (SUPPLIER / STAFF_GROUP_ID): <code className="text-purple-300 font-mono font-bold">{envInfo.envSupplierGroupId || envInfo.envStaffGroupId || 'Kiritilmagan'}</code>
+            {envInfo.activeSupplierGroupId && (
+              <span className="ml-2 text-emerald-400 font-mono font-bold">(Formatlangan Target Chat ID: {envInfo.activeSupplierGroupId})</span>
             )}
           </p>
         </div>
 
-        <button
-          onClick={handleTestStaffGroup}
-          className="flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-md shrink-0"
-        >
-          ✈️ Guruhga Test Xabari Yuborish
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleTestSupplierGroup}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-amber-600 hover:bg-amber-500 text-white transition-all shadow-md"
+          >
+            📦 Ta'minotchi Guruhiga Test Xabar Yuborish
+          </button>
+          <button
+            onClick={handleTestStaffGroup}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-md"
+          >
+            ✈️ Xodimlar Guruhiga Test Xabar Yuborish
+          </button>
+        </div>
       </div>
 
       {/* Control Tools Header */}

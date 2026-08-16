@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../prisma';
+import { formatChatId } from '../telegram';
 
 const router = Router();
 
@@ -12,16 +13,20 @@ router.get('/backend/settings', async (req, res) => {
       create: { id: 'global', sotuvNarxi: 0 },
     });
 
-    const activeStaffGroupId = settings.staffGroupId || process.env.STAFF_GROUP_ID || '';
-    const activeStorageChannelId = settings.storageChannelId || process.env.STORAGE_CHANNEL_ID || '';
+    const envSupplierGroupId = process.env.SUPPLIER_GROUP_ID || process.env.NEXT_PUBLIC_SUPPLIER_GROUP_ID || '';
+    const activeStaffGroupId = formatChatId(settings.staffGroupId || process.env.STAFF_GROUP_ID || '');
+    const activeSupplierGroupId = formatChatId(settings.staffGroupId || envSupplierGroupId || process.env.STAFF_GROUP_ID || '');
+    const activeStorageChannelId = formatChatId(settings.storageChannelId || process.env.STORAGE_CHANNEL_ID || '');
 
     res.json({
       sotuvNarxi: settings.sotuvNarxi,
       staffGroupId: settings.staffGroupId || '',
       storageChannelId: settings.storageChannelId || '',
       envStaffGroupId: process.env.STAFF_GROUP_ID || '',
+      envSupplierGroupId,
       envStorageChannelId: process.env.STORAGE_CHANNEL_ID || '',
       activeStaffGroupId,
+      activeSupplierGroupId,
       activeStorageChannelId,
       updatedAt: settings.updatedAt
     });

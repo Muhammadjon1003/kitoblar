@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../prisma';
-import { bot, formatChatId, getStaffGroupId } from '../telegram';
+import { bot, formatChatId, getStaffGroupId, getSupplierGroupId } from '../telegram';
 
 const router = Router();
 
@@ -120,6 +120,41 @@ router.post('/backend/system/test-staff-group', async (req, res) => {
     console.error('[Test Staff Group Error]:', e.message);
     res.status(400).json({
       error: `Telegramga yuborishda xatolik: ${e.message} (Vercel Env ID: "${rawEnvId}" -> Target Chat ID: "${formattedId}"). Bot guruhda admin ekanligini va Group ID to'g'riligini tekshiring.`
+    });
+  }
+});
+
+// POST /backend/system/test-supplier-group — send a test message to the configured SUPPLIER_GROUP_ID
+router.post('/backend/system/test-supplier-group', async (req, res) => {
+  const rawEnvId = process.env.SUPPLIER_GROUP_ID || process.env.NEXT_PUBLIC_SUPPLIER_GROUP_ID || process.env.STAFF_GROUP_ID || '';
+
+  try {
+    const targetChatId = getSupplierGroupId();
+
+    const msg = await bot.telegram.sendMessage(
+      targetChatId,
+      `🧪 <b>SmartBook ERP Ta'minotchi Test Xabari!</b>\n\n` +
+      `📦 Ta'minotchi Telegram Guruhi (SUPPLIER_GROUP_ID) muvaffaqiyatli ulangan!\n` +
+      `🆔 Vercel Env ID: <code>${rawEnvId}</code>\n` +
+      `🆔 Formatted Chat ID: <code>${targetChatId}</code>\n` +
+      `⏰ Sana/Vaqt: <code>${new Date().toLocaleString('uz-UZ')}</code>`,
+      { parse_mode: 'HTML' }
+    );
+
+    res.json({
+      success: true,
+      rawEnvId,
+      chatId: targetChatId,
+      messageId: msg.message_id,
+      text: `Test xabari ta'minotchi guruhiga muvaffaqiyatli yuborildi! (Chat ID: ${targetChatId})`
+    });
+  } catch (e: any) {
+    let formattedId = '';
+    try { formattedId = getSupplierGroupId(); } catch (_) {}
+
+    console.error('[Test Supplier Group Error]:', e.message);
+    res.status(400).json({
+      error: `Ta'minotchi Telegram guruhiga yuborishda xatolik: ${e.message} (Vercel Env ID: "${rawEnvId}" -> Target Chat ID: "${formattedId}"). Bot guruhda admin ekanligini va Group ID to'g'riligini tekshiring.`
     });
   }
 });
