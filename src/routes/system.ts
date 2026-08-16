@@ -102,16 +102,27 @@ router.post('/backend/system/test-staff-group', async (req, res) => {
       `📌 Xodimlar Telegram Guruhi (STAFF_GROUP_ID) muvaffaqiyatli ulangan!\n` +
       `🆔 Vercel Env ID: <code>${rawEnvId}</code>\n` +
       `🆔 Formatted Chat ID: <code>${targetChatId}</code>\n` +
-      `⏰ Sana/Vaqt: <code>${new Date().toLocaleString('uz-UZ')}</code>`,
+      `⏰ Sana/Vaqt: <code>${new Date().toLocaleString('uz-UZ')}</code>\n\n` +
+      `⏳ <i>Ushbu test xabari 1 daqiqadan so'ng avtomatik o'chiriladi.</i>`,
       { parse_mode: 'HTML' }
     );
+
+    // Auto-delete test message after 1 minute (60 seconds)
+    setTimeout(async () => {
+      try {
+        await bot.telegram.deleteMessage(targetChatId, msg.message_id);
+        console.log(`[Auto-Delete]: Test staff message ${msg.message_id} in ${targetChatId} deleted after 1 min.`);
+      } catch (err: any) {
+        console.warn('[Auto-Delete Warning]:', err.message);
+      }
+    }, 60 * 1000);
 
     res.json({
       success: true,
       rawEnvId,
       chatId: targetChatId,
       messageId: msg.message_id,
-      text: `Test xabari xodimlar guruhiga muvaffaqiyatli yuborildi! (Chat ID: ${targetChatId})`
+      text: `Test xabari xodimlar guruhiga yuborildi! (1 daqiqadan so'ng avtomatik o'chiriladi)`
     });
   } catch (e: any) {
     let formattedId = '';
@@ -137,16 +148,27 @@ router.post('/backend/system/test-supplier-group', async (req, res) => {
       `📦 Ta'minotchi Telegram Guruhi (SUPPLIER_GROUP_ID) muvaffaqiyatli ulangan!\n` +
       `🆔 Vercel Env ID: <code>${rawEnvId}</code>\n` +
       `🆔 Formatted Chat ID: <code>${targetChatId}</code>\n` +
-      `⏰ Sana/Vaqt: <code>${new Date().toLocaleString('uz-UZ')}</code>`,
+      `⏰ Sana/Vaqt: <code>${new Date().toLocaleString('uz-UZ')}</code>\n\n` +
+      `⏳ <i>Ushbu test xabari 1 daqiqadan so'ng avtomatik o'chiriladi.</i>`,
       { parse_mode: 'HTML' }
     );
+
+    // Auto-delete test message after 1 minute (60 seconds)
+    setTimeout(async () => {
+      try {
+        await bot.telegram.deleteMessage(targetChatId, msg.message_id);
+        console.log(`[Auto-Delete]: Test supplier message ${msg.message_id} in ${targetChatId} deleted after 1 min.`);
+      } catch (err: any) {
+        console.warn('[Auto-Delete Warning]:', err.message);
+      }
+    }, 60 * 1000);
 
     res.json({
       success: true,
       rawEnvId,
       chatId: targetChatId,
       messageId: msg.message_id,
-      text: `Test xabari ta'minotchi guruhiga muvaffaqiyatli yuborildi! (Chat ID: ${targetChatId})`
+      text: `Test xabari ta'minotchi guruhiga yuborildi! (1 daqiqadan so'ng avtomatik o'chiriladi)`
     });
   } catch (e: any) {
     let formattedId = '';
