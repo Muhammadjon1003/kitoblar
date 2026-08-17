@@ -583,9 +583,13 @@ export const handleSendTelegram = async (req: any, res: any) => {
 
       // Log to dispatched_order_logs
       for (const o of group.orders) {
-        const orderCreatedDateStr = o.createdAt
-          ? new Date(o.createdAt).toISOString().replace('T', ' ').slice(0, 16)
-          : today;
+        const d = o.createdAt ? new Date(o.createdAt) : new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const h = String(d.getHours()).padStart(2, '0');
+        const min = String(d.getMinutes()).padStart(2, '0');
+        const orderCreatedDateStr = `${y}-${m}-${day} ${h}:${min}`;
 
         await prisma.dispatchedOrderLog.create({
           data: {
@@ -620,6 +624,10 @@ router.get('/backend/orders/dispatched-history', async (req, res) => {
       orderBy: { createdAt: 'desc' },
     });
 
+    const erpOrders = await prisma.erpOrder.findMany({
+      include: { student: true, group: true }
+    });
+
     // Auto-backfill from existing ORDERED/ARRIVED/GIVEN orders if logs table is empty
     if (logs.length === 0) {
       const existingDispatched = await prisma.erpOrder.findMany({
@@ -631,9 +639,8 @@ router.get('/backend/orders/dispatched-history', async (req, res) => {
       const bookMap = new Map(books.map(b => [String(b.id), b.name]));
 
       for (const o of existingDispatched) {
-        const createdDateStr = o.createdAt
-          ? new Date(o.createdAt).toISOString().replace('T', ' ').slice(0, 16)
-          : (o.updatedAt || new Date().toISOString().slice(0, 10));
+        const d = o.createdAt ? new Date(o.createdAt) : new Date();
+        const createdDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
         await prisma.dispatchedOrderLog.create({
           data: {
@@ -652,11 +659,26 @@ router.get('/backend/orders/dispatched-history', async (req, res) => {
       });
     }
 
-    // Format log entries ensuring orderCreatedAt has fallback
-    const formattedLogs = logs.map(l => ({
-      ...l,
-      orderCreatedAt: l.orderCreatedAt || (l.createdAt ? new Date(l.createdAt).toISOString().replace('T', ' ').slice(0, 16) : l.orderedAt)
-    }));
+    // Format log entries dynamically resolving real erp_orders createdAt if missing
+    const formattedLogs = logs.map(l => {
+      let teacherCreatedAt = l.orderCreatedAt && l.orderCreatedAt.trim() !== '' ? l.orderCreatedAt : '';
+
+      if (!teacherCreatedAt || teacherCreatedAt === l.orderedAt) {
+        const matched = erpOrders.find(o =>
+          o.student?.fullName === l.studentName &&
+          o.group?.groupName === l.groupName
+        );
+        if (matched?.createdAt) {
+          const d = new Date(matched.createdAt);
+          teacherCreatedAt = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        }
+      }
+
+      return {
+        ...l,
+        orderCreatedAt: teacherCreatedAt || l.orderedAt
+      };
+    });
 
     res.json(formattedLogs);
   } catch (e: any) {
