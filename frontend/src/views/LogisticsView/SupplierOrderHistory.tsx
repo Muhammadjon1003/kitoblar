@@ -14,6 +14,7 @@ interface DispatchedLog {
   teacherName: string;
   bookTitle: string;
   orderedAt: string;
+  orderCreatedAt?: string;
   createdAt: string;
 }
 
@@ -145,7 +146,8 @@ export default function SupplierOrderHistory() {
                   <Th>Talaba ismi</Th>
                   <Th>Guruh / O'qituvchi</Th>
                   <Th>Kitob nomi</Th>
-                  <Th>Buyurtma qilingan sana</Th>
+                  <Th>O'qituvchi buyurtma bergan vaqt</Th>
+                  <Th>Ta'minotchiga yuborilgan vaqt</Th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -168,7 +170,13 @@ export default function SupplierOrderHistory() {
                       </span>
                     </Td>
                     <Td mono muted>
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-700">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md">
+                        <Clock className="w-3.5 h-3.5 text-blue-500" />
+                        {l.orderCreatedAt || l.orderedAt || new Date(l.createdAt).toISOString().slice(0, 10)}
+                      </span>
+                    </Td>
+                    <Td mono muted>
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700">
                         <Clock className="w-3.5 h-3.5 text-slate-400" />
                         {l.orderedAt || new Date(l.createdAt).toISOString().slice(0, 10)}
                       </span>

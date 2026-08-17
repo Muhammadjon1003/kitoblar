@@ -583,6 +583,10 @@ export const handleSendTelegram = async (req: any, res: any) => {
 
       // Log to dispatched_order_logs
       for (const o of group.orders) {
+        const orderCreatedDateStr = o.createdAt
+          ? new Date(o.createdAt).toISOString().replace('T', ' ').slice(0, 16)
+          : today;
+
         await prisma.dispatchedOrderLog.create({
           data: {
             studentName: o.student.fullName,
@@ -590,6 +594,7 @@ export const handleSendTelegram = async (req: any, res: any) => {
             teacherName: o.group.teacherName,
             bookTitle: group.bookName,
             orderedAt: today,
+            orderCreatedAt: orderCreatedDateStr,
           }
         }).catch(() => {});
       }
@@ -626,6 +631,10 @@ router.get('/backend/orders/dispatched-history', async (req, res) => {
       const bookMap = new Map(books.map(b => [String(b.id), b.name]));
 
       for (const o of existingDispatched) {
+        const createdDateStr = o.createdAt
+          ? new Date(o.createdAt).toISOString().replace('T', ' ').slice(0, 16)
+          : (o.updatedAt || new Date().toISOString().slice(0, 10));
+
         await prisma.dispatchedOrderLog.create({
           data: {
             studentName: o.student.fullName,
@@ -633,6 +642,7 @@ router.get('/backend/orders/dispatched-history', async (req, res) => {
             teacherName: o.group.teacherName ?? '',
             bookTitle: bookMap.get(o.bookId) ?? 'Darslik',
             orderedAt: o.updatedAt || new Date().toISOString().slice(0, 10),
+            orderCreatedAt: createdDateStr,
           }
         });
       }
@@ -642,7 +652,13 @@ router.get('/backend/orders/dispatched-history', async (req, res) => {
       });
     }
 
-    res.json(logs);
+    // Format log entries ensuring orderCreatedAt has fallback
+    const formattedLogs = logs.map(l => ({
+      ...l,
+      orderCreatedAt: l.orderCreatedAt || (l.createdAt ? new Date(l.createdAt).toISOString().replace('T', ' ').slice(0, 16) : l.orderedAt)
+    }));
+
+    res.json(formattedLogs);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

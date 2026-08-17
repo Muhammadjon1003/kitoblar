@@ -187,13 +187,14 @@ model ErpUser {
 // ─── ERP: Permanent Dispatched Order Logs ──────────────────────────────
 
 model DispatchedOrderLog {
-  id          String   @id @default(cuid())
-  studentName String
-  groupName   String
-  teacherName String   @default("")
-  bookTitle   String
-  orderedAt   String   // Date when order was marked as ORDERED
-  createdAt   DateTime @default(now())
+  id             String   @id @default(cuid())
+  studentName    String
+  groupName      String
+  teacherName    String   @default("")
+  bookTitle      String
+  orderedAt      String   // Date/time when order was routed to supplier (ORDERED status)
+  orderCreatedAt String   @default("") // Date/time when order was created by teacher (CREATED status)
+  createdAt      DateTime @default(now())
 
   @@map("dispatched_order_logs")
 }
