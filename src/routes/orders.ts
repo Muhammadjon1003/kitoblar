@@ -224,7 +224,7 @@ router.patch('/backend/orders/:id', async (req, res) => {
 
     // Automatic state transition: CREATED -> PAID when payment requirement is satisfied
     if (existing.status === 'CREATED' && status === undefined) {
-      if (finalSotuvNarxi === 0 || finalAmountPaid >= finalSotuvNarxi) {
+      if (finalSotuvNarxi > 0 && finalAmountPaid >= finalSotuvNarxi) {
         finalStatus = 'PAID';
       }
     }
