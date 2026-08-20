@@ -12,9 +12,9 @@ function PipelineView() {
 
   const USTUNLAR = [
     {
-      statuses: ['CREATED', 'PAID'] as OrderStatus[],
+      statuses: ['CREATED'] as OrderStatus[],
       title: 'O\'qituvchi buyurtma bergan',
-      subtitle: 'To\'lov kutilayotgan va To\'langan buyurtmalar',
+      subtitle: 'To\'lov kutilayotgan buyurtmalar',
       accentLeft: 'border-l-blue-600',
       countColor: 'bg-blue-600 text-white font-bold',
     },
