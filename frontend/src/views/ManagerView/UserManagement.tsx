@@ -3,11 +3,12 @@
  * Menejer uchun xodimlar akkauntlari, login parollari va rollarini boshqarish sahifasi.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { UserCheck, UserPlus, Trash2, Key, Shield, X, CheckCircle, Search } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { TableShell, Th, Td, EmptyState } from '../../components/ui';
 import type { UserRole } from '../../types';
+import { API } from '../../context/contextHelpers';
 
 const ROLE_LABELS: Record<UserRole, { label: string; cls: string }> = {
   TEACHER:     { label: "O'qituvchi",         cls: 'bg-blue-100 text-blue-800 border-blue-200' },
@@ -446,6 +447,220 @@ export default function UserManagement() {
         <ParolTahrirlashModali user={editUser} onClose={() => setEditUser(null)} />
       )}
 
+      {/* 🤖 Telegram Bot Access Management Section */}
+      <TelegramBoshqaruvSection />
+
+    </div>
+  );
+}
+
+function TelegramBoshqaruvSection() {
+  const { fireToast } = useApp();
+  const [tgUsers, setTgUsers] = useState<Array<{ chatId: string; fullName: string | null; createdAt: string }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddTgModal, setShowAddTgModal] = useState(false);
+
+  const fetchTgUsers = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/backend/telegram-users`);
+      if (res.ok) setTgUsers(await res.json());
+    } catch (e: any) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTgUsers();
+  }, []);
+
+  const handleDelete = async (chatId: string) => {
+    if (!window.confirm(`Haqiqatdan ham "${chatId}" ID egalik telegram ruxsatini bekor qilmoqchimisiz?`)) return;
+    try {
+      const res = await fetch(`${API}/backend/telegram-users/${chatId}`, { method: 'DELETE' });
+      if (res.ok) {
+        fireToast(`Telegram ID "${chatId}" ruxsati bekor qilindi.`, 'info');
+        fetchTgUsers();
+      }
+    } catch (e: any) {
+      fireToast(`Xatolik: ${e.message}`, 'error');
+    }
+  };
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-4 sm:p-6 space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        <div>
+          <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+            <Shield className="w-5 h-5 text-purple-600" />
+            🤖 Telegram Bot Ruxsat Berilgan Foydalanuvchilar (Whitelist)
+          </h3>
+          <p className="text-xs font-semibold text-slate-500 mt-0.5">
+            Telegram botga kirish huquqiga ega bo'lgan foydalanuvchilar va ta'minotchilar ID ro'yxati
+          </p>
+        </div>
+
+        <button
+          onClick={() => setShowAddTgModal(true)}
+          className="py-2 px-3.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-all shrink-0"
+        >
+          <UserPlus className="w-3.5 h-3.5" />
+          + Telegram User Qo'shish
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="p-8 text-center text-xs font-semibold text-slate-400">Yuklanmoqda...</div>
+      ) : tgUsers.length === 0 ? (
+        <EmptyState label="Hozircha ma'lumotlar bazasida ruxsat berilgan telegram userlar yo'q." />
+      ) : (
+        <div className="w-full overflow-x-auto">
+          <TableShell>
+            <thead>
+              <tr>
+                <Th>#</Th>
+                <Th>Telegram Chat ID</Th>
+                <Th>Ismi / Izoh</Th>
+                <Th>Biriktirilgan sana</Th>
+                <Th right>Amal</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {tgUsers.map((u, i) => (
+                <tr key={u.chatId} className="hover:bg-slate-50 transition-colors">
+                  <Td mono>{i + 1}</Td>
+                  <Td mono>
+                    <span className="font-bold text-purple-900 bg-purple-50 border border-purple-100 px-2.5 py-0.5 rounded-md">
+                      <code>{u.chatId}</code>
+                    </span>
+                  </Td>
+                  <Td>
+                    <span className="font-bold text-slate-800">{u.fullName || '—'}</span>
+                  </Td>
+                  <Td mono muted>
+                    {u.createdAt ? u.createdAt.slice(0, 10) : '—'}
+                  </Td>
+                  <Td right>
+                    <button
+                      onClick={() => handleDelete(u.chatId)}
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Ruxsatni bekor qilish"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </TableShell>
+        </div>
+      )}
+
+      {showAddTgModal && (
+        <YangiTelegramUserModali
+          onClose={() => setShowAddTgModal(false)}
+          onSuccess={() => { setShowAddTgModal(false); fetchTgUsers(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function YangiTelegramUserModali({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const { fireToast } = useApp();
+  const [chatId, setChatId]     = useState('');
+  const [fullName, setFullName] = useState('');
+  const [saving, setSaving]     = useState(false);
+  const [xato, setXato]         = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatId.trim()) { setXato("Telegram Chat ID kiritilishi shart."); return; }
+
+    setSaving(true);
+    setXato('');
+    try {
+      const res = await fetch(`${API}/backend/telegram-users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId: chatId.trim(), fullName: fullName.trim() })
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text);
+      }
+
+      fireToast(`Telegram ID "${chatId}" muvaffaqiyatli saqlandi!`, 'success');
+      onSuccess();
+    } catch (e: any) {
+      setXato(`Saqlashda xatolik: ${e.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-2xl z-10 overflow-hidden">
+        <div className="px-6 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <UserPlus className="w-5 h-5" />
+            <h3 className="text-base font-bold">Telegram Bot User Biriktirish</h3>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/15 text-white transition-colors">
+            <X className="w-4.5 h-4.5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {xato && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-red-600">
+              {xato}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Telegram Chat ID (masalan: 371607314)</label>
+            <input
+              type="text"
+              value={chatId}
+              onChange={e => { setChatId(e.target.value); setXato(''); }}
+              placeholder="371607314"
+              required
+              autoFocus
+              className="w-full h-10 px-3 text-xs font-mono font-bold text-slate-800 bg-slate-50 border border-slate-300 rounded-xl focus:border-purple-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Egasining Ismi yoki Izoh</label>
+            <input
+              type="text"
+              value={fullName}
+              onChange={e => { setFullName(e.target.value); setXato(''); }}
+              placeholder="masalan: Alisher / Ta'minotchi Operator"
+              className="w-full h-10 px-3 text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-300 rounded-xl focus:border-purple-500 focus:outline-none"
+            />
+          </div>
+
+          <div className="pt-3 flex items-center justify-end gap-2">
+            <button type="button" onClick={onClose} className="sb-btn-secondary text-xs py-2 px-4">
+              Bekor qilish
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="py-2 px-4 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+            >
+              {saving ? 'Saqlanmoqda...' : 'Saqlash'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

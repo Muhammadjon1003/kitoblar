@@ -57,6 +57,7 @@ export function useAuthManager(fireToast: (msg: string, variant?: any) => void) 
 
       try {
         localStorage.setItem('smartbooks_auth_user', JSON.stringify(user));
+        localStorage.removeItem('smartbooks_route');
       } catch (e) {}
 
       setCurrentUser(user);
@@ -69,7 +70,11 @@ export function useAuthManager(fireToast: (msg: string, variant?: any) => void) 
   }, [fireToast]);
 
   const logout = useCallback(() => {
-    try { localStorage.removeItem('smartbooks_auth_user'); } catch (e) {}
+    try {
+      localStorage.removeItem('smartbooks_auth_user');
+      localStorage.removeItem('smartbooks_route');
+      window.location.hash = '';
+    } catch (e) {}
     setCurrentUser(null);
     fireToast("Tizimdan chiqildi.", 'info');
   }, [fireToast]);
