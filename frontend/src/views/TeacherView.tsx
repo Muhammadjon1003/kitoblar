@@ -13,6 +13,7 @@ export default function TeacherView() {
     students,
     getStudentOrders, getInventoryItem,
     deleteOrderAdmin,
+    fireToast,
   } = useApp();
 
   // Filter groups strictly for currently logged-in teacher (if logged in as TEACHER)
@@ -44,7 +45,24 @@ export default function TeacherView() {
 
   const groupStudents = students.filter(s => s.groupId === activeGroupId);
 
-  const toggleStudent = (id: string) => {
+  // Helper to check 3-month order rule: find active non-cancelled order in last 90 days
+  const getRecentActiveOrder = (studentId: string) => {
+    const sOrders = getStudentOrders(studentId);
+    const threeMonthsAgoMs = Date.now() - (90 * 24 * 60 * 60 * 1000);
+    return sOrders.find(o => {
+      if (o.status === 'CANCELLED') return false;
+      const t = o.createdAt ? new Date(o.createdAt).getTime() : (o.updatedAt ? new Date(o.updatedAt).getTime() : 0);
+      return t > threeMonthsAgoMs;
+    });
+  };
+
+  const toggleStudent = (id: string, name?: string) => {
+    const blockedOrder = getRecentActiveOrder(id);
+    if (blockedOrder) {
+      const orderDate = blockedOrder.createdAt ? new Date(blockedOrder.createdAt).toISOString().slice(0, 10) : blockedOrder.updatedAt;
+      fireToast(`"${name || 'Talaba'}"ga so'nggi 3 oy ichida (${orderDate}) darslik buyurtma qilingan. Faqat eski buyurtma bekor qilingan (CANCELLED) bo'lsa yangi buyurtma berish mumkin.`, 'error');
+      return;
+    }
     setSelectedIds(prev => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
@@ -52,9 +70,15 @@ export default function TeacherView() {
     });
   };
 
+  const eligibleStudents = groupStudents.filter(s => !getRecentActiveOrder(s.id));
+
   const toggleAll = () => {
+    if (eligibleStudents.length === 0) {
+      fireToast("Guruhdagi barcha talabalarga so'nggi 3 oy ichida darslik buyurtma qilingan.", 'error');
+      return;
+    }
     setSelectedIds(prev =>
-      prev.size === groupStudents.length ? new Set() : new Set(groupStudents.map(s => s.id))
+      prev.size === eligibleStudents.length ? new Set() : new Set(eligibleStudents.map(s => s.id))
     );
   };
 
@@ -142,17 +166,20 @@ export default function TeacherView() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {groupStudents.map(student => {
-                const latestOrder = getStudentOrders(student.id)[0];
-                const bookItem    = latestOrder ? getInventoryItem(latestOrder.bookId) : undefined;
-                const selected    = selectedIds.has(student.id);
+                const latestOrder       = getStudentOrders(student.id)[0];
+                const recentActiveOrder = getRecentActiveOrder(student.id);
+                const bookItem          = latestOrder ? getInventoryItem(latestOrder.bookId) : undefined;
+                const selected          = selectedIds.has(student.id);
+                const isBlocked         = Boolean(recentActiveOrder);
 
                 return (
                   <tr key={student.id}
-                    className={`transition-colors cursor-pointer ${selected ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
-                    onClick={() => toggleStudent(student.id)}>
+                    className={`transition-colors ${isBlocked ? 'bg-amber-50/40 cursor-not-allowed opacity-90' : selected ? 'bg-blue-50 cursor-pointer' : 'hover:bg-slate-50 cursor-pointer'}`}
+                    onClick={() => toggleStudent(student.id, student.name)}>
                     <Td>
-                      <button onClick={e => { e.stopPropagation(); toggleStudent(student.id); }}
-                        className="text-slate-400 hover:text-blue-600 transition-colors">
+                      <button onClick={e => { e.stopPropagation(); toggleStudent(student.id, student.name); }}
+                        disabled={isBlocked}
+                        className="text-slate-400 hover:text-blue-600 transition-colors disabled:opacity-30">
                         {selected
                           ? <CheckSquare className="w-3.5 h-3.5 text-blue-600" />
                           : <Square className="w-3.5 h-3.5" />}
@@ -167,11 +194,20 @@ export default function TeacherView() {
                       </div>
                     </Td>
                     <Td muted={!bookItem}>{bookItem ? bookItem.title : 'Buyurtma yo\'q'}</Td>
-                    <Td mono muted={!latestOrder}>{latestOrder ? latestOrder.updatedAt : '—'}</Td>
+                    <Td mono muted={!latestOrder}>{latestOrder ? (latestOrder.createdAt?.slice(0, 10) || latestOrder.updatedAt) : '—'}</Td>
                     <Td>
-                      {latestOrder
-                        ? <StatusBadge status={latestOrder.status} />
-                        : <span className="text-[11px] text-slate-500 font-semibold">Faol buyurtma yo'q</span>}
+                      {isBlocked ? (
+                        <span
+                          title={`So'nggi 3 oy ichida (${recentActiveOrder?.createdAt?.slice(0, 10) || recentActiveOrder?.updatedAt}) darslik buyurtma qilingan. Faqat eski buyurtma bekor qilingan (CANCELLED) bo'lsa yangi buyurtma berish mumkin.`}
+                          className="px-2.5 py-1 bg-amber-100 border border-amber-300 text-amber-900 font-bold text-[10px] rounded-lg cursor-help inline-flex items-center gap-1"
+                        >
+                          🚫 3 oy ichida berilgan ({recentActiveOrder?.createdAt?.slice(0, 10) || recentActiveOrder?.updatedAt})
+                        </span>
+                      ) : latestOrder ? (
+                        <StatusBadge status={latestOrder.status} />
+                      ) : (
+                        <span className="text-[11px] text-slate-500 font-semibold">Faol buyurtma yo'q</span>
+                      )}
                     </Td>
                     <Td>
                       {latestOrder ? (

@@ -144,6 +144,29 @@ router.post('/backend/orders', async (req, res) => {
     });
     const bookPriceMap = new Map(dbBooks.map(b => [String(b.id), b.price ?? 0]));
 
+    // 3-Month Order Check Rule: Block new order if student has a non-cancelled order created within the last 90 days
+    const ninetyDaysAgo = new Date(Date.now() - (90 * 24 * 60 * 60 * 1000));
+    const studentIds = Array.from(new Set(body.map((item: any) => item.studentId).filter(Boolean)));
+
+    const existingRecentOrders = await prisma.erpOrder.findMany({
+      where: {
+        studentId: { in: studentIds },
+        status: { not: 'CANCELLED' },
+        createdAt: { gte: ninetyDaysAgo }
+      },
+      include: { student: true }
+    });
+
+    if (existingRecentOrders.length > 0) {
+      const blockedStudents = existingRecentOrders.map(o => {
+        const dateStr = o.createdAt ? new Date(o.createdAt).toISOString().slice(0, 10) : '';
+        return `"${o.student?.fullName || 'Talaba'}" (${dateStr})`;
+      }).join(', ');
+      return res.status(400).json({
+        error: `Buyurtma berib bo'lmaydi: Quyidagi talabalarga so'nggi 3 oy ichida darslik buyurtma qilingan: ${blockedStudents}. Faqat eski buyurtma bekor qilingan (CANCELLED) bo'lsa yangi buyurtma berish mumkin.`
+      });
+    }
+
     const created = await Promise.all(body.map((item: any) => {
       const { studentId, groupId, bookId, bookCost, comment } = item;
       if (!studentId || !groupId || !bookId) {
