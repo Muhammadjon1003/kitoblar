@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { BookOpen, CheckSquare, Square, ChevronDown, FolderPlus, Users, UserPlus, Trash2 } from 'lucide-react';
+import { BookOpen, CheckSquare, Square, ChevronDown, FolderPlus, Users, UserPlus, Trash2, AlertTriangle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { StatusBadge, EmptyState, TableShell, Th, Td } from '../components/ui';
 import BulkOrderModal from './TeacherView/BulkOrderModal';
@@ -13,7 +13,6 @@ export default function TeacherView() {
     students,
     getStudentOrders, getInventoryItem,
     deleteOrderAdmin,
-    fireToast,
   } = useApp();
 
   // Filter groups strictly for currently logged-in teacher (if logged in as TEACHER)
@@ -35,13 +34,14 @@ export default function TeacherView() {
   const [activeGroupIdState, setActiveGroupId] = useState<string>('');
   const activeGroupId = teacherGroups.find(g => g.id === activeGroupIdState)?.id ?? teacherGroups[0]?.id ?? '';
 
-  const [selectedIds,         setSelectedIds]         = useState<Set<string>>(new Set());
-  const [showModal,           setShowModal]           = useState(false);
-  const [showCreateGroup,     setShowCreateGroup]     = useState(false);
-  const [showAddStudent,     setShowAddStudent]     = useState(false);
-  const [showBulkAddStudent, setShowBulkAddStudent] = useState(false);
-  const [editingOrder,       setEditingOrder]       = useState<{ orderId: string; currentBookId: string; studentName: string } | null>(null);
-  const [deletingTarget,     setDeletingTarget]     = useState<{ id: string; name: string } | null>(null);
+  const [selectedIds,           setSelectedIds]           = useState<Set<string>>(new Set());
+  const [showModal,             setShowModal]             = useState(false);
+  const [showCreateGroup,       setShowCreateGroup]       = useState(false);
+  const [showAddStudent,       setShowAddStudent]       = useState(false);
+  const [showBulkAddStudent,   setShowBulkAddStudent]   = useState(false);
+  const [editingOrder,         setEditingOrder]         = useState<{ orderId: string; currentBookId: string; studentName: string } | null>(null);
+  const [deletingTarget,       setDeletingTarget]       = useState<{ id: string; name: string } | null>(null);
+  const [blockedStudentsModal, setBlockedStudentsModal] = useState<Array<{ name: string; date: string; status: string }> | null>(null);
 
   const groupStudents = students.filter(s => s.groupId === activeGroupId);
 
@@ -56,13 +56,7 @@ export default function TeacherView() {
     });
   };
 
-  const toggleStudent = (id: string, name?: string) => {
-    const blockedOrder = getRecentActiveOrder(id);
-    if (blockedOrder) {
-      const orderDate = blockedOrder.createdAt ? new Date(blockedOrder.createdAt).toISOString().slice(0, 10) : blockedOrder.updatedAt;
-      fireToast(`"${name || 'Talaba'}"ga so'nggi 3 oy ichida (${orderDate}) darslik buyurtma qilingan. Faqat eski buyurtma bekor qilingan (CANCELLED) bo'lsa yangi buyurtma berish mumkin.`, 'error');
-      return;
-    }
+  const toggleStudent = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
@@ -70,16 +64,34 @@ export default function TeacherView() {
     });
   };
 
-  const eligibleStudents = groupStudents.filter(s => !getRecentActiveOrder(s.id));
-
   const toggleAll = () => {
-    if (eligibleStudents.length === 0) {
-      fireToast("Guruhdagi barcha talabalarga so'nggi 3 oy ichida darslik buyurtma qilingan.", 'error');
-      return;
-    }
     setSelectedIds(prev =>
-      prev.size === eligibleStudents.length ? new Set() : new Set(eligibleStudents.map(s => s.id))
+      prev.size === groupStudents.length ? new Set() : new Set(groupStudents.map(s => s.id))
     );
+  };
+
+  const handleOpenOrderModal = () => {
+    if (selectedIds.size === 0) return;
+    const blockedList: Array<{ name: string; date: string; status: string }> = [];
+
+    for (const sid of selectedIds) {
+      const student = students.find(s => s.id === sid);
+      const blockedOrder = getRecentActiveOrder(sid);
+      if (blockedOrder && student) {
+        const dateStr = blockedOrder.createdAt ? new Date(blockedOrder.createdAt).toISOString().slice(0, 10) : blockedOrder.updatedAt;
+        blockedList.push({
+          name: student.name,
+          date: dateStr,
+          status: blockedOrder.status
+        });
+      }
+    }
+
+    if (blockedList.length > 0) {
+      setBlockedStudentsModal(blockedList);
+    } else {
+      setShowModal(true);
+    }
   };
 
   return (
@@ -132,7 +144,7 @@ export default function TeacherView() {
               {selectedIds.size} ta tanlandi
             </span>
           )}
-          <button onClick={() => selectedIds.size > 0 && setShowModal(true)}
+          <button onClick={handleOpenOrderModal}
             disabled={selectedIds.size === 0}
             className="sb-btn-primary flex items-center gap-1.5 text-xs py-1.5 px-3 disabled:opacity-40 ml-auto sm:ml-0">
             <BookOpen className="w-3.5 h-3.5" /> Buyurtma yaratish
@@ -166,20 +178,17 @@ export default function TeacherView() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {groupStudents.map(student => {
-                const latestOrder       = getStudentOrders(student.id)[0];
-                const recentActiveOrder = getRecentActiveOrder(student.id);
-                const bookItem          = latestOrder ? getInventoryItem(latestOrder.bookId) : undefined;
-                const selected          = selectedIds.has(student.id);
-                const isBlocked         = Boolean(recentActiveOrder);
+                const latestOrder = getStudentOrders(student.id)[0];
+                const bookItem    = latestOrder ? getInventoryItem(latestOrder.bookId) : undefined;
+                const selected    = selectedIds.has(student.id);
 
                 return (
                   <tr key={student.id}
-                    className={`transition-colors ${isBlocked ? 'bg-amber-50/40 cursor-not-allowed opacity-90' : selected ? 'bg-blue-50 cursor-pointer' : 'hover:bg-slate-50 cursor-pointer'}`}
-                    onClick={() => toggleStudent(student.id, student.name)}>
+                    className={`transition-colors cursor-pointer ${selected ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
+                    onClick={() => toggleStudent(student.id)}>
                     <Td>
-                      <button onClick={e => { e.stopPropagation(); toggleStudent(student.id, student.name); }}
-                        disabled={isBlocked}
-                        className="text-slate-400 hover:text-blue-600 transition-colors disabled:opacity-30">
+                      <button onClick={e => { e.stopPropagation(); toggleStudent(student.id); }}
+                        className="text-slate-400 hover:text-blue-600 transition-colors">
                         {selected
                           ? <CheckSquare className="w-3.5 h-3.5 text-blue-600" />
                           : <Square className="w-3.5 h-3.5" />}
@@ -196,18 +205,9 @@ export default function TeacherView() {
                     <Td muted={!bookItem}>{bookItem ? bookItem.title : 'Buyurtma yo\'q'}</Td>
                     <Td mono muted={!latestOrder}>{latestOrder ? (latestOrder.createdAt?.slice(0, 10) || latestOrder.updatedAt) : '—'}</Td>
                     <Td>
-                      {isBlocked ? (
-                        <span
-                          title={`So'nggi 3 oy ichida (${recentActiveOrder?.createdAt?.slice(0, 10) || recentActiveOrder?.updatedAt}) darslik buyurtma qilingan. Faqat eski buyurtma bekor qilingan (CANCELLED) bo'lsa yangi buyurtma berish mumkin.`}
-                          className="px-2.5 py-1 bg-amber-100 border border-amber-300 text-amber-900 font-bold text-[10px] rounded-lg cursor-help inline-flex items-center gap-1"
-                        >
-                          🚫 3 oy ichida berilgan ({recentActiveOrder?.createdAt?.slice(0, 10) || recentActiveOrder?.updatedAt})
-                        </span>
-                      ) : latestOrder ? (
-                        <StatusBadge status={latestOrder.status} />
-                      ) : (
-                        <span className="text-[11px] text-slate-500 font-semibold">Faol buyurtma yo'q</span>
-                      )}
+                      {latestOrder
+                        ? <StatusBadge status={latestOrder.status} />
+                        : <span className="text-[11px] text-slate-500 font-semibold">Faol buyurtma yo'q</span>}
                     </Td>
                     <Td>
                       {latestOrder ? (
@@ -330,6 +330,48 @@ export default function TeacherView() {
                 className="py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-sm flex-1"
               >
                 Ha, O'chirish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3-Month Order Restriction Warning Modal */}
+      {blockedStudentsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setBlockedStudentsModal(null)} />
+          <div className="relative w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-2xl z-10 p-6 space-y-4">
+            <div className="flex items-center gap-3 text-amber-600 border-b border-slate-100 pb-3">
+              <div className="w-9 h-9 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900">Buyurtma Berish Cheklangan</h3>
+                <p className="text-[11px] font-semibold text-slate-500">So'nggi 3 oy ichida darslik berilgan talabalar</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-700 font-medium leading-relaxed">
+              Quyidagi talabalarga so'nggi 3 oy ichida darslik buyurtma qilingan. Faqat eski buyurtma bekor qilingan (CANCELLED) bo'lsa qayta buyurtma berish mumkin:
+            </p>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2 max-h-48 overflow-y-auto">
+              {blockedStudentsModal.map((b, idx) => (
+                <div key={idx} className="flex items-center justify-between text-xs py-1 border-b border-slate-100 last:border-none">
+                  <span className="font-bold text-slate-800">{b.name}</span>
+                  <span className="font-mono text-[11px] text-amber-800 font-semibold bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                    {b.date} ({b.status})
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-2">
+              <button
+                onClick={() => setBlockedStudentsModal(null)}
+                className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
+              >
+                Tushundim (Orqaga)
               </button>
             </div>
           </div>
