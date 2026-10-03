@@ -528,6 +528,39 @@ export default function SupplierRouting() {
     return studentName.includes(q) || groupName.includes(q) || bookTitle.includes(q);
   });
 
+  const exportGivenToExcel = () => {
+    if (filteredGivenBuyurtmalar.length === 0) return;
+
+    const headers = ['#', 'Talaba ismi', 'Guruh', "O'qituvchi", 'Kitob nomi', 'Sotuv narxi (UZS)', 'Tan narxi (Cost UZS)', 'Topshirilgan sana', 'Holati'];
+    
+    const rows = filteredGivenBuyurtmalar.map((o, i) => {
+      const invItem = getInventoryItem(o.bookId);
+      return [
+        i + 1,
+        `"${(getStudentName(o.studentId) || '').replace(/"/g, '""')}"`,
+        `"${(getGroupName(o.groupId) || '').replace(/"/g, '""')}"`,
+        `"${(groups.find(g => g.id === o.groupId)?.teacherName || '').replace(/"/g, '""')}"`,
+        `"${(invItem?.title || '').replace(/"/g, '""')}"`,
+        o.sotuvNarxi ?? 0,
+        o.bookCost ?? 0,
+        `"${(o.updatedAt || '').replace(/"/g, '""')}"`,
+        `"Topshirildi (GIVEN)"`
+      ];
+    });
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    const dateStr = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.setAttribute('download', `Topshirilgan_Kitoblar_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="flex-1 overflow-y-auto px-3.5 sm:px-7 py-4 sm:py-6 space-y-6 bg-slate-50">
       {/* Sub-Navbar Header Switcher */}
@@ -590,7 +623,7 @@ export default function SupplierRouting() {
       ) : (
         /* Topshirilgan Kitoblar Ro'yxati (GIVEN) */
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-4 sm:px-6 py-4 bg-purple-50/50 border-b border-slate-200">
+          <div className="flex items-center justify-between px-4 sm:px-6 py-4 bg-purple-50/50 border-b border-slate-200 flex-wrap gap-2">
             <div>
               <p className="text-sm font-bold text-purple-900 flex items-center gap-2">
                 <CheckCircle2 className="w-4.5 h-4.5 text-purple-600" />
@@ -600,9 +633,20 @@ export default function SupplierRouting() {
                 Talabalarga muvaffaqiyatli topshirilgan va yakunlangan darsliklar ro'yxati.
               </p>
             </div>
-            <span className="text-xs font-bold px-3 py-1 bg-purple-100 text-purple-800 rounded-lg">
-              Jami: {filteredGivenBuyurtmalar.length} ta
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={exportGivenToExcel}
+                disabled={filteredGivenBuyurtmalar.length === 0}
+                className="flex items-center gap-1.5 text-xs py-1.5 px-3 font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-sm transition-colors disabled:opacity-40"
+                title="Topshirilgan barcha kitoblarni Excel (CSV) fayliga yuklash"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                Excel-ga yuklash
+              </button>
+              <span className="text-xs font-bold px-3 py-1 bg-purple-100 text-purple-800 rounded-lg">
+                Jami: {filteredGivenBuyurtmalar.length} ta
+              </span>
+            </div>
           </div>
 
           {filteredGivenBuyurtmalar.length === 0 ? (
