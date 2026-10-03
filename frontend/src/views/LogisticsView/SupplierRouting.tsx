@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckSquare, Square, Send, Package, Check, Clock, Truck, CheckCircle2, XCircle, Search } from 'lucide-react';
+import { CheckSquare, Square, Send, Package, Check, Clock, Truck, CheckCircle2, XCircle, Search, FileSpreadsheet } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { StatusBadge, EmptyState, uzs, TableShell, Th, Td } from '../../components/ui';
 import { QabulQilishModali, OmmaviyQabulModali } from '../../components/QabulModallari';
@@ -235,9 +235,40 @@ export function YoldaPartiyalarSection() {
 
   const yoldaBatches = Array.from(yoldaBatchesMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
 
+  const exportYoldaToExcel = () => {
+    if (yoldaBuyurtmalar.length === 0) return;
+
+    const headers = ['#', 'Talaba ismi', 'Guruh', "O'qituvchi", 'Kitob nomi', 'Partiya (Yuborilgan vaqt)', 'Holati'];
+    
+    const rows = yoldaBuyurtmalar.map((o, i) => {
+      const invItem = getInventoryItem(o.bookId);
+      return [
+        i + 1,
+        `"${(getStudentName(o.studentId) || '').replace(/"/g, '""')}"`,
+        `"${(getGroupName(o.groupId) || '').replace(/"/g, '""')}"`,
+        `"${(groups.find(g => g.id === o.groupId)?.teacherName || '').replace(/"/g, '""')}"`,
+        `"${(invItem?.title || '').replace(/"/g, '""')}"`,
+        `"${(o.updatedAt || '').replace(/"/g, '""')}"`,
+        `"Yo'lda (ORDERED)"`
+      ];
+    });
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    const dateStr = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.setAttribute('download', `Yoldagi_Ta_minot_Partiyalari_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between px-1">
+      <div className="flex items-center justify-between px-1 flex-wrap gap-2">
         <div>
           <p className="text-base font-extrabold text-slate-800 flex items-center gap-2">
             <Truck className="w-5 h-5 text-amber-500" />
@@ -247,9 +278,20 @@ export function YoldaPartiyalarSection() {
             Telegramga yuborilgan har bir partiya alohida ajratilgan. Qabul qilishda partiyalar aralashib ketmaydi.
           </p>
         </div>
-        <span className="text-xs font-bold px-3 py-1 bg-amber-100 text-amber-800 rounded-lg">
-          Jami: {yoldaBuyurtmalar.length} ta darslik
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={exportYoldaToExcel}
+            disabled={yoldaBuyurtmalar.length === 0}
+            className="flex items-center gap-1.5 text-xs py-1.5 px-3 font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-sm transition-colors disabled:opacity-40"
+            title="Yo'ldagi barcha partiyalarni Excel (CSV) fayliga yuklash"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            Excel-ga yuklash
+          </button>
+          <span className="text-xs font-bold px-3 py-1 bg-amber-100 text-amber-800 rounded-lg">
+            Jami: {yoldaBuyurtmalar.length} ta darslik
+          </span>
+        </div>
       </div>
 
       {yoldaBuyurtmalar.length === 0 ? (

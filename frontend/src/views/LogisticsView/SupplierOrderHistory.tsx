@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
-import { History, Search, ChevronLeft, ChevronRight, Clock, RefreshCw } from 'lucide-react';
+import { History, Search, ChevronLeft, ChevronRight, Clock, RefreshCw, FileSpreadsheet } from 'lucide-react';
 import { TableShell, Th, Td, EmptyState } from '../../components/ui';
 
 interface DispatchedLog {
@@ -58,6 +58,35 @@ export default function SupplierOrderHistory() {
     );
   }, [logs, searchQuery]);
 
+  // Export filtered logs to Excel (CSV with UTF-8 BOM for Excel compatibility)
+  const exportToExcel = () => {
+    if (filteredLogs.length === 0) return;
+
+    const headers = ['#', 'Talaba ismi', 'Guruh', "O'qituvchi", 'Kitob nomi', "O'qituvchi buyurtma bergan vaqt", "Ta'minotchiga yuborilgan vaqt"];
+    
+    const rows = filteredLogs.map((l, i) => [
+      i + 1,
+      `"${(l.studentName || '').replace(/"/g, '""')}"`,
+      `"${(l.groupName || '').replace(/"/g, '""')}"`,
+      `"${(l.teacherName || '').replace(/"/g, '""')}"`,
+      `"${(l.bookTitle || '').replace(/"/g, '""')}"`,
+      `"${(l.orderCreatedAt || l.orderedAt || '').replace(/"/g, '""')}"`,
+      `"${(l.orderedAt || '').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    const dateStr = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.setAttribute('download', `Ta_minot_Buyurtmalar_Tarixi_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Paginate
   const totalPages = Math.max(1, Math.ceil(filteredLogs.length / pageSize));
   const validPage  = Math.min(currentPage, totalPages);
@@ -85,7 +114,16 @@ export default function SupplierOrderHistory() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+          <button
+            onClick={exportToExcel}
+            disabled={loading || filteredLogs.length === 0}
+            className="flex items-center gap-1.5 text-xs py-1.5 px-3 font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-sm transition-colors disabled:opacity-40"
+            title="Barcha buyurtmalar tarixini Excel (CSV) fayliga yuklash"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            Excel-ga yuklash
+          </button>
           <button
             onClick={fetchLogs}
             disabled={loading}
