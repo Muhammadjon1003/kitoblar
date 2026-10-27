@@ -4,18 +4,21 @@
  */
 
 import { useState } from 'react';
-import { Users, UserPlus, BookOpen, Calendar, Search, X, ChevronRight, UserCheck } from 'lucide-react';
+import { Users, UserPlus, BookOpen, Calendar, Search, X, ChevronRight, UserCheck, Pencil } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { TableShell, Th, Td, StatusBadge, EmptyState } from '../../components/ui';
 import { BulkAddStudentModal } from '../CashierView/StudentModals';
 import type { Group } from '../../types';
 
+const API = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
+
 interface GroupModalProps {
   group: Group;
   onClose: () => void;
+  onEditTeacher?: (group: Group) => void;
 }
 
-function GuruhTalabalariModali({ group, onClose }: GroupModalProps) {
+function GuruhTalabalariModali({ group, onClose, onEditTeacher }: GroupModalProps) {
   const { students, getStudentOrders, getInventoryItem } = useApp();
 
   const groupStudents = students.filter(s => s.groupId === group.id);
@@ -32,9 +35,21 @@ function GuruhTalabalariModali({ group, onClose }: GroupModalProps) {
               <BookOpen className="w-5 h-5" />
               <h3 className="text-base font-bold">{group.groupName} — Talabalar Ro'yxati</h3>
             </div>
-            <p className="text-xs text-blue-100 mt-0.5 font-medium">
-              O'qituvchi: {group.teacherName} · Jami: {groupStudents.length} ta talaba
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-xs text-blue-100 font-medium">
+                O'qituvchi: <span className="font-bold text-white">{group.teacherName}</span> · Jami: {groupStudents.length} ta talaba
+              </p>
+              {onEditTeacher && (
+                <button
+                  onClick={() => onEditTeacher(group)}
+                  className="px-2 py-0.5 bg-white/20 hover:bg-white/30 text-white text-[10px] font-bold rounded-md flex items-center gap-1 transition-colors"
+                  title="O'qituvchini o'zgartirish"
+                >
+                  <Pencil className="w-2.5 h-2.5" />
+                  O'zgartirish
+                </button>
+              )}
+            </div>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/15 text-white transition-colors">
             <X className="w-5 h-5" />
@@ -114,9 +129,157 @@ function GuruhTalabalariModali({ group, onClose }: GroupModalProps) {
   );
 }
 
+interface ChangeTeacherModalProps {
+  group: Group;
+  onClose: () => void;
+  onSuccess?: () => void;
+}
+
+function ChangeTeacherModal({ group, onClose, onSuccess }: ChangeTeacherModalProps) {
+  const { teachers, groups, refreshGroups, fireToast } = useApp();
+
+  const knownTeachers = Array.from(
+    new Set([
+      ...teachers.map(t => t.name),
+      ...groups.map(g => g.teacherName).filter(Boolean)
+    ])
+  ).sort();
+
+  const [teacherName, setTeacherName] = useState(group.teacherName);
+  const [isCustom, setIsCustom] = useState(!knownTeachers.includes(group.teacherName));
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const finalName = teacherName.trim();
+    if (!finalName) {
+      setError("O'qituvchi ismini kiritish shart.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API}/backend/groups/${group.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teacherName: finalName })
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "O'qituvchini o'zgartirishda xatolik yuz berdi.");
+      }
+      if (refreshGroups) await refreshGroups();
+      if (fireToast) {
+        fireToast(`Guruh (${group.groupName}) o'qituvchisi "${finalName}"ga o'zgartirildi`, 'success');
+      }
+      if (onSuccess) onSuccess();
+      onClose();
+    } catch (err: any) {
+      setError(err.message || "Xatolik yuz berdi");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-2xl z-10 overflow-hidden flex flex-col">
+        <div className="px-5 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <UserCheck className="w-5 h-5" />
+            <h3 className="text-sm font-bold">O'qituvchini o'zgartirish</h3>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/15 text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Guruh:</label>
+            <p className="text-xs font-semibold text-slate-800 bg-slate-100 px-3 py-2 rounded-xl">
+              {group.groupName} ({group.subjectCategory || 'Umumiy'})
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">O'qituvchini tanlang yoki yangisini yozing:</label>
+            {!isCustom ? (
+              <div className="space-y-2">
+                <select
+                  value={teacherName}
+                  onChange={(e) => {
+                    if (e.target.value === '__custom__') {
+                      setIsCustom(true);
+                      setTeacherName('');
+                    } else {
+                      setTeacherName(e.target.value);
+                    }
+                  }}
+                  className="w-full h-10 px-3 text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-300 rounded-xl focus:border-blue-500 focus:outline-none"
+                >
+                  <option value="">-- O'qituvchini tanlang --</option>
+                  {knownTeachers.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                  <option value="__custom__">+ Boshqa o'qituvchi kiritish...</option>
+                </select>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={teacherName}
+                  onChange={(e) => setTeacherName(e.target.value)}
+                  placeholder="O'qituvchi to'liq ismini kiriting..."
+                  className="w-full h-10 px-3 text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-300 rounded-xl focus:border-blue-500 focus:outline-none"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => { setIsCustom(false); setTeacherName(group.teacherName); }}
+                  className="text-[11px] text-blue-600 hover:underline font-bold"
+                >
+                  ← Ro'yxatdan tanlashga qaytish
+                </button>
+              </div>
+            )}
+          </div>
+
+          {error && (
+            <p className="text-xs text-red-600 font-semibold bg-red-50 p-2.5 rounded-lg border border-red-200">
+              {error}
+            </p>
+          )}
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors"
+            >
+              Bekor qilish
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
+            >
+              {loading ? "Saqlanmoqda..." : "Saqlash"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function ManagerGroupsView() {
   const { groups, students } = useApp();
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+  const [teacherEditGroup, setTeacherEditGroup] = useState<Group | null>(null);
   const [showBulkAddModal, setShowBulkAddModal] = useState(false);
   const [searchQuery, setSearchQuery]     = useState('');
 
@@ -141,7 +304,7 @@ export default function ManagerGroupsView() {
             Guruhlar Boshqaruvi
           </h2>
           <p className="text-xs font-semibold text-slate-600 mt-0.5">
-            Mavjud guruhlarni ko'rish va har bir guruh o'quvchilarining kitob olish va a'zolik tarixini tahlil qilish
+            Mavjud guruhlarni ko'rish, o'qituvchilarini yangilash va talabalarning kitoblar tarixini boshqarish
           </p>
         </div>
 
@@ -207,13 +370,29 @@ export default function ManagerGroupsView() {
                     </span>
                   </div>
 
-                  {/* Group Name & Teacher */}
+                  {/* Group Name */}
                   <h3 className="text-base font-bold text-slate-800 group-hover:text-blue-600 transition-colors">
                     {group.groupName}
                   </h3>
-                  <p className="text-xs text-slate-600 font-semibold mt-1">
-                    O'qituvchi: <span className="text-slate-800 font-bold">{group.teacherName}</span>
-                  </p>
+
+                  {/* Teacher with quick change button */}
+                  <div className="flex items-center justify-between mt-2 pt-1">
+                    <p className="text-xs text-slate-600 font-semibold truncate">
+                      O'qituvchi: <span className="text-slate-800 font-bold">{group.teacherName}</span>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTeacherEditGroup(group);
+                      }}
+                      className="px-2 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-600 font-bold text-[11px] rounded-lg border border-slate-200 hover:border-blue-300 flex items-center gap-1 transition-all shrink-0 ml-2"
+                      title="O'qituvchini o'zgartirish"
+                    >
+                      <Pencil className="w-3 h-3 text-blue-600" />
+                      O'zgartirish
+                    </button>
+                  </div>
 
                   {/* Dates */}
                   <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-semibold">
@@ -246,6 +425,22 @@ export default function ManagerGroupsView() {
         <GuruhTalabalariModali
           group={selectedGroup}
           onClose={() => setSelectedGroup(null)}
+          onEditTeacher={(grp) => setTeacherEditGroup(grp)}
+        />
+      )}
+
+      {/* Change Teacher Modal */}
+      {teacherEditGroup && (
+        <ChangeTeacherModal
+          group={teacherEditGroup}
+          onClose={() => setTeacherEditGroup(null)}
+          onSuccess={() => {
+            // Also update the currently open selected group if active
+            if (selectedGroup && selectedGroup.id === teacherEditGroup.id) {
+              const updated = groups.find(g => g.id === teacherEditGroup.id);
+              if (updated) setSelectedGroup(updated);
+            }
+          }}
         />
       )}
 

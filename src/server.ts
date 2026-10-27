@@ -12,6 +12,7 @@ import settingsRouter from './routes/settings';
 import usersRouter from './routes/users';
 import systemRouter, { webhookLogger } from './routes/system';
 import warehouseRouter from './routes/warehouse';
+import externalApiRouter from './routes/externalApi';
 
 dotenv.config();
 
@@ -54,6 +55,7 @@ app.use(settingsRouter);
 app.use(usersRouter);
 app.use(systemRouter);
 app.use(warehouseRouter);
+app.use(externalApiRouter);
 
 // Setup Telegram Webhook or Polling
 const PORT = process.env.PORT || 3000;
